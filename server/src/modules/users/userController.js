@@ -181,12 +181,10 @@ const updateUser = async (req, res, next) => {
   }
 };
 
-// =========================
-// DELETE USER
-// =========================
+
 const deleteUser = async (req, res, next) => {
   try {
-    // Prevent admin from deleting their own account
+    
     if (req.user._id.toString() === req.params.id) {
       return res.status(400).json({
         success: false,

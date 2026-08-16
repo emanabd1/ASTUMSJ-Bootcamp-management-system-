@@ -3,9 +3,7 @@ const bcrypt = require("bcryptjs");
 const User = require("../users/userModel");
 const generateToken = require("../../utils/generateToken");
 
-// =========================
-// REGISTER
-// =========================
+
 const register = async (req, res, next) => {
   try {
     const {
@@ -22,7 +20,7 @@ const register = async (req, res, next) => {
       });
     }
 
-    // Check existing user
+   
     const existingUser = await User.findOne({
       email: email.toLowerCase()
     });
@@ -34,13 +32,11 @@ const register = async (req, res, next) => {
       });
     }
 
-    // IMPORTANT:
-    // Public registration should NOT allow someone
-    // to create an Admin account.
+
     const safeRole =
       role === "Mentor" ? "Mentor" : "Student";
 
-    // Hash password
+  
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -69,9 +65,7 @@ const register = async (req, res, next) => {
   }
 };
 
-// =========================
-// LOGIN
-// =========================
+
 const login = async (req, res, next) => {
   try {
     const {
@@ -105,7 +99,6 @@ const login = async (req, res, next) => {
       });
     }
 
-    // Compare password
     const isPasswordCorrect = await bcrypt.compare(
       password,
       user.password
@@ -136,9 +129,7 @@ const login = async (req, res, next) => {
   }
 };
 
-// =========================
-// GET CURRENT USER
-// =========================
+
 const getMe = async (req, res, next) => {
   try {
     res.status(200).json({
