@@ -1,4 +1,5 @@
 const User = require("./userModel");
+const bcrypt = require("bcryptjs");
 
 // Get all users
 const getUsers = async (req, res, next) => {
@@ -27,8 +28,18 @@ const getUser = async (req, res, next) => {
 // Create user (Admin control)
 const createUser = async (req, res, next) => {
   try {
-    const user = await User.create(req.body);
-    res.status(201).json({ success: true, user });
+    const data = { ...req.body };
+    if (data.password) {
+      data.password = await bcrypt.hash(data.password, 10);
+    }
+    data.status = data.status || "approved";
+    data.bootcampReason = data.bootcampReason || "Created directly by administrator.";
+
+    const user = await User.create(data);
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
+    res.status(201).json({ success: true, user: userResponse });
   } catch (err) {
     next(err);
   }
@@ -38,7 +49,20 @@ const createUser = async (req, res, next) => {
 const updateUser = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const updatedUser = await User.findByIdAndUpdate(id, req.body, { new: true, runValidators: true }).select("-password");
+    const updateData = { ...req.body };
+
+    // If password is provided and not empty, hash it before updating
+    if (updateData.password && updateData.password.trim() !== "") {
+      updateData.password = await bcrypt.hash(updateData.password, 10);
+    } else {
+      delete updateData.password; // Do not overwrite with empty string
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(id, updateData, { 
+      new: true, 
+      runValidators: true 
+    }).select("-password");
+
     if (!updatedUser) {
       return res.status(404).json({ success: false, message: "User not found." });
     }

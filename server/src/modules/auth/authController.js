@@ -15,6 +15,8 @@ const register = async (req, res, next) => {
       codeforcesUrl,
       githubUrl,
       bootcampReason,
+      role,
+      status,
     } = req.body;
 
     const existingUser = await User.findOne({ email });
@@ -37,18 +39,15 @@ const register = async (req, res, next) => {
       leetcodeUrl,
       codeforcesUrl,
       githubUrl,
-      bootcampReason,
-
-      // New registered accounts are students
-      role: "student",
-
-      // Account needs admin approval
-      status: "pending",
+      bootcampReason: bootcampReason || "Created directly by administrator.",
+      role: role || "student",
+      status: status || "pending",
     });
 
     res.status(201).json({
       success: true,
-      message: "Registration successful. Pending admin approval.",
+      message: "Registration successful.",
+      user: newUser,
     });
   } catch (err) {
     next(err);
@@ -59,7 +58,6 @@ const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
-    // 1. Find user by email
     const user = await User.findOne({ email });
 
     if (!user) {
@@ -68,7 +66,6 @@ const login = async (req, res, next) => {
       });
     }
 
-    // 2. Check password
     const isMatch = await bcrypt.compare(
       password,
       user.password
@@ -80,7 +77,6 @@ const login = async (req, res, next) => {
       });
     }
 
-    // 3. Check admin approval
     if (
       user.status &&
       user.status === "pending" &&
@@ -91,7 +87,6 @@ const login = async (req, res, next) => {
       });
     }
 
-    // 4. Generate JWT
     const token = jwt.sign(
       {
         id: user._id,
@@ -103,11 +98,9 @@ const login = async (req, res, next) => {
       }
     );
 
-    // 5. Return token + user
     res.status(200).json({
       success: true,
       token,
-
       user: {
         id: user._id,
         fullName: user.fullName,
