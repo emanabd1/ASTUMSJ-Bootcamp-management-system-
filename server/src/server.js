@@ -6,6 +6,7 @@ const connectDB = require("./config/db");
 
 const authRoutes = require("./modules/auth/authRoutes");
 const userRoutes = require("./modules/users/userRoutes");
+const settingsRoutes = require("./src/modules/settings/settingsRoutes");
 
 const errorHandler = require("./middleware/errorHandler");
 
@@ -49,6 +50,8 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 
 app.use("/api/users", userRoutes);
+
+app.use("/api/settings", settingsRoutes);
 
 // Future modules
 // app.use("/api/batches", batchRoutes);
