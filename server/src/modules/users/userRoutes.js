@@ -5,7 +5,7 @@ const {
   getUser,
   createUser,
   updateUser,
-  deleteUser
+  deleteUser,
 } = require("./userController");
 
 const protect = require("../../middleware/authMiddleware");
@@ -16,9 +16,8 @@ const router = express.Router();
 // All user-management routes require:
 // 1. Authentication
 // 2. Admin role
-
 router.use(protect);
-router.use(authorize("Admin"));
+router.use(authorize("admin"));
 
 // GET /api/users
 router.get("/", getUsers);

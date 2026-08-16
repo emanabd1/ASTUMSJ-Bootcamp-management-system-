@@ -1,47 +1,56 @@
-const dotenv = require("dotenv");
+const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
+const dotenv = require("dotenv");
 
-const connectDB = require("../config/db");
-const User = require("../modules/users/userModel");
+const User = require("./modules/users/userModel");
 
 dotenv.config();
 
-const createAdmin = async () => {
+const seedAdmin = async () => {
   try {
-    await connectDB();
+    await mongoose.connect(process.env.MONGO_URI);
 
-    const existingAdmin = await User.findOne({
-      email: "admin@bootcamp.com"
-    });
-
-    if (existingAdmin) {
-      console.log("Admin already exists.");
-      process.exit(0);
-    }
-
-    const salt = await bcrypt.genSalt(10);
+    console.log("MongoDB connected.");
 
     const hashedPassword = await bcrypt.hash(
       "Admin@123456",
-      salt
+      10
     );
 
-    await User.create({
-      fullName: "System Administrator",
-      email: "admin@bootcamp.com",
-      password: hashedPassword,
-      role: "Admin"
-    });
+    const admin = await User.findOneAndUpdate(
+      {
+        email: "admin@bootcamp.com",
+      },
+      {
+        fullName: "System Administrator",
+        email: "admin@bootcamp.com",
+        password: hashedPassword,
 
-    console.log("Admin created successfully.");
-    console.log("Email: admin@bootcamp.com");
-    console.log("Password: Admin@123456");
+        role: "admin",
+        status: "approved",
+        isActive: true,
 
-    process.exit(0);
+        bootcampReason: "System administrator",
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    console.log("Admin account ready:");
+    console.log(admin.email);
+    console.log(admin.role);
+
+    await mongoose.disconnect();
+
+    console.log("MongoDB disconnected.");
   } catch (error) {
-    console.error(error);
+    console.error("Seed admin error:", error);
+
     process.exit(1);
   }
 };
 
-createAdmin();
+seedAdmin();
