@@ -6,7 +6,7 @@ const connectDB = require("./config/db");
 
 const authRoutes = require("./modules/auth/authRoutes");
 const userRoutes = require("./modules/users/userRoutes");
-const settingsRoutes = require("./src/modules/settings/settingsRoutes");
+const settingsRoutes = require("./modules/settings/settingsRoutes");
 
 const errorHandler = require("./middleware/errorHandler");
 
@@ -39,7 +39,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get("/api/health", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "Bootcamp Management System API is running."
+    message: "Role-Based Management System API is running."
   });
 });
 
