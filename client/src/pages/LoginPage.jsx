@@ -29,12 +29,8 @@ export default function LoginPage() {
 
   const navigate = useNavigate();
 
-  // FIXED
   const { login } = useAuth();
 
-  // =========================
-  // LOGIN
-  // =========================
   const handleLogin = async (e) => {
     e.preventDefault();
 
@@ -60,17 +56,11 @@ export default function LoginPage() {
       console.log("LOGGED IN USER:", user);
       console.log("USER ROLE:", user.role);
 
-      // Save authentication data
       login(user, token);
 
-      // Normalize role
       const role = user.role?.toLowerCase();
 
       console.log("NORMALIZED ROLE:", role);
-
-      // =========================
-      // ROLE-BASED REDIRECT
-      // =========================
 
       switch (role) {
         case "admin":
@@ -103,9 +93,6 @@ export default function LoginPage() {
     }
   };
 
-  // =========================
-  // SIGNUP
-  // =========================
   const handleFinalSignup = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -143,11 +130,7 @@ export default function LoginPage() {
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-[#c89b7b] font-serif overflow-hidden">
       <div className="relative flex h-[90vh] w-[85vw] max-w-5xl rounded-3xl bg-[#1e1713] shadow-2xl overflow-hidden">
-
-        {/* ================= STATIC BACKGROUND LOGO PANELS ================= */}
-
         <div className="absolute inset-0 flex">
-
           <div className="flex w-1/2 flex-col items-center justify-center bg-[#c89b7b] p-8 text-center text-[#1e1713]">
             <span className="mb-2 text-xs font-bold tracking-widest uppercase">
               ASTUMSJ SUMMER BOOTCAMP
@@ -195,23 +178,14 @@ export default function LoginPage() {
               Stay Iconic
             </h1>
           </div>
-
         </div>
-
-        {/* ================= SLIDING FORM OVERLAY ================= */}
 
         <div
           className={`absolute top-0 h-full w-1/2 bg-[#1e1713] flex flex-col justify-center px-10 text-[#f5efe6] transition-transform duration-700 ease-in-out z-20 shadow-2xl overflow-y-auto ${
             isSignup ? "translate-x-full" : "translate-x-0"
           }`}
         >
-
           {!isSignup ? (
-
-            /* =========================
-               LOGIN FORM
-            ========================= */
-
             <div>
               <h2 className="mb-6 text-3xl font-bold tracking-wide">
                 Welcome Back
@@ -227,7 +201,6 @@ export default function LoginPage() {
                 onSubmit={handleLogin}
                 className="space-y-4"
               >
-
                 <div>
                   <label className="text-xs text-[#a39081]">
                     Email
@@ -274,15 +247,12 @@ export default function LoginPage() {
                     ? "Logging in..."
                     : "Login"}
                 </button>
-
               </form>
 
               <div className="mt-6 text-center text-xs text-[#a39081]">
-
                 {isRegistrationOpen ? (
                   <p>
                     Don't have an account?{" "}
-
                     <button
                       type="button"
                       onClick={() => {
@@ -300,20 +270,11 @@ export default function LoginPage() {
                     Registration is currently closed by the admin.
                   </p>
                 )}
-
               </div>
             </div>
-
           ) : (
-
-            /* =========================
-               SIGNUP FORM
-            ========================= */
-
             <div>
-
               <div className="flex justify-between items-center mb-3">
-
                 <h2 className="text-xl font-bold tracking-wide">
                   Create Account
                 </h2>
@@ -321,7 +282,6 @@ export default function LoginPage() {
                 <span className="text-xs text-[#a39081]">
                   Step {signupStep} of 2
                 </span>
-
               </div>
 
               {message && (
@@ -331,9 +291,7 @@ export default function LoginPage() {
               )}
 
               {signupStep === 1 ? (
-
                 <div className="space-y-2.5">
-
                   <div>
                     <label className="text-xs text-[#a39081]">
                       Full Name
@@ -392,7 +350,6 @@ export default function LoginPage() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
-
                     <div>
                       <label className="text-xs text-[#a39081]">
                         Gender
@@ -448,7 +405,6 @@ export default function LoginPage() {
                         </option>
                       </select>
                     </div>
-
                   </div>
 
                   <div>
@@ -488,16 +444,12 @@ export default function LoginPage() {
                   >
                     Next: Coding Profiles & Motivation →
                   </button>
-
                 </div>
-
               ) : (
-
                 <form
                   onSubmit={handleFinalSignup}
                   className="space-y-2.5"
                 >
-
                   <div>
                     <label className="text-xs text-[#a39081]">
                       LeetCode Profile URL
@@ -564,7 +516,6 @@ export default function LoginPage() {
                   </div>
 
                   <div className="flex gap-2 pt-1">
-
                     <button
                       type="button"
                       onClick={() => setSignupStep(1)}
@@ -582,16 +533,12 @@ export default function LoginPage() {
                         ? "Submitting..."
                         : "Complete Signup"}
                     </button>
-
                   </div>
-
                 </form>
               )}
 
               <div className="mt-3 text-center text-xs text-[#a39081]">
-
                 Already have an account?{" "}
-
                 <button
                   type="button"
                   onClick={() => {
@@ -603,14 +550,10 @@ export default function LoginPage() {
                 >
                   Login
                 </button>
-
               </div>
-
             </div>
           )}
-
         </div>
-
       </div>
     </div>
   );
