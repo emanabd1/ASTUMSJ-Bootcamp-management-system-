@@ -1,0 +1,3 @@
+const mongoose=require('mongoose');
+const assignmentSchema=new mongoose.Schema({title:{type:String,required:true,trim:true},description:{type:String,required:true,trim:true},instructions:{type:String,default:'',trim:true},batch:{type:String,default:'',trim:true},deadline:{type:Date,required:true},maximumScore:{type:Number,required:true,min:0},resourceLink:{type:String,default:'',trim:true},resourceFile:{type:String,default:''},creator:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true},targetStudents:[{type:mongoose.Schema.Types.ObjectId,ref:'User'}],status:{type:String,enum:['active','closed'],default:'active'}},{timestamps:true});
+assignmentSchema.index({deadline:1});module.exports=mongoose.model('Assignment',assignmentSchema);

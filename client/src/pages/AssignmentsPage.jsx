@@ -1,0 +1,53 @@
+import React,{useEffect,useState} from 'react';
+import axiosInstance from '../api/axiosInstance';
+import {useAuth} from '../hooks/useAuth';
+const field='w-full rounded-xl border border-[#4a3b32] bg-[#16110e] px-3 py-2 text-sm text-[#f5efe6] focus:border-[#c89b7b] focus:outline-none';
+export default function AssignmentsPage(){
+ const {user}=useAuth(); const [items,setItems]=useState([]),[selected,setSelected]=useState(null),[detail,setDetail]=useState(null),[showCreate,setShowCreate]=useState(false),[message,setMessage]=useState('');
+ const [form,setForm]=useState({title:'',description:'',instructions:'',batch:'',deadline:'',maximumScore:100,resourceLink:''});
+ const [submit,setSubmit]=useState({method:'github',githubUrl:'',textAnswer:'',files:[]}); const [grade,setGrade]=useState({score:'',feedback:'',status:'graded'});
+ const load=async()=>{try{const r=await axiosInstance.get('/assignments');setItems(r.data.assignments||[])}catch(e){setMessage(e.response?.data?.message||'Could not load assignments.')}}; useEffect(()=>{load()},[]);
+ const open=async id=>{try{const r=await axiosInstance.get(`/assignments/${id}`);setSelected(id);setDetail(r.data)}catch(e){setMessage(e.response?.data?.message||'Could not load assignment.')}};
+ const create=async e=>{e.preventDefault();try{const fd=new FormData();Object.entries(form).forEach(([k,v])=>fd.append(k,v));if(e.target.resourceFile.files[0])fd.append('resourceFile',e.target.resourceFile.files[0]);await axiosInstance.post('/assignments',fd,{headers:{'Content-Type':'multipart/form-data'}});setShowCreate(false);setForm({title:'',description:'',instructions:'',batch:'',deadline:'',maximumScore:100,resourceLink:''});setMessage('Assignment created and students notified.');load()}catch(e){setMessage(e.response?.data?.message||'Could not create assignment.')}};
+ const submitAssignment=async e=>{e.preventDefault();try{const fd=new FormData();fd.append('method',submit.method);fd.append('githubUrl',submit.githubUrl);fd.append('textAnswer',submit.textAnswer);[...submit.files].forEach(f=>fd.append('files',f));await axiosInstance.post(`/assignments/${selected}/submit`,fd,{headers:{'Content-Type':'multipart/form-data'}});setMessage('Assignment submitted.');open(selected)}catch(e){setMessage(e.response?.data?.message||'Could not submit.')}};
+ const saveGrade=async id=>{try{await axiosInstance.patch(`/assignments/${selected}/submissions/${id}/grade`,grade);setMessage(grade.status==='redo'?'Resubmission requested.':'Grade saved and student notified.');open(selected)}catch(e){setMessage(e.response?.data?.message||'Could not grade.')}};
+ const canCreate=user?.role==='admin'||user?.role==='mentor';
+ return <div className="space-y-7">
+  <div className="flex flex-wrap items-center justify-between gap-3">
+   <div><h1 className="text-3xl font-extrabold">{user?.role==='student'?'Assignments':'Assignments & Grading'}</h1><p className="text-xs text-[#a39081]">Create, submit, review and grade assignments using the SRS workflow.</p></div>
+   {canCreate && <button onClick={()=>setShowCreate(true)} className="rounded-xl bg-[#c89b7b] px-4 py-2 text-xs font-bold text-[#1e1713]">+ Create Assignment</button>}
+  </div>
+  {message && <p className="rounded-xl border border-[#4a3b32] bg-[#1e1713] p-3 text-sm text-amber-400">{message}</p>}
+  <div className="grid gap-4">
+   {items.map(a=><button key={a._id} onClick={()=>open(a._id)} className="text-left rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5 hover:border-[#c89b7b] transition"><div className="flex flex-wrap justify-between gap-3"><div><h2 className="font-bold text-lg">{a.title}</h2><p className="mt-1 text-xs text-[#a39081]">{a.description}</p></div><div className="text-right text-xs"><p className="text-[#c89b7b]">{a.maximumScore} points</p><p className="text-[#a39081]">Due {new Date(a.deadline).toLocaleString()}</p></div></div></button>)}
+  </div>
+  {showCreate && <div className="fixed inset-0 z-50 bg-black/70 p-4 flex items-center justify-center" onClick={()=>setShowCreate(false)}>
+   <form onSubmit={create} onClick={e=>e.stopPropagation()} className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-[#4a3b32] bg-[#1e1713] p-6 space-y-3">
+    <div className="flex justify-between"><h2 className="text-2xl font-bold">Create Assignment</h2><button type="button" onClick={()=>setShowCreate(false)}>✕</button></div>
+    {[['title','Title'],['description','Description'],['instructions','Instructions'],['batch','Batch (optional)'],['deadline','Deadline'],['maximumScore','Maximum score'],['resourceLink','Resource link (optional)']].map(([k,l])=><label key={k} className="block text-xs text-[#a39081]">{l}<input type={k==='deadline'?'datetime-local':k==='maximumScore'?'number':'text'} value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})} className={field} required={['title','description','deadline','maximumScore'].includes(k)}/></label>)}
+    <label className="block text-xs text-[#a39081]">Optional resource file<input name="resourceFile" type="file" className={field}/></label>
+    <button className="w-full rounded-xl bg-[#c89b7b] py-3 font-bold text-[#1e1713]">Create & Notify Students</button>
+   </form>
+  </div>}
+  {detail && <div className="fixed inset-0 z-50 bg-black/70 p-4 flex items-center justify-center" onClick={()=>setDetail(null)}>
+   <div onClick={e=>e.stopPropagation()} className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-[#4a3b32] bg-[#1e1713] p-6">
+    <div className="flex justify-between"><div><h2 className="text-2xl font-bold">{detail.assignment.title}</h2><p className="text-xs text-[#a39081]">{detail.assignment.description}</p></div><button onClick={()=>setDetail(null)}>✕</button></div>
+    <div className="mt-4 grid md:grid-cols-3 gap-3 text-sm"><div className="rounded-xl border border-[#4a3b32] p-3">Instructions<br/><span className="text-[#a39081]">{detail.assignment.instructions||'—'}</span></div><div className="rounded-xl border border-[#4a3b32] p-3">Deadline<br/><b>{new Date(detail.assignment.deadline).toLocaleString()}</b></div><div className="rounded-xl border border-[#4a3b32] p-3">Maximum score<br/><b>{detail.assignment.maximumScore}</b></div></div>
+    {user?.role==='student' ? <form onSubmit={submitAssignment} className="mt-6 space-y-3">
+      <h3 className="font-bold">{detail.submission?.status==='redo'?'Resubmit Assignment':'Submit Assignment'}</h3>
+      <select className={field} value={submit.method} onChange={e=>setSubmit({...submit,method:e.target.value})}><option value="github">GitHub link</option><option value="files">Upload files / folder</option><option value="text">Write answer</option></select>
+      {submit.method==='github' && <input className={field} placeholder="https://github.com/..." value={submit.githubUrl} onChange={e=>setSubmit({...submit,githubUrl:e.target.value})}/>} 
+      {submit.method==='files' && <input className={field} type="file" multiple onChange={e=>setSubmit({...submit,files:e.target.files})}/>} 
+      {submit.method==='text' && <textarea className={field+' min-h-40'} placeholder="Write your submission..." value={submit.textAnswer} onChange={e=>setSubmit({...submit,textAnswer:e.target.value})}/>} 
+      {detail.submission?.status==='graded' && <div className="rounded-xl border border-emerald-900/50 bg-emerald-950/20 p-4 text-sm">Score: <b>{detail.submission.score}/{detail.assignment.maximumScore}</b><br/>Feedback: {detail.submission.feedback||'No feedback.'}</div>}
+      {detail.submission?.status==='redo' && <div className="rounded-xl border border-amber-900/50 p-4 text-sm">Feedback: {detail.submission.feedback||'Please improve and resubmit.'}</div>}
+      <button className="rounded-xl bg-[#c89b7b] px-5 py-2 text-xs font-bold text-[#1e1713]">Submit</button>
+    </form> : <div className="mt-6"><h3 className="font-bold">Student Submissions</h3>
+      {(detail.submissions||[]).length===0 ? <p className="mt-3 text-xs text-[#a39081]">No submissions yet.</p> : <div className="mt-3 space-y-3">
+       {detail.submissions.map(s=><div key={s._id} className="rounded-xl border border-[#4a3b32] p-4"><div className="flex flex-wrap justify-between gap-3"><div><b>{s.student.fullName}</b><p className="text-xs text-[#a39081]">{s.student.email} · {s.method}</p>{s.githubUrl&&<a className="text-[#c89b7b] text-xs" href={s.githubUrl} target="_blank" rel="noreferrer">GitHub submission</a>}{s.textAnswer&&<p className="mt-2 text-xs whitespace-pre-wrap">{s.textAnswer}</p>}{s.files?.map(f=><a key={f.path} className="block text-xs text-[#c89b7b]" href={axiosInstance.defaults.baseURL.replace('/api','')+f.path} target="_blank" rel="noreferrer">{f.originalName}</a>)}</div><div className="min-w-[260px] space-y-2"><input className={field} type="number" placeholder={`Score / ${detail.assignment.maximumScore}`} value={grade.score} onChange={e=>setGrade({...grade,score:e.target.value})}/><textarea className={field} placeholder="Feedback" value={grade.feedback} onChange={e=>setGrade({...grade,feedback:e.target.value})}/><select className={field} value={grade.status} onChange={e=>setGrade({...grade,status:e.target.value})}><option value="graded">Grade</option><option value="redo">Request resubmission</option></select><button type="button" onClick={()=>saveGrade(s._id)} className="w-full rounded-xl bg-[#c89b7b] py-2 text-xs font-bold text-[#1e1713]">Save feedback</button></div></div></div>)}
+      </div>}
+    </div>}
+   </div>
+  </div>}
+ </div>;
+}

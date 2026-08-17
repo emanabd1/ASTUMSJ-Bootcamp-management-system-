@@ -1,0 +1,18 @@
+const express = require("express");
+const { getUsers, getPendingApplications, getUser, createUser, updateUser, deleteUser, getStats, assignMentor, unassignMentor, getMentors } = require("./userController");
+const protect = require("../../middleware/authMiddleware");
+const authorize = require("../../middleware/roleMiddleware");
+const router = express.Router();
+router.use(protect, authorize("admin"));
+router.get("/stats", getStats);
+router.get("/mentors", getMentors);
+router.get("/applications/pending", getPendingApplications);
+router.get("/", getUsers);
+router.get("/:id", getUser);
+router.post("/", createUser);
+router.put("/:id", updateUser);
+router.patch("/:id", updateUser);
+router.post("/:id/assign-mentor", assignMentor);
+router.delete("/:id/assign-mentor", unassignMentor);
+router.delete("/:id", deleteUser);
+module.exports = router;
