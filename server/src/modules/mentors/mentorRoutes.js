@@ -1,0 +1,74 @@
+const express = require("express");
+const User = require("../users/userModel");
+const Attendance = require("../attendance/attendanceModel");
+const Progress = require("../progress/progressModel");
+const protect = require("../../middleware/authMiddleware");
+const authorize = require("../../middleware/roleMiddleware");
+const router = express.Router();
+router.use(protect, authorize("mentor"));
+
+const ensureAssignedStudent = async (mentorId, studentId) => {
+  return User.findOne({ _id: studentId, role: "student", mentor: mentorId, status: "approved", isActive: true });
+};
+
+router.get("/students", async (req, res, next) => {
+  try {
+    const students = await User.find({ role: "student", mentor: req.user._id, status: "approved", isActive: true })
+      .select("-password -passwordResetOtpHash -passwordResetOtpExpiresAt -passwordResetAttempts")
+      .sort({ fullName: 1 });
+    const enriched = await Promise.all(students.map(async (student) => {
+      const [attendance, progress] = await Promise.all([
+        Attendance.find({ student: student._id }).sort({ date: -1 }),
+        Progress.find({ student: student._id }).sort({ topic: 1 })
+      ]);
+      const presentLike = attendance.filter(a => ["Present", "Late"].includes(a.status)).length;
+      const attendancePercentage = attendance.length ? Math.round((presentLike / attendance.length) * 100) : 0;
+      return { ...student.toObject(), attendancePercentage, progressCompleted: progress.filter(p => p.status === "Completed").length, progressTotal: progress.length };
+    }));
+    res.json({ success: true, students: enriched });
+  } catch (error) { next(error); }
+});
+
+router.get("/students/:studentId", async (req, res, next) => {
+  try {
+    const student = await ensureAssignedStudent(req.user._id, req.params.studentId);
+    if (!student) return res.status(404).json({ success: false, message: "Assigned student not found." });
+    const [attendance, progress] = await Promise.all([
+      Attendance.find({ student: student._id }).sort({ date: -1 }),
+      Progress.find({ student: student._id }).sort({ topic: 1 })
+    ]);
+    res.json({ success: true, student: student.toObject(), attendance, progress });
+  } catch (error) { next(error); }
+});
+
+router.post("/students/:studentId/attendance", async (req, res, next) => {
+  try {
+    const student = await ensureAssignedStudent(req.user._id, req.params.studentId);
+    if (!student) return res.status(404).json({ success: false, message: "Assigned student not found." });
+    const { date, status, note } = req.body;
+    if (!date || !["Present", "Absent", "Late", "Excused"].includes(status)) return res.status(400).json({ success: false, message: "Date and valid attendance status are required." });
+    const record = await Attendance.findOneAndUpdate(
+      { student: student._id, date: new Date(date) },
+      { student: student._id, mentor: req.user._id, date: new Date(date), status, note: note || "" },
+      { new: true, upsert: true, runValidators: true }
+    );
+    res.json({ success: true, message: "Attendance saved.", attendance: record });
+  } catch (error) { next(error); }
+});
+
+router.post("/students/:studentId/progress", async (req, res, next) => {
+  try {
+    const student = await ensureAssignedStudent(req.user._id, req.params.studentId);
+    if (!student) return res.status(404).json({ success: false, message: "Assigned student not found." });
+    const { topic, status, note } = req.body;
+    if (!topic || !["Not Started", "In Progress", "Completed", "Needs Improvement"].includes(status)) return res.status(400).json({ success: false, message: "Topic and valid progress status are required." });
+    const record = await Progress.findOneAndUpdate(
+      { student: student._id, topic: topic.trim() },
+      { student: student._id, mentor: req.user._id, topic: topic.trim(), status, note: note || "" },
+      { new: true, upsert: true, runValidators: true }
+    );
+    res.json({ success: true, message: "Progress saved.", progress: record });
+  } catch (error) { next(error); }
+});
+
+module.exports = router;
