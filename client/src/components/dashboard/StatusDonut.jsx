@@ -12,9 +12,6 @@ function describeArc(cx, cy, r, startAngle, endAngle) {
   return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`;
 }
 
-/**
- * segments: [{ label, value, color }]
- */
 export default function StatusDonut({ segments, size = 160, strokeWidth = 22 }) {
   const total = segments.reduce((n, s) => n + s.value, 0) || 1;
   const cx = size / 2;

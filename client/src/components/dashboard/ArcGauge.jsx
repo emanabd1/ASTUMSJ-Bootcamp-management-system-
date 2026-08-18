@@ -1,12 +1,10 @@
 import React from "react";
 
-// Converts polar coordinates to cartesian, used to plot points along the arc.
 function polarToCartesian(cx, cy, r, angleDeg) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
   return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
 }
 
-// Builds an SVG arc path between two angles.
 function describeArc(cx, cy, r, startAngle, endAngle) {
   const start = polarToCartesian(cx, cy, r, endAngle);
   const end = polarToCartesian(cx, cy, r, startAngle);
@@ -14,10 +12,6 @@ function describeArc(cx, cy, r, startAngle, endAngle) {
   return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
 }
 
-/**
- * A 270-degree progress arc with a deliberate open gap at the bottom —
- * a nod to the crescent in the ASTUMSJ logo. Track spans -225deg to 45deg.
- */
 export default function ArcGauge({
   value = 0,
   label,

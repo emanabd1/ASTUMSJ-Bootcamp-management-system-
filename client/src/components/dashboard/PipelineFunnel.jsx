@@ -1,9 +1,5 @@
 import React from "react";
 
-/**
- * stages: [{ label, value, color }] — expected in descending order of the pipeline.
- * Renders as connected horizontal segments whose widths taper to show drop-off.
- */
 export default function PipelineFunnel({ stages }) {
   const max = Math.max(...stages.map((s) => s.value), 1);
 

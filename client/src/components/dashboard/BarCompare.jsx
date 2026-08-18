@@ -1,9 +1,5 @@
 import React from "react";
 
-/**
- * items: [{ label, value, color }]
- * Renders horizontal bars scaled against the largest value in the set.
- */
 export default function BarCompare({ items }) {
   const max = Math.max(...items.map((i) => i.value), 1);
 
