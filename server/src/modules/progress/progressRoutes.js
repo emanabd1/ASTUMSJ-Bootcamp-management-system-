@@ -1,7 +1,189 @@
-const express=require("express");const Progress=require("./progressModel");const User=require("../users/userModel");const protect=require("../../middleware/authMiddleware");const authorize=require("../../middleware/roleMiddleware");const {body}=require("../../validation");const {canManage,summarize}=require("../../services/progressService");const router=express.Router();router.use(protect);const statuses=['Not Started','In Progress','Completed','Needs Improvement'];
-router.get('/',async(req,res,next)=>{try{let q={};if(req.user.role==='student')q.student=req.user._id;else if(req.user.role==='mentor'){const ss=await User.find({role:'student',mentor:req.user._id,status:'approved',isActive:true}).select('_id');q.student={$in:ss.map(s=>s._id)};}else if(req.query.studentId)q.student=req.query.studentId;const records=await Progress.find(q).populate('student','fullName email').populate('mentor','fullName').sort({student:1,topic:1});res.json({success:true,progress:records,summary:summarize(records)});}catch(e){next(e);}});
-router.get('/student/:studentId',async(req,res,next)=>{try{if(req.user.role==='student'&&String(req.user._id)!==String(req.params.studentId))return res.status(403).json({success:false,message:'You can only view your own progress.'});if(req.user.role==='mentor'&&!await canManage(req.user,req.params.studentId))return res.status(403).json({success:false,message:'You can only view assigned students.'});const records=await Progress.find({student:req.params.studentId}).populate('mentor','fullName').sort({topic:1});res.json({success:true,progress:records,summary:summarize(records)});}catch(e){next(e);}});
-router.get('/at-risk',authorize('admin','mentor'),async(req,res,next)=>{try{const students=req.user.role==='mentor'?await User.find({role:'student',mentor:req.user._id,status:'approved',isActive:true}).select('_id fullName email'):await User.find({role:'student',status:'approved',isActive:true}).select('_id fullName email');const rows=[];for(const s of students){const records=await Progress.find({student:s._id});const summary=summarize(records);if(summary.atRisk)rows.push({...s.toObject(),progressSummary:summary});}res.json({success:true,count:rows.length,students:rows});}catch(e){next(e);}});
-router.post('/',authorize('admin','mentor'),body({studentId:{required:true,type:'objectId'},topic:{required:true,maxLength:200},status:{required:true,enum:statuses}}),async(req,res,next)=>{try{if(!(await canManage(req.user,req.body.studentId)))return res.status(403).json({success:false,message:'You can only manage assigned students.'});const r=await Progress.findOneAndUpdate({student:req.body.studentId,topic:req.body.topic.trim()},{student:req.body.studentId,mentor:req.user._id,topic:req.body.topic.trim(),status:req.body.status,note:String(req.body.note||'').trim()},{new:true,upsert:true,runValidators:true});res.status(201).json({success:true,progress:r});}catch(e){next(e);}});
-router.patch('/:id',authorize('admin','mentor'),async(req,res,next)=>{try{const r=await Progress.findById(req.params.id);if(!r)return res.status(404).json({success:false,message:'Progress record not found.'});if(!(await canManage(req.user,r.student)))return res.status(403).json({success:false,message:'You can only manage assigned students.'});if(req.body.status!==undefined&&!statuses.includes(req.body.status))return res.status(400).json({success:false,message:'Invalid progress status.'});if(req.body.topic!==undefined)r.topic=String(req.body.topic).trim();if(req.body.status!==undefined)r.status=req.body.status;if(req.body.note!==undefined)r.note=String(req.body.note).trim();await r.save();res.json({success:true,progress:r});}catch(e){next(e);}});
-router.delete('/:id',authorize('admin','mentor'),async(req,res,next)=>{try{const r=await Progress.findById(req.params.id);if(!r)return res.status(404).json({success:false,message:'Progress record not found.'});if(!(await canManage(req.user,r.student)))return res.status(403).json({success:false,message:'You can only manage assigned students.'});await r.deleteOne();res.json({success:true,message:'Progress deleted.'});}catch(e){next(e);}});module.exports=router;
+const express = require("express");
+const Progress = require("./progressModel");
+const User = require("../users/userModel");
+const protect = require("../../middleware/authMiddleware");
+const authorize = require("../../middleware/roleMiddleware");
+const { body } = require("../../validation");
+const { canManage, summarize } = require("../../services/progressService");
+
+const router = express.Router();
+
+router.use(protect);
+
+const statuses = ['Not Started', 'In Progress', 'Completed', 'Needs Improvement'];
+
+router.get('/', async (req, res, next) => {
+  try {
+    let q = {};
+
+    if (req.user.role === 'student') {
+      q.student = req.user._id;
+    } else if (req.user.role === 'mentor') {
+      const ss = await User.find({
+        role: 'student',
+        mentor: req.user._id,
+        status: 'approved',
+        isActive: true
+      }).select('_id');
+
+      q.student = { $in: ss.map((s) => s._id) };
+    } else if (req.query.studentId) {
+      q.student = req.query.studentId;
+    }
+
+    const records = await Progress.find(q)
+      .populate('student', 'fullName email')
+      .populate('mentor', 'fullName')
+      .sort({ student: 1, topic: 1 });
+
+    res.json({
+      success: true,
+      progress: records,
+      summary: summarize(records)
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get('/student/:studentId', async (req, res, next) => {
+  try {
+    if (req.user.role === 'student' && String(req.user._id) !== String(req.params.studentId)) {
+      return res.status(403).json({ success: false, message: 'You can only view your own progress.' });
+    }
+
+    if (req.user.role === 'mentor' && !(await canManage(req.user, req.params.studentId))) {
+      return res.status(403).json({ success: false, message: 'You can only view assigned students.' });
+    }
+
+    const records = await Progress.find({ student: req.params.studentId })
+      .populate('mentor', 'fullName')
+      .sort({ topic: 1 });
+
+    res.json({
+      success: true,
+      progress: records,
+      summary: summarize(records)
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get('/at-risk', authorize('admin', 'mentor'), async (req, res, next) => {
+  try {
+    const students =
+      req.user.role === 'mentor'
+        ? await User.find({
+            role: 'student',
+            mentor: req.user._id,
+            status: 'approved',
+            isActive: true
+          }).select('_id fullName email')
+        : await User.find({
+            role: 'student',
+            status: 'approved',
+            isActive: true
+          }).select('_id fullName email');
+
+    const rows = [];
+
+    for (const s of students) {
+      const records = await Progress.find({ student: s._id });
+      const summary = summarize(records);
+      
+      if (summary.atRisk) {
+        rows.push({ ...s.toObject(), progressSummary: summary });
+      }
+    }
+
+    res.json({ success: true, count: rows.length, students: rows });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post(
+  '/',
+  authorize('admin', 'mentor'),
+  body({
+    studentId: { required: true, type: 'objectId' },
+    topic: { required: true, maxLength: 200 },
+    status: { required: true, enum: statuses }
+  }),
+  async (req, res, next) => {
+    try {
+      if (!(await canManage(req.user, req.body.studentId))) {
+        return res.status(403).json({ success: false, message: 'You can only manage assigned students.' });
+      }
+
+      const r = await Progress.findOneAndUpdate(
+        { student: req.body.studentId, topic: req.body.topic.trim() },
+        {
+          student: req.body.studentId,
+          mentor: req.user._id,
+          topic: req.body.topic.trim(),
+          status: req.body.status,
+          note: String(req.body.note || '').trim()
+        },
+        { new: true, upsert: true, runValidators: true }
+      );
+
+      res.status(201).json({ success: true, progress: r });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+router.patch('/:id', authorize('admin', 'mentor'), async (req, res, next) => {
+  try {
+    const r = await Progress.findById(req.params.id);
+    if (!r) {
+      return res.status(404).json({ success: false, message: 'Progress record not found.' });
+    }
+
+    if (!(await canManage(req.user, r.student))) {
+      return res.status(403).json({ success: false, message: 'You can only manage assigned students.' });
+    }
+
+    if (req.body.status !== undefined && !statuses.includes(req.body.status)) {
+      return res.status(400).json({ success: false, message: 'Invalid progress status.' });
+    }
+
+    if (req.body.topic !== undefined) {
+      r.topic = String(req.body.topic).trim();
+    }
+    if (req.body.status !== undefined) {
+      r.status = req.body.status;
+    }
+    if (req.body.note !== undefined) {
+      r.note = String(req.body.note).trim();
+    }
+
+    await r.save();
+    res.json({ success: true, progress: r });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.delete('/:id', authorize('admin', 'mentor'), async (req, res, next) => {
+  try {
+    const r = await Progress.findById(req.params.id);
+    if (!r) {
+      return res.status(404).json({ success: false, message: 'Progress record not found.' });
+    }
+
+    if (!(await canManage(req.user, r.student))) {
+      return res.status(403).json({ success: false, message: 'You can only manage assigned students.' });
+    }
+
+    await r.deleteOne();
+    res.json({ success: true, message: 'Progress deleted.' });
+  } catch (e) {
+    next(e);
+  }
+});
+
+module.exports = router;
