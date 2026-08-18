@@ -1,3 +1,27 @@
-const User=require("../modules/users/userModel");
-async function recipientsFor(author,targetAudience,batchId){ const base={status:'approved',isActive:true}; if(author.role==='mentor'){ const q={...base,role:'student',mentor:author._id}; if(targetAudience==='batch') q.batch=batchId; return User.find(q).select('_id'); } if(targetAudience==='all') return User.find({...base,role:{$in:['student','mentor']}}).select('_id'); if(targetAudience==='students') return User.find({...base,role:'student'}).select('_id'); if(targetAudience==='mentors') return User.find({...base,role:'mentor'}).select('_id'); return User.find({...base,role:'student',batch:batchId}).select('_id'); }
-module.exports={recipientsFor};
+const User = require("../modules/users/userModel");
+
+async function recipientsFor(author, targetAudience, batchId) {
+  const base = { status: 'approved', isActive: true };
+
+  if (author.role === 'mentor') {
+    const q = { ...base, role: 'student', mentor: author._id };
+    if (targetAudience === 'batch') q.batch = batchId;
+    return User.find(q).select('_id');
+  }
+
+  if (targetAudience === 'all') {
+    return User.find({ ...base, role: { $in: ['student', 'mentor'] } }).select('_id');
+  }
+
+  if (targetAudience === 'students') {
+    return User.find({ ...base, role: 'student' }).select('_id');
+  }
+
+  if (targetAudience === 'mentors') {
+    return User.find({ ...base, role: 'mentor' }).select('_id');
+  }
+
+  return User.find({ ...base, role: 'student', batch: batchId }).select('_id');
+}
+
+module.exports = { recipientsFor };
