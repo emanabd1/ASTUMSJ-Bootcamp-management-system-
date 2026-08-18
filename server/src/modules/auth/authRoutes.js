@@ -1,12 +1,67 @@
 const express = require("express");
 const { register, login, forgotPassword, resetPassword, changePassword, me } = require("./authController");
 const protect = require("../../middleware/authMiddleware");
-const router = express.Router();
 const { body } = require("../../validation");
-router.post("/register", body({fullName:{required:true,maxLength:120},email:{required:true},password:{required:true},confirmPassword:{required:true},gender:{required:true},department:{required:true},yearOfStudy:{required:true},bootcampReason:{required:true,maxLength:3000},githubUrl:{type:"url"},leetcodeUrl:{type:"url"},codeforcesUrl:{type:"url"}}), register);
-router.post("/login", body({email:{required:true},password:{required:true}}), login);
-router.post("/forgot-password", body({email:{required:true}}), forgotPassword);
-router.post("/reset-password", body({email:{required:true},otp:{required:true},password:{required:true},confirmPassword:{required:true}}), resetPassword);
-router.post("/change-password", protect, body({currentPassword:{required:true},newPassword:{required:true},confirmPassword:{required:true}}), changePassword);
+
+const router = express.Router();
+
+router.post(
+  "/register",
+  body({
+    fullName: { required: true, maxLength: 120 },
+    email: { required: true },
+    password: { required: true },
+    confirmPassword: { required: true },
+    gender: { required: true },
+    department: { required: true },
+    yearOfStudy: { required: true },
+    bootcampReason: { required: true, maxLength: 3000 },
+    githubUrl: { type: "url" },
+    leetcodeUrl: { type: "url" },
+    codeforcesUrl: { type: "url" }
+  }),
+  register
+);
+
+router.post(
+  "/login",
+  body({
+    email: { required: true },
+    password: { required: true }
+  }),
+  login
+);
+
+router.post(
+  "/forgot-password",
+  body({
+    email: { required: true }
+  }),
+  forgotPassword
+);
+
+router.post(
+  "/reset-password",
+  body({
+    email: { required: true },
+    otp: { required: true },
+    password: { required: true },
+    confirmPassword: { required: true }
+  }),
+  resetPassword
+);
+
+router.post(
+  "/change-password",
+  protect,
+  body({
+    currentPassword: { required: true },
+    newPassword: { required: true },
+    confirmPassword: { required: true }
+  }),
+  changePassword
+);
+
 router.get("/me", protect, me);
+
 module.exports = router;
