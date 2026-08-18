@@ -1,6 +1,84 @@
-const express=require('express');const Notification=require('./notificationModel');const Assignment=require('../assignments/assignmentModel');const protect=require('../../middleware/authMiddleware');
-const router=express.Router();router.use(protect);
-router.get('/',async(req,res,next)=>{try{if(req.user.role==='student'){const upcoming=await Assignment.find({deadline:{$gt:new Date(),$lte:new Date(Date.now()+48*3600000)},$or:[{targetStudents:req.user._id},{targetStudents:{$size:0}}]}).select('_id title deadline');for(const a of upcoming){await Notification.updateOne({user:req.user._id,type:'deadline','meta.assignmentId':String(a._id)},{$setOnInsert:{title:'Assignment deadline approaching',message:`${a.title} is due on ${new Date(a.deadline).toLocaleString()}.`,type:'deadline',link:'/student/assignments',meta:{assignmentId:String(a._id)}}},{upsert:true});}}const notifications=await Notification.find({user:req.user._id}).sort({createdAt:-1}).limit(50);const unread=await Notification.countDocuments({user:req.user._id,read:false});res.json({success:true,notifications,unread});}catch(e){next(e)}});
-router.patch('/:id/read',async(req,res,next)=>{try{await Notification.updateOne({_id:req.params.id,user:req.user._id},{$set:{read:true}});res.json({success:true});}catch(e){next(e)}});
-router.patch('/read-all',async(req,res,next)=>{try{await Notification.updateMany({user:req.user._id,read:false},{$set:{read:true}});res.json({success:true});}catch(e){next(e)}});
-module.exports=router;
+const express = require('express');
+const Notification = require('./notificationModel');
+const Assignment = require('../assignments/assignmentModel');
+const protect = require('../../middleware/authMiddleware');
+
+const router = express.Router();
+
+router.use(protect);
+
+router.get('/', async (req, res, next) => {
+  try {
+    if (req.user.role === 'student') {
+      const upcoming = await Assignment.find({
+        deadline: {
+          $gt: new Date(),
+          $lte: new Date(Date.now() + 48 * 3600000)
+        },
+        $or: [
+          { targetStudents: req.user._id },
+          { targetStudents: { $size: 0 } }
+        ]
+      }).select('_id title deadline');
+
+      for (const a of upcoming) {
+        await Notification.updateOne(
+          {
+            user: req.user._id,
+            type: 'deadline',
+            'meta.assignmentId': String(a._id)
+          },
+          {
+            $setOnInsert: {
+              title: 'Assignment deadline approaching',
+              message: `${a.title} is due on ${new Date(a.deadline).toLocaleString()}.`,
+              type: 'deadline',
+              link: '/student/assignments',
+              meta: { assignmentId: String(a._id) }
+            }
+          },
+          { upsert: true }
+        );
+      }
+    }
+
+    const notifications = await Notification.find({ user: req.user._id })
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    const unread = await Notification.countDocuments({
+      user: req.user._id,
+      read: false
+    });
+
+    res.json({ success: true, notifications, unread });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.patch('/:id/read', async (req, res, next) => {
+  try {
+    await Notification.updateOne(
+      { _id: req.params.id, user: req.user._id },
+      { $set: { read: true } }
+    );
+    res.json({ success: true });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.patch('/read-all', async (req, res, next) => {
+  try {
+    await Notification.updateMany(
+      { user: req.user._id, read: false },
+      { $set: { read: true } }
+    );
+    res.json({ success: true });
+  } catch (e) {
+    next(e);
+  }
+});
+
+module.exports = router;
