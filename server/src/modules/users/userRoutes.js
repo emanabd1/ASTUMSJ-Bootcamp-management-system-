@@ -3,6 +3,7 @@ const express = require("express");
 const {
   getUsers,
   getUser,
+  getUserStats, 
   createUser,
   updateUser,
   deleteUser,
@@ -22,7 +23,12 @@ router.use(authorize("admin"));
 // GET /api/users
 router.get("/", getUsers);
 
-// GET /api/users/:id
+// GET /api/users/stats - 2.
+if (getUserStats) {
+  router.get("/stats", getUserStats);
+}
+
+// GET /api/users/:id - Dynamic route 
 router.get("/:id", getUser);
 
 // POST /api/users
