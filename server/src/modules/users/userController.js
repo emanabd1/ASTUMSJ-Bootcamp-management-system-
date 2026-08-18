@@ -2,18 +2,15 @@ const mongoose = require("mongoose");
 const User = require("./userModel");
 const bcrypt = require("bcryptjs");
 
-// Get all users
 const getUsers = async (req, res, next) => {
   try {
     const users = await User.find().select("-password");
-    // Standard response pattern
     res.status(200).json({ success: true, users });
   } catch (err) {
     next(err);
   }
 };
 
-// Get single user by ID
 const getUser = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -32,13 +29,10 @@ const getUser = async (req, res, next) => {
   }
 };
 
-// Create user (Admin control)
 const createUser = async (req, res, next) => {
   try {
     const data = { ...req.body };
 
-    // Note: If userModel has a pre-save hook for password hashing,
-    // do NOT double hash here. Only hash if pre-save hook is not used.
     if (data.password && data.password.trim() !== "") {
       data.password = await bcrypt.hash(data.password, 10);
     }
@@ -56,7 +50,6 @@ const createUser = async (req, res, next) => {
   }
 };
 
-// Update user details / role / account status
 const updateUser = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -67,11 +60,10 @@ const updateUser = async (req, res, next) => {
 
     const updateData = { ...req.body };
 
-    // If password is provided and not empty, hash it before updating
     if (updateData.password && updateData.password.trim() !== "") {
       updateData.password = await bcrypt.hash(updateData.password, 10);
     } else {
-      delete updateData.password; // Prevent overwriting with empty string
+      delete updateData.password; 
     }
 
     const updatedUser = await User.findByIdAndUpdate(id, updateData, { 
@@ -88,7 +80,6 @@ const updateUser = async (req, res, next) => {
   }
 };
 
-// Delete user account
 const deleteUser = async (req, res, next) => {
   try {
     const { id } = req.params;
