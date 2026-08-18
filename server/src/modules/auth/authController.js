@@ -72,7 +72,7 @@ const login = async (req, res, next) => {
     if (user.status === "rejected") return res.status(403).json({ success: false, message: "Your registration was rejected by the administrator." });
     if (!user.isActive) return res.status(403).json({ success: false, message: "Your account is suspended. Please contact the administrator." });
 
-    return res.json({ success: true, token: signToken(user), user: safeUser(user) });
+    return res.json({ success: true, token: signToken(user), user: safeUser(user), mustChangePassword: Boolean(user.mustChangePassword) });
   } catch (error) { next(error); }
 };
 

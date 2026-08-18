@@ -7,12 +7,13 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "seed:admin": "node src/utils/seedAdmin.js",
-    "migrate:users": "node src/modules/users/migrateUsers.js"
+    "migrate:users": "node src/modules/users/migrateUsers.js",
+    "migrate:data": "node src/modules/users/migrateData.js",
+    "check:syntax": "node src/utils/checkSyntax.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
-    "crypto": "^1.0.1",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",

@@ -5,6 +5,8 @@ const Batch = require("../batches/batchModel");
 const Attendance = require("../attendance/attendanceModel");
 const Assignment = require("../assignments/assignmentModel");
 const Submission = require("../assignments/assignmentSubmissionModel");
+const Progress = require("../progress/progressModel");
+const Notification = require("../notifications/notificationModel");
 const sendEmail = require("../../utils/sendEmail");
 const { safeUser } = require("../auth/authController");
 
@@ -146,8 +148,18 @@ const updateUser = async (req, res, next) => {
 const deleteUser = async (req, res, next) => {
   try {
     if (String(req.params.id) === String(req.user._id)) return res.status(400).json({ success: false, message: "You cannot delete your own account." });
-    const user = await User.findByIdAndDelete(req.params.id);
+    const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ success: false, message: "User not found." });
+    await Promise.all([
+      Batch.updateMany({}, { $pull: { students: user._id, mentors: user._id } }),
+      User.updateMany({ mentor: user._id }, { $set: { mentor: null } }),
+      Attendance.deleteMany({ $or: [{ student: user._id }, { mentor: user._id }] }),
+      Progress.deleteMany({ $or: [{ student: user._id }, { mentor: user._id }] }),
+      Submission.deleteMany({ student: user._id }),
+      Assignment.updateMany({}, { $pull: { targetStudents: user._id } }),
+      Notification.deleteMany({ user: user._id }),
+    ]);
+    await user.deleteOne();
     res.json({ success: true, message: "User deleted successfully." });
   } catch (error) { next(error); }
 };
@@ -168,7 +180,7 @@ const getStats = async (req, res, next) => {
       Assignment.find().select("title creator createdAt").populate("creator","fullName").sort({createdAt:-1}).limit(5).lean(),
       Submission.find().select("student assignment submittedAt status").populate("student","fullName").populate("assignment","title").sort({submittedAt:-1}).limit(5).lean()
     ]);
-    const presentLike=attendance.filter(a=>["Present","Late"].includes(a.status)).length;
+    const presentLike=attendance.filter(a=>a.status==="Present").length;
     const attendancePercentage=attendance.length?Math.round(presentLike/attendance.length*100):0;
     const graded=await Submission.countDocuments({status:"graded"});
     const pendingGrading=await Submission.countDocuments({status:"submitted"});

@@ -1,10 +1,212 @@
-const express=require('express');const multer=require('multer');const path=require('path');const fs=require('fs');const Assignment=require('./assignmentModel');const Submission=require('./assignmentSubmissionModel');const User=require('../users/userModel');const Notification=require('../notifications/notificationModel');const protect=require('../../middleware/authMiddleware');const authorize=require('../../middleware/roleMiddleware');
-const uploadDir=path.join(__dirname,'../../../uploads');fs.mkdirSync(uploadDir,{recursive:true});const storage=multer.diskStorage({destination:(r,f,cb)=>cb(null,uploadDir),filename:(r,f,cb)=>cb(null,`${Date.now()}-${Math.random().toString(36).slice(2)}-${f.originalname.replace(/[^a-zA-Z0-9._-]/g,'_')}`)});const upload=multer({storage,limits:{fileSize:10*1024*1024,files:10}});
-const router=express.Router();router.use(protect);
-const assignedStudents=async(user)=>user.role==='mentor'?User.find({role:'student',mentor:user._id,status:'approved',isActive:true}):User.find({role:'student',status:'approved',isActive:true});
-router.get('/',async(req,res,next)=>{try{let assignments;if(req.user.role==='student'){assignments=await Assignment.find({$or:[{targetStudents:req.user._id},{targetStudents:{$size:0}}]}).populate('creator','fullName role').sort({deadline:1});for(const a of assignments){if(a.deadline-Date.now()<=48*3600000&&a.deadline>Date.now())await Notification.updateOne({user:req.user._id,type:'deadline',meta:{assignmentId:String(a._id)}},{$setOnInsert:{title:'Assignment deadline approaching',message:`${a.title} is due soon.`,type:'deadline',link:'/student/assignments',meta:{assignmentId:String(a._id)}}},{upsert:true});}}else assignments=await Assignment.find(req.user.role==='admin'?{}:{creator:req.user._id}).populate('creator','fullName role').sort({createdAt:-1});res.json({success:true,assignments});}catch(e){next(e)}});
-router.post('/',authorize('admin','mentor'),upload.single('resourceFile'),async(req,res,next)=>{try{const {title,description,instructions,batch,deadline,maximumScore,resourceLink}=req.body;if(!title||!description||!deadline||maximumScore===undefined)return res.status(400).json({success:false,message:'Title, description, deadline and maximum score are required.'});const students=await assignedStudents(req.user);const a=await Assignment.create({title,description,instructions,batch,deadline,maximumScore,resourceLink,resourceFile:req.file?`/uploads/${req.file.filename}`:'',creator:req.user._id,targetStudents:students.map(s=>s._id)});await Notification.insertMany(students.map(s=>({user:s._id,title:'New assignment',message:`${a.title} has been assigned to you.`,type:'assignment',link:'/student/assignments',meta:{assignmentId:String(a._id)}})));res.status(201).json({success:true,assignment:a});}catch(e){next(e)}});
-router.get('/:id',async(req,res,next)=>{try{const a=await Assignment.findById(req.params.id).populate('creator','fullName role');if(!a)return res.status(404).json({success:false,message:'Assignment not found.'});const sub=await Submission.findOne({assignment:a._id,student:req.user._id});if(req.user.role==='student')return res.json({success:true,assignment:a,submission:sub});const submissions=await Submission.find({assignment:a._id}).populate('student','fullName email department yearOfStudy').sort({submittedAt:-1});if(req.user.role==='mentor'){const allowed=await User.find({role:'student',mentor:req.user._id}).select('_id');const ids=new Set(allowed.map(x=>String(x._id)));return res.json({success:true,assignment:a,submissions:submissions.filter(s=>ids.has(String(s.student?._id)))});}res.json({success:true,assignment:a,submissions});}catch(e){next(e)}});
-router.post('/:id/submit',authorize('student'),upload.array('files',10),async(req,res,next)=>{try{const a=await Assignment.findById(req.params.id);if(!a)return res.status(404).json({success:false,message:'Assignment not found.'});if(new Date(a.deadline)<new Date())return res.status(400).json({success:false,message:'The assignment deadline has passed.'});const {method,githubUrl,textAnswer}=req.body;if(!['github','files','text'].includes(method))return res.status(400).json({success:false,message:'Choose GitHub link, file upload, or written answer.'});if(method==='github'&&!githubUrl)return res.status(400).json({success:false,message:'GitHub URL is required.'});if(method==='text'&&!textAnswer?.trim())return res.status(400).json({success:false,message:'Written answer is required.'});if(method==='files'&&(!req.files||!req.files.length))return res.status(400).json({success:false,message:'Upload at least one file.'});const files=(req.files||[]).map(f=>({originalName:f.originalname,path:`/uploads/${f.filename}`}));let sub=await Submission.findOne({assignment:a._id,student:req.user._id});if(!sub)sub=await Submission.create({assignment:a._id,student:req.user._id,method,githubUrl,textAnswer,files});else{Object.assign(sub,{method,githubUrl,textAnswer,files,submittedAt:new Date(),status:'submitted',score:null,feedback:'',gradedBy:null,gradedAt:null});await sub.save();}const mentors=await User.find({$or:[{role:'mentor',_id:(await User.findById(req.user._id)).mentor},{role:'admin'}]});await Notification.insertMany(mentors.map(m=>({user:m._id,title:'Assignment submitted',message:`${req.user.fullName} submitted ${a.title}.`,type:'submission',link:'/mentor/assignments',meta:{assignmentId:String(a._id),studentId:String(req.user._id)}})));res.json({success:true,message:'Assignment submitted successfully.',submission:sub});}catch(e){next(e)}});
-router.patch('/:assignmentId/submissions/:submissionId/grade',authorize('admin','mentor'),async(req,res,next)=>{try{const sub=await Submission.findById(req.params.submissionId).populate('assignment').populate('student','fullName email');if(!sub||String(sub.assignment._id)!==req.params.assignmentId)return res.status(404).json({success:false,message:'Submission not found.'});if(req.user.role==='mentor'){const st=await User.findOne({_id:sub.student._id,mentor:req.user._id});if(!st)return res.status(403).json({success:false,message:'You can only grade your assigned students.'});}const {score,feedback,status}=req.body;if(score!==undefined&&Number(score)>sub.assignment.maximumScore)return res.status(400).json({success:false,message:'Score cannot exceed maximum score.'});sub.score=score===undefined?sub.score:Number(score);sub.feedback=feedback||'';sub.status=status==='redo'?'redo':'graded';sub.gradedBy=req.user._id;sub.gradedAt=new Date();await sub.save();await Notification.create({user:sub.student._id,title:sub.status==='redo'?'Resubmission requested':'Assignment graded',message:sub.status==='redo'?`Please resubmit ${sub.assignment.title}. Feedback: ${sub.feedback||'See your assignment.'}`:`${sub.assignment.title} was graded. Score: ${sub.score}/${sub.assignment.maximumScore}. ${sub.feedback||''}`,type:sub.status==='redo'?'redo':'grade',link:'/student/assignments',meta:{assignmentId:String(sub.assignment._id),submissionId:String(sub._id)}});res.json({success:true,submission:sub});}catch(e){next(e)}});
-module.exports=router;
+const express = require("express");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
+const Assignment = require("./assignmentModel");
+const Submission = require("./assignmentSubmissionModel");
+const User = require("../users/userModel");
+const Batch = require("../batches/batchModel");
+const Notification = require("../notifications/notificationModel");
+const protect = require("../../middleware/authMiddleware");
+const authorize = require("../../middleware/roleMiddleware");
+const { body } = require("../../validation");
+const { eligibleStudents, validateDeadline } = require("../../services/assignmentService");
+
+const uploadDir = path.join(__dirname, "../../../uploads");
+fs.mkdirSync(uploadDir, { recursive: true });
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_")}`),
+});
+const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024, files: 50 } });
+
+const router = express.Router();
+router.use(protect);
+
+const isUrl = (value) => !value || /^https?:\/\//i.test(String(value));
+const validObjectId = (id) => /^[a-f\d]{24}$/i.test(String(id));
+
+async function getStudentsForAssignment(user, batchId, requestedIds) {
+  const ids = (requestedIds || []).map(String).filter(Boolean);
+  const students = await eligibleStudents(user, batchId, ids);
+  return students.map(s => String(s._id));
+}
+
+router.get("/", async (req, res, next) => {
+  try {
+    let assignments;
+    if (req.user.role === "student") {
+      assignments = await Assignment.find({
+        $or: [{ targetStudents: req.user._id }, { targetStudents: { $size: 0 } }],
+      }).populate("creator", "fullName role").populate("batch", "name startDate endDate").sort({ deadline: 1 });
+    } else if (req.user.role === "mentor") {
+      assignments = await Assignment.find({ creator: req.user._id }).populate("creator", "fullName role").populate("batch", "name").sort({ createdAt: -1 });
+    } else {
+      assignments = await Assignment.find({}).populate("creator", "fullName role").populate("batch", "name").sort({ createdAt: -1 });
+    }
+    res.json({ success: true, assignments });
+  } catch (e) { next(e); }
+});
+
+router.post("/", authorize("admin", "mentor"), upload.array("resourceFiles", 50), async (req, res, next) => {
+  try {
+    const { title, description, instructions = "", batch, deadline, maximumScore, resourceLink = "" } = req.body;
+    const requestedStudents = Array.isArray(req.body.studentIds)
+      ? req.body.studentIds
+      : typeof req.body.studentIds === "string" && req.body.studentIds
+        ? req.body.studentIds.split(",").map((x) => x.trim()).filter(Boolean)
+        : [];
+
+    if (!title?.trim() || !description?.trim() || !deadline || maximumScore === undefined || maximumScore === "") {
+      return res.status(400).json({ success: false, message: "Title, description, deadline and maximum score are required." });
+    }
+    if (!validObjectId(batch)) return res.status(400).json({ success: false, message: "A valid batch is required." });
+    if (!isUrl(resourceLink)) return res.status(400).json({ success: false, message: "Resource link must be a valid URL." });
+
+    const batchDoc = await Batch.findById(batch);
+    if (!batchDoc) return res.status(404).json({ success: false, message: "Batch not found." });
+
+    const deadlineDate = new Date(deadline);
+    if (Number.isNaN(deadlineDate.getTime()) || deadlineDate <= new Date()) {
+      return res.status(400).json({ success: false, message: "Deadline must be a valid future date." });
+    }
+    const score = Number(maximumScore);
+    if (!Number.isFinite(score) || score < 0) return res.status(400).json({ success: false, message: "Maximum score must be a non-negative number." });
+
+    let students = await getStudentsForAssignment(req.user, batch, requestedStudents);
+    if (req.user.role === "mentor") {
+      const batchMentor = batchDoc.mentors.some((id) => String(id) === String(req.user._id));
+      if (!batchMentor && students.length === 0) {
+        return res.status(403).json({ success: false, message: "You can only create assignments for your assigned students." });
+      }
+    }
+    if (!students.length) return res.status(400).json({ success: false, message: "No eligible students were found in the selected batch." });
+
+    const resourceFiles = (req.files || []).map((f) => ({
+      originalName: f.originalname,
+      path: `/uploads/${f.filename}`,
+      size: f.size,
+      mimeType: f.mimetype,
+    }));
+
+    const assignment = await Assignment.create({
+      title: title.trim(), description: description.trim(), instructions: instructions.trim(), batch,
+      deadline: deadlineDate, maximumScore: score, resourceLink: resourceLink.trim(),
+      resourceFile: resourceFiles[0]?.path || "", resourceFiles,
+      creator: req.user._id, targetStudents: students,
+    });
+
+    await Notification.insertMany(students.map((id) => ({
+      user: id,
+      title: "New assignment",
+      message: `${assignment.title} has been assigned to you.`,
+      type: "assignment",
+      link: "/student/assignments",
+      meta: { assignmentId: String(assignment._id) },
+    })));
+
+    const populated = await Assignment.findById(assignment._id).populate("creator", "fullName role").populate("batch", "name");
+    res.status(201).json({ success: true, assignment: populated });
+  } catch (e) { next(e); }
+});
+
+router.patch("/:id", authorize("admin", "mentor"), upload.array("resourceFiles", 50), async (req,res,next)=>{try{
+  const assignment=await Assignment.findById(req.params.id); if(!assignment)return res.status(404).json({success:false,message:"Assignment not found."});
+  if(req.user.role==='mentor'&&String(assignment.creator)!==String(req.user._id))return res.status(403).json({success:false,message:"You can only edit assignments you created."});
+  const {title,description,instructions,deadline,maximumScore,resourceLink}=req.body;
+  if(title!==undefined){if(!String(title).trim())return res.status(400).json({success:false,message:"Title cannot be empty."});assignment.title=String(title).trim();}
+  if(description!==undefined){if(!String(description).trim())return res.status(400).json({success:false,message:"Description cannot be empty."});assignment.description=String(description).trim();}
+  if(instructions!==undefined)assignment.instructions=String(instructions).trim();
+  if(deadline!==undefined){const check=validateDeadline(deadline,false);if(!check.ok)return res.status(400).json({success:false,message:check.message});assignment.deadline=check.date;}
+  if(maximumScore!==undefined){const score=Number(maximumScore);if(!Number.isFinite(score)||score<0)return res.status(400).json({success:false,message:"Maximum score must be a non-negative number."});assignment.maximumScore=score;}
+  if(resourceLink!==undefined&&!isUrl(resourceLink))return res.status(400).json({success:false,message:"Resource link must be a valid URL."});
+  if(resourceLink!==undefined)assignment.resourceLink=String(resourceLink).trim();
+  if(req.files?.length){assignment.resourceFiles=req.files.map(f=>({originalName:f.originalname,path:`/uploads/${f.filename}`,size:f.size,mimeType:f.mimetype}));assignment.resourceFile=assignment.resourceFiles[0]?.path||"";}
+  await assignment.save();const populated=await Assignment.findById(assignment._id).populate("creator","fullName role").populate("batch","name");res.json({success:true,assignment:populated});
+}catch(e){next(e);}});
+router.delete("/:id", authorize("admin", "mentor"), async(req,res,next)=>{try{const assignment=await Assignment.findById(req.params.id);if(!assignment)return res.status(404).json({success:false,message:"Assignment not found."});if(req.user.role==='mentor'&&String(assignment.creator)!==String(req.user._id))return res.status(403).json({success:false,message:"You can only delete assignments you created."});await Submission.deleteMany({assignment:assignment._id});await assignment.deleteOne();res.json({success:true,message:"Assignment deleted."});}catch(e){next(e);}});
+
+router.get("/:id", async (req, res, next) => {
+  try {
+    const assignment = await Assignment.findById(req.params.id).populate("creator", "fullName role").populate("batch", "name startDate endDate");
+    if (!assignment) return res.status(404).json({ success: false, message: "Assignment not found." });
+
+    if (req.user.role === "student") {
+      const allowed = assignment.targetStudents.length === 0 || assignment.targetStudents.some((id) => String(id) === String(req.user._id));
+      if (!allowed) return res.status(403).json({ success: false, message: "You are not assigned to this assignment." });
+      const submission = await Submission.findOne({ assignment: assignment._id, student: req.user._id });
+      return res.json({ success: true, assignment, submission });
+    }
+
+    if (req.user.role === "mentor" && String(assignment.creator?._id) !== String(req.user._id)) {
+      return res.status(403).json({ success: false, message: "You can only manage assignments you created." });
+    }
+
+    const submissions = await Submission.find({ assignment: assignment._id })
+      .populate("student", "fullName email department yearOfStudy")
+      .populate("gradedBy", "fullName")
+      .sort({ submittedAt: -1 });
+    res.json({ success: true, assignment, submissions });
+  } catch (e) { next(e); }
+});
+
+router.post("/:id/submit", authorize("student"), upload.array("files", 10), async (req, res, next) => {
+  try {
+    const assignment = await Assignment.findById(req.params.id);
+    if (!assignment) return res.status(404).json({ success: false, message: "Assignment not found." });
+    const allowed = assignment.targetStudents.length === 0 || assignment.targetStudents.some((id) => String(id) === String(req.user._id));
+    if (!allowed) return res.status(403).json({ success: false, message: "You are not assigned to this assignment." });
+    if (assignment.status === "closed" || new Date(assignment.deadline) < new Date()) return res.status(400).json({ success: false, message: "The assignment deadline has passed." });
+
+    const { method, githubUrl = "", liveDemoUrl = "", textAnswer = "" } = req.body;
+    if (!["github", "files", "text"].includes(method)) return res.status(400).json({ success: false, message: "Choose GitHub link, file upload, or written answer." });
+    if (method === "github" && !/^https?:\/\//i.test(githubUrl)) return res.status(400).json({ success: false, message: "A valid GitHub URL is required." });
+    if (liveDemoUrl && !/^https?:\/\//i.test(liveDemoUrl)) return res.status(400).json({ success: false, message: "Live demo URL must be a valid URL." });
+    if (method === "text" && !textAnswer.trim()) return res.status(400).json({ success: false, message: "Written answer is required." });
+    if (method === "files" && !(req.files || []).length) return res.status(400).json({ success: false, message: "Upload at least one file." });
+
+    const files = (req.files || []).map((f) => ({ originalName: f.originalname, path: `/uploads/${f.filename}`, size: f.size, mimeType: f.mimetype }));
+    let submission = await Submission.findOne({ assignment: assignment._id, student: req.user._id });
+    const data = { method, githubUrl: githubUrl.trim(), liveDemoUrl: liveDemoUrl.trim(), textAnswer: textAnswer.trim(), files, submittedAt: new Date(), status: "submitted", score: null, feedback: "", gradedBy: null, gradedAt: null };
+    if (!submission) submission = await Submission.create({ assignment: assignment._id, student: req.user._id, ...data });
+    else { Object.assign(submission, data); await submission.save(); }
+
+    const student = await User.findById(req.user._id).select("fullName mentor");
+    const recipients = await User.find({ $or: [{ role: "admin", status: "approved", isActive: true }, { _id: student.mentor, role: "mentor", status: "approved", isActive: true }] }).select("_id");
+    await Notification.insertMany(recipients.map((m) => ({ user: m._id, title: "Assignment submitted", message: `${student.fullName} submitted ${assignment.title}.`, type: "submission", link: "/mentor/assignments", meta: { assignmentId: String(assignment._id), studentId: String(req.user._id) } })));
+
+    res.json({ success: true, message: "Assignment submitted successfully.", submission });
+  } catch (e) { next(e); }
+});
+
+router.patch("/:assignmentId/submissions/:submissionId/grade", authorize("admin", "mentor"), async (req, res, next) => {
+  try {
+    const submission = await Submission.findById(req.params.submissionId).populate("assignment").populate("student", "fullName email mentor");
+    if (!submission || String(submission.assignment?._id) !== String(req.params.assignmentId)) return res.status(404).json({ success: false, message: "Submission not found." });
+    if (req.user.role === "mentor" && String(submission.student.mentor) !== String(req.user._id)) return res.status(403).json({ success: false, message: "You can only grade your assigned students." });
+
+    const { score, feedback = "", status = "graded" } = req.body;
+    if (!String(feedback).trim() && status === "redo") return res.status(400).json({ success: false, message: "Feedback is required when requesting a resubmission." });
+    if (score !== undefined && score !== null && (!Number.isFinite(Number(score)) || Number(score) < 0 || Number(score) > submission.assignment.maximumScore)) return res.status(400).json({ success: false, message: "Score must be between 0 and the maximum score." });
+    if (!["graded", "redo"].includes(status)) return res.status(400).json({ success: false, message: "Invalid grading status." });
+
+    submission.score = score === undefined || score === "" ? submission.score : Number(score);
+    submission.feedback = String(feedback).trim();
+    submission.status = status;
+    submission.gradedBy = req.user._id;
+    submission.gradedAt = new Date();
+    await submission.save();
+
+    await Notification.create({
+      user: submission.student._id,
+      title: status === "redo" ? "Resubmission requested" : "Assignment graded",
+      message: status === "redo" ? `Please resubmit ${submission.assignment.title}. Feedback: ${submission.feedback}` : `${submission.assignment.title} was graded. Score: ${submission.score}/${submission.assignment.maximumScore}. ${submission.feedback}`,
+      type: status === "redo" ? "redo" : "grade",
+      link: "/student/assignments",
+      meta: { assignmentId: String(submission.assignment._id), submissionId: String(submission._id) },
+    });
+    res.json({ success: true, submission });
+  } catch (e) { next(e); }
+});
+
+module.exports = router;
