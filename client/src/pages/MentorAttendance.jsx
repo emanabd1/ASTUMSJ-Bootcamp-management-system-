@@ -4,27 +4,66 @@ import React, { useState, useEffect } from "react";
 export default function MentorAttendance() {
   const [attendanceData, setAttendanceData] = useState([]);
 
-  // Load approved students from registration or default approved list
+  // Fetch users from backend with Authorization header and filter by mentor's name
   useEffect(() => {
-    const storedRegistrations = JSON.parse(localStorage.getItem("approvedStudents")) || [
-      { id: 1, name: "Eman Mohammed", idNumber: "RU/1234/18" },
-      { id: 2, name: "Abebe Kebede", idNumber: "RU/5678/18" },
-      { id: 3, name: "Ekram Mutelib", idNumber: "RU/9456/18" },
-    ];
+    const fetchAssignedStudents = async () => {
+      try {
+        // 1. Get logged-in mentor info and token from localStorage
+        const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
+        const token = localStorage.getItem("token") || loggedInUser?.token;
+        const mentorName = loggedInUser?.fullName || loggedInUser?.name || "Foziya Awel";
 
-    // Initialize attendance structure for approved students
-    const initialData = storedRegistrations.map((student) => ({
-      id: student.id || student._id,
-      name: student.name || `${student.firstName} ${student.lastName}`,
-      idNumber: student.idNumber || student.studentId || "RU/0000/18",
-      lectures: {
-        lecture1: { start: "Present", mid: "Present", end: "Present" },
-        lecture2: { start: "Present", mid: "Present", end: "Present" },
-        lecture3: { start: "Present", mid: "Present", end: "Present" },
-      },
-    }));
+        // 2. Fetch users from backend API with Authorization header
+        const response = await fetch("http://localhost:5000/api/users", {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        const data = await response.json();
 
-    setAttendanceData(initialData);
+        // Handle both Array response and Object response ({ success, users })
+        const usersArray = Array.isArray(data) 
+          ? data 
+          : (data.users || data.data || []);
+
+        if (usersArray.length > 0) {
+          // 3. Flexible filtering: match student role and compare assigned mentor safely
+          const filteredStudents = usersArray.filter((user) => {
+            const role = (user.role || "").toLowerCase();
+            if (role !== "student") return false;
+            
+            // Check multiple potential field names for mentor assignment
+            const assignedField = user.assignedMentor || user.mentor || user.mentorName || "";
+            if (!assignedField) return false;
+
+            const assigned = assignedField.trim().toLowerCase();
+            const currentMentor = mentorName.trim().toLowerCase();
+
+            // Match exact or contains
+            return assigned === currentMentor || assigned.includes(currentMentor) || currentMentor.includes(assigned);
+          });
+
+          // 4. Initialize attendance structure for the assigned students
+          const initialData = filteredStudents.map((student, index) => ({
+            id: student._id || student.id,
+            name: student.fullName || student.name || `${student.firstName || ""} ${student.lastName || ""}`.trim(),
+            idNumber: student.idNumber || student.studentId || `RU/000${index + 1}/18`,
+            lectures: {
+              lecture1: { start: "Present", mid: "Present", end: "Present" },
+              lecture2: { start: "Present", mid: "Present", end: "Present" },
+              lecture3: { start: "Present", mid: "Present", end: "Present" },
+            },
+          }));
+
+          setAttendanceData(initialData);
+        }
+      } catch (err) {
+        console.error("Error fetching assigned students:", err);
+      }
+    };
+
+    fetchAssignedStudents();
   }, []);
 
   // Corrected Percentage Calculation Logic (Present=1, Late=0.5, Excused=1, Absent=0)
@@ -161,73 +200,81 @@ export default function MentorAttendance() {
             </tr>
           </thead>
           <tbody className="divide-y divide-[#4a3b32]">
-            {attendanceData.map((student, index) => {
-              const totals = calculateTotals(student.lectures);
-              return (
-                <tr key={student.id} className="hover:bg-[#2d231d] transition">
-                  <td className="py-3 px-3 text-[#a39081]">{index + 1}</td>
-                  <td className="py-3 px-3 font-semibold">
-                    <div>{student.name}</div>
-                    <div className="text-[9px] text-[#a39081]">{student.idNumber}</div>
-                  </td>
-                  <td className="py-3 px-3 text-center font-bold text-green-400">{totals.P}</td>
-                  <td className="py-3 px-3 text-center font-bold text-blue-400">{totals.EX}</td>
-                  <td className="py-3 px-3 text-center font-bold text-red-400">{totals.A}</td>
+            {attendanceData.length === 0 ? (
+              <tr>
+                <td colSpan="17" className="py-6 text-center text-[#a39081]">
+                  No students assigned to you yet.
+                </td>
+              </tr>
+            ) : (
+              attendanceData.map((student, index) => {
+                const totals = calculateTotals(student.lectures);
+                return (
+                  <tr key={student.id} className="hover:bg-[#2d231d] transition">
+                    <td className="py-3 px-3 text-[#a39081]">{index + 1}</td>
+                    <td className="py-3 px-3 font-semibold">
+                      <div>{student.name}</div>
+                      <div className="text-[9px] text-[#a39081]">{student.idNumber}</div>
+                    </td>
+                    <td className="py-3 px-3 text-center font-bold text-green-400">{totals.P}</td>
+                    <td className="py-3 px-3 text-center font-bold text-blue-400">{totals.EX}</td>
+                    <td className="py-3 px-3 text-center font-bold text-red-400">{totals.A}</td>
 
-                  {/* Lecture 1, 2, 3 */}
-                  {["lecture1", "lecture2", "lecture3"].map((lecKey, lIdx) => {
-                    const score = calculateScore(student.lectures[lecKey]);
-                    return (
-                      <React.Fragment key={lecKey}>
-                        {/* START */}
-                        <td className={`py-3 px-1 text-center border-l ${lIdx === 0 ? "border-[#4a3b32]" : ""}`}>
-                          <select
-                            value={student.lectures[lecKey].start}
-                            onChange={(e) => handleStatusChange(student.id, lecKey, "start", e.target.value)}
-                            className={`text-[10px] rounded px-1.5 py-1 font-bold focus:outline-none ${getStatusBadge(student.lectures[lecKey].start)}`}
-                          >
-                            <option value="Present" className="bg-[#1e1713] text-green-300">Present</option>
-                            <option value="Late" className="bg-[#1e1713] text-yellow-300">Late</option>
-                            <option value="Absent" className="bg-[#1e1713] text-red-300">Absent</option>
-                            <option value="Excused" className="bg-[#1e1713] text-blue-300">Excused</option>
-                          </select>
-                        </td>
-                        {/* MID */}
-                        <td className="py-3 px-1 text-center">
-                          <select
-                            value={student.lectures[lecKey].mid}
-                            onChange={(e) => handleStatusChange(student.id, lecKey, "mid", e.target.value)}
-                            className={`text-[10px] rounded px-1.5 py-1 font-bold focus:outline-none ${getStatusBadge(student.lectures[lecKey].mid)}`}
-                          >
-                            <option value="Present" className="bg-[#1e1713] text-green-300">Present</option>
-                            <option value="Late" className="bg-[#1e1713] text-yellow-300">Late</option>
-                            <option value="Absent" className="bg-[#1e1713] text-red-300">Absent</option>
-                            <option value="Excused" className="bg-[#1e1713] text-blue-300">Excused</option>
-                          </select>
-                        </td>
-                        {/* END */}
-                        <td className="py-3 px-1 text-center">
-                          <select
-                            value={student.lectures[lecKey].end}
-                            onChange={(e) => handleStatusChange(student.id, lecKey, "end", e.target.value)}
-                            className={`text-[10px] rounded px-1.5 py-1 font-bold focus:outline-none ${getStatusBadge(student.lectures[lecKey].end)}`}
-                          >
-                            <option value="Present" className="bg-[#1e1713] text-green-300">Present</option>
-                            <option value="Late" className="bg-[#1e1713] text-yellow-300">Late</option>
-                            <option value="Absent" className="bg-[#1e1713] text-red-300">Absent</option>
-                            <option value="Excused" className="bg-[#1e1713] text-blue-300">Excused</option>
-                          </select>
-                        </td>
-                        {/* % SCORE */}
-                        <td className="py-3 px-2 text-center border-r border-[#4a3b32] font-bold text-green-400 text-xs">
-                          {score}
-                        </td>
-                      </React.Fragment>
-                    );
-                  })}
-                </tr>
-              );
-            })}
+                    {/* Lecture 1, 2, 3 */}
+                    {["lecture1", "lecture2", "lecture3"].map((lecKey, lIdx) => {
+                      const score = calculateScore(student.lectures[lecKey]);
+                      return (
+                        <React.Fragment key={lecKey}>
+                          {/* START */}
+                          <td className={`py-3 px-1 text-center border-l ${lIdx === 0 ? "border-[#4a3b32]" : ""}`}>
+                            <select
+                              value={student.lectures[lecKey].start}
+                              onChange={(e) => handleStatusChange(student.id, lecKey, "start", e.target.value)}
+                              className={`text-[10px] rounded px-1.5 py-1 font-bold focus:outline-none ${getStatusBadge(student.lectures[lecKey].start)}`}
+                            >
+                              <option value="Present" className="bg-[#1e1713] text-green-300">Present</option>
+                              <option value="Late" className="bg-[#1e1713] text-yellow-300">Late</option>
+                              <option value="Absent" className="bg-[#1e1713] text-red-300">Absent</option>
+                              <option value="Excused" className="bg-[#1e1713] text-blue-300">Excused</option>
+                            </select>
+                          </td>
+                          {/* MID */}
+                          <td className="py-3 px-1 text-center">
+                            <select
+                              value={student.lectures[lecKey].mid}
+                              onChange={(e) => handleStatusChange(student.id, lecKey, "mid", e.target.value)}
+                              className={`text-[10px] rounded px-1.5 py-1 font-bold focus:outline-none ${getStatusBadge(student.lectures[lecKey].mid)}`}
+                            >
+                              <option value="Present" className="bg-[#1e1713] text-green-300">Present</option>
+                              <option value="Late" className="bg-[#1e1713] text-yellow-300">Late</option>
+                              <option value="Absent" className="bg-[#1e1713] text-red-300">Absent</option>
+                              <option value="Excused" className="bg-[#1e1713] text-blue-300">Excused</option>
+                            </select>
+                          </td>
+                          {/* END */}
+                          <td className="py-3 px-1 text-center">
+                            <select
+                              value={student.lectures[lecKey].end}
+                              onChange={(e) => handleStatusChange(student.id, lecKey, "end", e.target.value)}
+                              className={`text-[10px] rounded px-1.5 py-1 font-bold focus:outline-none ${getStatusBadge(student.lectures[lecKey].end)}`}
+                            >
+                              <option value="Present" className="bg-[#1e1713] text-green-300">Present</option>
+                              <option value="Late" className="bg-[#1e1713] text-yellow-300">Late</option>
+                              <option value="Absent" className="bg-[#1e1713] text-red-300">Absent</option>
+                              <option value="Excused" className="bg-[#1e1713] text-blue-300">Excused</option>
+                            </select>
+                          </td>
+                          {/* % SCORE */}
+                          <td className="py-3 px-2 text-center border-r border-[#4a3b32] font-bold text-green-400 text-xs">
+                            {score}
+                          </td>
+                        </React.Fragment>
+                      );
+                    })}
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
