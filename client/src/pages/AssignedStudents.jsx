@@ -1,13 +1,53 @@
 // client/src/pages/AssignedStudents.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import axiosInstance from "../api/axiosInstance";
 
 export default function AssignedStudents() {
-  // ለጊዜው በናሙና መረጃ (Mock Data) የተዘጋጀ
-  const [students] = useState([
-    { id: 1, name: "Abebe Kebede", email: "abebe@example.com", batch: "Batch 1", progress: "In Progress" },
-    { id: 2, name: "Tigist Alemu", email: "tigist@example.com", batch: "Batch 1", progress: "Completed" },
-    { id: 3, name: "Kamel Mohammed", email: "kamel@example.com", batch: "Batch 2", progress: "Needs Improvement" },
-  ]);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchAssignedStudents = async () => {
+      setLoading(true);
+      try {
+        // 1. ከ localStorage የገባውን የሜንተር መረጃ ማግኘት (እባክዎ በባክኤንድዎ አሰራር መሰረት ኬዩን ያስተካክሉት)
+        const loggedInUser = JSON.parse(localStorage.getItem("user")) || {};
+        const currentMentorName = loggedInUser.fullName || loggedInUser.name || "";
+
+        // 2. ተጠቃሚዎችን ከባክኤንድ ማምጣት
+        const res = await axiosInstance.get("/users");
+        const data = res.data;
+        let allUsers = [];
+
+        if (Array.isArray(data)) {
+          allUsers = data;
+        } else if (Array.isArray(data?.users)) {
+          allUsers = data.users;
+        } else if (Array.isArray(data?.data)) {
+          allUsers = data.data;
+        } else if (Array.isArray(data?.data?.users)) {
+          allUsers = data.data.users;
+        }
+
+        // 3. ተማሪዎችን እና ለአሁኑ ሜንተር የተመደቡትን ብቻ ማጣራት
+        const assigned = allUsers.filter((user) => {
+          const isStudent = user.role?.toLowerCase() === "student";
+          // አድሚኑ ያስቀመጠው assignedMentor ስም ከሜንተሩ ስም ጋር የሚመሳሰል መሆኑን ማረጋገጥ
+          const matchesMentor = user.assignedMentor?.toLowerCase() === currentMentorName.toLowerCase();
+          return isStudent && matchesMentor;
+        });
+
+        setStudents(assigned);
+      } catch (err) {
+        console.error("Failed to fetch assigned students:", err);
+        setStudents([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAssignedStudents();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -23,27 +63,47 @@ export default function AssignedStudents() {
               <tr>
                 <th className="py-3 px-4">Student Name</th>
                 <th className="py-3 px-4">Email</th>
-                <th className="py-3 px-4">Batch</th>
-                <th className="py-3 px-4">Progress Status</th>
+                <th className="py-3 px-4">Department</th>
+                <th className="py-3 px-4">Year of Study</th>
+                <th className="py-3 px-4 text-center">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#4a3b32]">
-              {students.map((student) => (
-                <tr key={student.id} className="hover:bg-[#2d231d] transition">
-                  <td className="py-3 px-4 font-semibold">{student.name}</td>
-                  <td className="py-3 px-4 text-[#a39081]">{student.email}</td>
-                  <td className="py-3 px-4">{student.batch}</td>
-                  <td className="py-3 px-4">
-                    <span className={`px-2 py-1 rounded text-[10px] font-bold ${
-                      student.progress === 'Completed' ? 'bg-green-900 text-green-200' :
-                      student.progress === 'In Progress' ? 'bg-blue-900 text-blue-200' :
-                      'bg-yellow-900 text-yellow-200'
-                    }`}>
-                      {student.progress}
-                    </span>
+              {loading ? (
+                <tr>
+                  <td colSpan="5" className="py-6 text-center text-[#a39081] animate-pulse">
+                    Loading assigned students...
                   </td>
                 </tr>
-              ))}
+              ) : students.length > 0 ? (
+                students.map((student) => {
+                  const studentId = student._id || student.id;
+                  const status = student.status || "approved";
+                  return (
+                    <tr key={studentId} className="hover:bg-[#2d231d] transition">
+                      <td className="py-3 px-4 font-semibold">{student.fullName || student.name}</td>
+                      <td className="py-3 px-4 text-[#a39081]">{student.email}</td>
+                      <td className="py-3 px-4">{student.department || "N/A"}</td>
+                      <td className="py-3 px-4">{student.yearOfStudy || "N/A"}</td>
+                      <td className="py-3 px-4 text-center">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                          status === 'approved' || status === 'active' 
+                            ? 'bg-emerald-950/80 text-emerald-300 border-emerald-800' 
+                            : 'bg-amber-950/80 text-amber-300 border-amber-800'
+                        }`}>
+                          {status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="5" className="py-8 text-center text-[#a39081]">
+                    No students have been assigned to your mentorship yet.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

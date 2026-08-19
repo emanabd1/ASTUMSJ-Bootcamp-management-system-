@@ -20,10 +20,14 @@ export default function AdminUserManagement() {
     role: "student",
     department: "",
     yearOfStudy: "1st Year",
-    gender: "Male"
+    gender: "Male",
+    assignedMentor: "" // አዲስ የተጨመረ: ተማሪውን ለሜንተር ለመመደብ
   };
 
   const [formData, setFormData] = useState(initialFormState);
+
+  // ከተመዘገቡት ተማሪዎች መካከል ሜንተር የሆኑትን ብቻ ማጣሪያ (ለአድሚን ምርጫ እንዲመች)
+  const mentorsList = users.filter((u) => u.role?.toLowerCase() === "mentor");
 
   const getUserStatus = (user) => {
     if (!user || !user.status) return "approved";
@@ -146,7 +150,8 @@ export default function AdminUserManagement() {
       role: user.role || "student",
       department: user.department || "",
       yearOfStudy: user.yearOfStudy || "1st Year",
-      gender: user.gender || "Male"
+      gender: user.gender || "Male",
+      assignedMentor: user.assignedMentor || ""
     });
     setShowCreateModal(true);
   };
@@ -230,6 +235,7 @@ export default function AdminUserManagement() {
                 <th className="p-4">Name</th>
                 <th className="p-4">Email</th>
                 <th className="p-4">Role</th>
+                <th className="p-4">Assigned Mentor</th>
                 <th className="p-4">State</th>
                 <th className="p-4 text-right">Actions</th>
               </tr>
@@ -237,7 +243,7 @@ export default function AdminUserManagement() {
             <tbody className="divide-y divide-[#2d221b]">
               {activeOrSuspendedUsers.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="p-8 text-center text-stone-400 text-sm">No active or suspended users found.</td>
+                  <td colSpan="6" className="p-8 text-center text-stone-400 text-sm">No active or suspended users found.</td>
                 </tr>
               ) : (
                 activeOrSuspendedUsers.map((user) => {
@@ -250,6 +256,9 @@ export default function AdminUserManagement() {
                         <span className="bg-[#241a14] text-amber-400 border border-amber-500/20 px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider">
                           {user.role}
                         </span>
+                      </td>
+                      <td className="p-4 text-stone-300 text-xs font-medium">
+                        {user.role?.toLowerCase() === "student" ? (user.assignedMentor || "Not Assigned") : "-"}
                       </td>
                       <td className="p-4">
                         <span className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider border ${
@@ -435,6 +444,25 @@ export default function AdminUserManagement() {
                   />
                 </div>
               </div>
+
+              {/* ተማሪ በሚሆንበት ጊዜ የሚታይ የሜንተር መምረጫ */}
+              {formData.role.toLowerCase() === "student" && (
+                <div>
+                  <label className="text-xs text-stone-300 font-medium uppercase tracking-wider">Assign Mentor</label>
+                  <select
+                    value={formData.assignedMentor}
+                    onChange={(e) => setFormData({ ...formData, assignedMentor: e.target.value })}
+                    className="w-full mt-1 rounded-xl border border-[#2d221b] bg-[#0f0a07] px-3 py-2 text-sm text-white focus:border-amber-600 focus:outline-none"
+                  >
+                    <option value="">-- Select Mentor --</option>
+                    {mentorsList.map((mentor) => (
+                      <option key={mentor._id || mentor.id} value={mentor.fullName || mentor.name}>
+                        {mentor.fullName || mentor.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="flex justify-end gap-3 pt-4 border-t border-[#2d221b]">
                 <button
