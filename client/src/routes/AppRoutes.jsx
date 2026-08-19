@@ -10,13 +10,14 @@ import ProtectedRoute from "./ProtectedRoute";
 import AdminDashboard from "../pages/AdminDashboard";
 import AdminUserManagement from "../pages/AdminUserManagement";
 import MentorDashboard from "../pages/MentorDashboard";
+import AssignedStudents from "../pages/AssignedStudents";
+import MentorAttendance from "../pages/MentorAttendance";
 import StudentDashboard from "../pages/StudentDashboard";
 
 export default function AppRoutes() {
   return (
     <Routes>
 
-      {/* ================= PUBLIC ROUTES ================= */}
 
       <Route
         path="/login"
@@ -34,11 +35,9 @@ export default function AppRoutes() {
       />
 
 
-      {/* ================= PROTECTED ROUTES ================= */}
 
       <Route element={<DashboardLayout />}>
 
-        {/* ---------- ADMIN ---------- */}
 
         <Route
           element={
@@ -57,7 +56,6 @@ export default function AppRoutes() {
         </Route>
 
 
-        {/* ---------- MENTOR ---------- */}
 
         <Route
           element={
@@ -68,10 +66,17 @@ export default function AppRoutes() {
             path="/mentor/dashboard"
             element={<MentorDashboard />}
           />
+          <Route
+            path="/mentor/students"
+            element={<AssignedStudents />}
+          />
+          <Route
+            path="/mentor/attendance"
+            element={<MentorAttendance />}
+          />
         </Route>
 
 
-        {/* ---------- STUDENT ---------- */}
 
         <Route
           element={
@@ -87,7 +92,6 @@ export default function AppRoutes() {
       </Route>
 
 
-      {/* ================= DEFAULT ================= */}
 
       <Route
         path="/"
