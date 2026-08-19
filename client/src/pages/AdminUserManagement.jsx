@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from "react";
 import axiosInstance from "../api/axiosInstance";
+import UserFilterBar from "../components/UserFilterBar";
 
 export default function AdminUserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   
-  // Modal states for Create / Update
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedRole, setSelectedRole] = useState("ALL");
+  const [selectedStatus, setSelectedStatus] = useState("ALL");
+
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
 
-  // Form states
-  const [formData, setFormData] = useState({
+  const initialFormState = {
     fullName: "",
     email: "",
     password: "",
@@ -18,15 +21,43 @@ export default function AdminUserManagement() {
     department: "",
     yearOfStudy: "1st Year",
     gender: "Male"
-  });
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
+
+  const getUserStatus = (user) => {
+    if (!user || !user.status) return "approved";
+    const raw = String(user.status).toLowerCase();
+    
+    if (["active", "approved", "verified", "enabled"].includes(raw)) return "approved";
+    if (["pending", "applied", "unverified"].includes(raw)) return "pending";
+    if (["rejected", "denied"].includes(raw)) return "rejected";
+    if (["suspended", "blocked", "banned", "inactive"].includes(raw)) return "suspended";
+    
+    return raw;
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
     try {
       const res = await axiosInstance.get("/users");
-      setUsers(res.data);
+      const data = res.data;
+      let fetchedData = [];
+      
+      if (Array.isArray(data)) {
+        fetchedData = data;
+      } else if (Array.isArray(data?.users)) {
+        fetchedData = data.users;
+      } else if (Array.isArray(data?.data)) {
+        fetchedData = data.data;
+      } else if (Array.isArray(data?.data?.users)) {
+        fetchedData = data.data.users;
+      }
+
+      setUsers(fetchedData);
     } catch (err) {
-      console.error("Failed to fetch users", err);
+      console.error("Failed to fetch users:", err);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -38,15 +69,16 @@ export default function AdminUserManagement() {
 
   const handleStatusUpdate = async (id, status) => {
     try {
-      await axiosInstance.patch(`/users/${id}`, { status });
-      fetchUsers();
-    } catch (err) {
-      try {
-        await axiosInstance.put(`/users/${id}`, { status });
+      const res = await axiosInstance.put(`/users/${id}`, { status });
+      const updatedUser = res.data?.updatedUser || res.data?.user || res.data?.data;
+
+      if (updatedUser && typeof updatedUser === "object") {
+        setUsers((prev) => prev.map((u) => ((u._id || u.id) === id ? { ...u, ...updatedUser } : u)));
+      } else {
         fetchUsers();
-      } catch (innerErr) {
-        alert(innerErr.response?.data?.message || "Failed to update user status.");
       }
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to update user status.");
     }
   };
 
@@ -54,9 +86,9 @@ export default function AdminUserManagement() {
     if (window.confirm("Are you sure you want to delete this user?")) {
       try {
         await axiosInstance.delete(`/users/${id}`);
-        fetchUsers();
+        setUsers((prev) => prev.filter((u) => (u._id || u.id) !== id));
       } catch (err) {
-        alert("Failed to delete user");
+        alert(err.response?.data?.message || "Failed to delete user.");
       }
     }
   };
@@ -65,34 +97,52 @@ export default function AdminUserManagement() {
     e.preventDefault();
     try {
       if (editingUser) {
-        // Update user: filter out empty password so it doesn't trigger validation errors
+        const userId = editingUser._id || editingUser.id;
         const updatePayload = { ...formData };
-        if (!updatePayload.password) {
-          delete updatePayload.password;
+        if (!updatePayload.password) delete updatePayload.password;
+
+        const res = await axiosInstance.put(`/users/${userId}`, updatePayload);
+        const updatedUser = res.data?.updatedUser || res.data?.user || res.data?.data;
+
+        if (updatedUser && typeof updatedUser === "object") {
+          setUsers((prev) => prev.map((u) => ((u._id || u.id) === userId ? { ...u, ...updatedUser } : u)));
+        } else {
+          fetchUsers();
         }
-        await axiosInstance.put(`/users/${editingUser._id}`, updatePayload);
       } else {
-        // Create user: Supply default bootcampReason and set status to 'approved' by default for admin creation
         const createPayload = {
           ...formData,
           status: "approved",
-          bootcampReason: formData.bootcampReason || "Created directly by administrator."
+          bootcampReason: formData.bootcampReason || "Directly created by admin."
         };
-        await axiosInstance.post("/auth/register", createPayload);
+
+        const res = await axiosInstance.post("/users", createPayload);
+        const newUser = res.data?.user || res.data?.data || res.data;
+
+        if (newUser && (newUser._id || newUser.id)) {
+          setUsers((prev) => [newUser, ...prev]);
+        } else {
+          fetchUsers();
+        }
       }
       closeModal();
-      fetchUsers();
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to save user operation.");
+      alert(err.response?.data?.message || "Failed to save user.");
     }
+  };
+
+  const openCreateModal = () => {
+    setEditingUser(null);
+    setFormData(initialFormState);
+    setShowCreateModal(true);
   };
 
   const openEditModal = (user) => {
     setEditingUser(user);
     setFormData({
-      fullName: user.fullName || "",
+      fullName: user.fullName || user.name || "",
       email: user.email || "",
-      password: "", // Left blank intentionally so it isn't required on edit
+      password: "",
       role: user.role || "student",
       department: user.department || "",
       yearOfStudy: user.yearOfStudy || "1st Year",
@@ -104,45 +154,78 @@ export default function AdminUserManagement() {
   const closeModal = () => {
     setShowCreateModal(false);
     setEditingUser(null);
-    setFormData({
-      fullName: "",
-      email: "",
-      password: "",
-      role: "student",
-      department: "",
-      yearOfStudy: "1st Year",
-      gender: "Male"
-    });
+    setFormData(initialFormState);
   };
 
-  // Split users into two distinct segments
-  const activeOrSuspendedUsers = users.filter(u => u.status === 'approved' || u.status === 'suspended');
-  const pendingOrRejectedUsers = users.filter(u => !u.status || u.status === 'pending' || u.status === 'rejected');
+  const handleResetFilters = () => {
+    setSearchTerm("");
+    setSelectedRole("ALL");
+    setSelectedStatus("ALL");
+  };
+
+  const filteredUsers = (Array.isArray(users) ? users : []).filter((user) => {
+    const userName = user.fullName || user.name || "";
+    const matchesSearch =
+      userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesRole =
+      selectedRole === "ALL" ||
+      user.role?.toLowerCase() === selectedRole.toLowerCase();
+
+    const userStatus = getUserStatus(user);
+    const matchesStatus =
+      selectedStatus === "ALL" ||
+      userStatus === selectedStatus.toLowerCase();
+
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+
+  const pendingOrRejectedUsers = filteredUsers.filter((u) => {
+    const status = getUserStatus(u);
+    return status === "pending" || status === "rejected";
+  });
+
+  const activeOrSuspendedUsers = filteredUsers.filter((u) => {
+    const status = getUserStatus(u);
+    return status !== "pending" && status !== "rejected";
+  });
 
   return (
-    <div className="space-y-8">
-      {/* Header section */}
-      <div className="flex justify-between items-center">
+    <div className="p-6 min-h-screen bg-[#140e0a] text-stone-100 space-y-8">
+      <div className="flex justify-between items-center border-b border-[#2d221b] pb-5">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-wide">User Management</h1>
-          <p className="text-xs text-[#a39081]">Split board overview for active/suspended vs pending/rejected accounts</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white">User Management</h1>
+          <p className="text-sm text-stone-400 mt-1">Split board overview for active/suspended vs pending/rejected accounts</p>
         </div>
         <button
-          onClick={() => setShowCreateModal(true)}
-          className="bg-[#c89b7b] text-[#1e1713] px-4 py-2 rounded-xl text-xs font-bold transition hover:bg-[#b08567]"
+          onClick={openCreateModal}
+          className="bg-amber-600 hover:bg-amber-500 text-stone-950 px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-amber-900/20 transition-all active:scale-95"
         >
           + Create New User
         </button>
       </div>
 
-      {loading && <p className="text-xs text-[#a39081]">Loading user details...</p>}
+      <UserFilterBar
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        selectedRole={selectedRole}
+        setSelectedRole={setSelectedRole}
+        selectedStatus={selectedStatus}
+        setSelectedStatus={setSelectedStatus}
+        onReset={handleResetFilters}
+      />
 
-      {/* ================= SECTION 1: ACTIVE & SUSPENDED USERS ================= */}
+      {loading && <p className="text-sm text-amber-500 animate-pulse font-medium">Loading users data...</p>}
+
       <div className="space-y-3">
-        <h2 className="text-lg font-bold text-[#c89b7b] tracking-wide">Active & Suspended Accounts</h2>
-        <div className="bg-[#1e1713] border border-[#4a3b32] rounded-2xl overflow-hidden shadow-xl">
-          <table className="w-full text-left text-xs text-[#f5efe6]">
-            <thead className="bg-[#16110e] text-[#a39081] uppercase border-b border-[#4a3b32]">
+        <h2 className="text-base font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          Active & Suspended Accounts
+        </h2>
+        <div className="bg-[#1c1410] border border-[#2d221b] rounded-2xl overflow-hidden shadow-2xl">
+          <table className="w-full text-left text-sm text-stone-200">
+            <thead className="bg-[#241a14] text-stone-300 uppercase font-semibold border-b border-[#2d221b] text-xs tracking-wider">
               <tr>
                 <th className="p-4">Name</th>
                 <th className="p-4">Email</th>
@@ -151,60 +234,71 @@ export default function AdminUserManagement() {
                 <th className="p-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#4a3b32]">
+            <tbody className="divide-y divide-[#2d221b]">
               {activeOrSuspendedUsers.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="p-6 text-center text-[#a39081]">No active or suspended users found.</td>
+                  <td colSpan="5" className="p-8 text-center text-stone-400 text-sm">No active or suspended users found.</td>
                 </tr>
               ) : (
-                activeOrSuspendedUsers.map((user) => (
-                  <tr key={user._id} className="hover:bg-[#2d231d]/40">
-                    <td className="p-4 font-bold">{user.fullName}</td>
-                    <td className="p-4 text-[#a39081]">{user.email}</td>
-                    <td className="p-4 uppercase font-semibold text-[#c89b7b]">{user.role}</td>
-                    <td className="p-4">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-semibold uppercase ${
-                        user.status === 'approved' ? 'bg-emerald-900/40 text-emerald-300' : 'bg-rose-900/40 text-rose-300'
-                      }`}>
-                        {user.status}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right space-x-2">
-                      <select
-                        value={user.status || 'approved'}
-                        onChange={(e) => handleStatusUpdate(user._id, e.target.value)}
-                        className="bg-[#16110e] border border-[#4a3b32] text-[#f5efe6] rounded-lg px-2 py-1 text-xs focus:outline-none"
-                      >
-                        <option value="approved">Active / Approved</option>
-                        <option value="suspended">Suspended</option>
-                      </select>
-                      <button
-                        onClick={() => openEditModal(user)}
-                        className="bg-[#4a3b32] hover:bg-[#5e4b3f] text-[#f5efe6] px-3 py-1 rounded-lg text-xs font-semibold transition"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(user._id)}
-                        className="bg-rose-600/80 hover:bg-rose-600 text-white px-3 py-1 rounded-lg text-xs font-semibold transition"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                activeOrSuspendedUsers.map((user) => {
+                  const userId = user._id || user.id;
+                  return (
+                    <tr key={userId} className="hover:bg-[#241a14]/60 transition-colors">
+                      <td className="p-4 font-bold text-white text-base">{user.fullName || user.name || "N/A"}</td>
+                      <td className="p-4 text-stone-300 text-sm">{user.email}</td>
+                      <td className="p-4">
+                        <span className="bg-[#241a14] text-amber-400 border border-amber-500/20 px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider">
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider border ${
+                          getUserStatus(user) === 'approved' 
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                            : 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                        }`}>
+                          {getUserStatus(user)}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right space-x-2">
+                        <select
+                          value={getUserStatus(user)}
+                          onChange={(e) => handleStatusUpdate(userId, e.target.value)}
+                          className="bg-[#0f0a07] border border-[#3d2f26] text-stone-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-amber-600 outline-none"
+                        >
+                          <option value="approved">Active / Approved</option>
+                          <option value="suspended">Suspended</option>
+                        </select>
+                        <button
+                          onClick={() => openEditModal(user)}
+                          className="bg-[#241a14] hover:bg-[#32251d] text-stone-200 px-3 py-1.5 rounded-lg text-xs font-semibold border border-[#3d2f26] transition"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(userId)}
+                          className="bg-rose-500/10 hover:bg-rose-600 text-rose-400 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold border border-rose-500/20 transition"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* ================= SECTION 2: PENDING & REJECTED USERS ================= */}
-      <div className="space-y-3 pt-4">
-        <h2 className="text-lg font-bold text-amber-400 tracking-wide">Pending & Rejected Requests</h2>
-        <div className="bg-[#1e1713] border border-[#4a3b32] rounded-2xl overflow-hidden shadow-xl">
-          <table className="w-full text-left text-xs text-[#f5efe6]">
-            <thead className="bg-[#16110e] text-[#a39081] uppercase border-b border-[#4a3b32]">
+      <div className="space-y-3 pt-2">
+        <h2 className="text-base font-bold text-amber-500 uppercase tracking-wider flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+          Pending & Rejected Requests
+        </h2>
+        <div className="bg-[#2a1f18] border border-[#4a3930] rounded-2xl overflow-hidden shadow-2xl">
+          <table className="w-full text-left text-sm text-stone-200">
+            <thead className="bg-[#241a14] text-stone-300 uppercase font-semibold border-b border-[#2d221b] text-xs tracking-wider">
               <tr>
                 <th className="p-4">Name</th>
                 <th className="p-4">Email</th>
@@ -213,108 +307,116 @@ export default function AdminUserManagement() {
                 <th className="p-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#4a3b32]">
+            <tbody className="divide-y divide-[#2d221b]">
               {pendingOrRejectedUsers.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="p-6 text-center text-[#a39081]">No pending or rejected requests.</td>
+                  <td colSpan="5" className="p-8 text-center text-stone-400 text-sm">No pending or rejected requests found.</td>
                 </tr>
               ) : (
-                pendingOrRejectedUsers.map((user) => (
-                  <tr key={user._id} className="hover:bg-[#2d231d]/40">
-                    <td className="p-4 font-bold">{user.fullName}</td>
-                    <td className="p-4 text-[#a39081]">{user.email}</td>
-                    <td className="p-4 uppercase font-semibold text-[#c89b7b]">{user.role}</td>
-                    <td className="p-4">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-semibold uppercase ${
-                        user.status === 'rejected' ? 'bg-rose-900/40 text-rose-300' : 'bg-amber-900/40 text-amber-300'
-                      }`}>
-                        {user.status || 'pending'}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right space-x-2">
-                      <select
-                        value={user.status || 'pending'}
-                        onChange={(e) => handleStatusUpdate(user._id, e.target.value)}
-                        className="bg-[#16110e] border border-[#4a3b32] text-[#f5efe6] rounded-lg px-2 py-1 text-xs focus:outline-none"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="approved">Approve / Accept</option>
-                        <option value="rejected">Reject</option>
-                      </select>
-                      <button
-                        onClick={() => openEditModal(user)}
-                        className="bg-[#4a3b32] hover:bg-[#5e4b3f] text-[#f5efe6] px-3 py-1 rounded-lg text-xs font-semibold transition"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(user._id)}
-                        className="bg-rose-600/80 hover:bg-rose-600 text-white px-3 py-1 rounded-lg text-xs font-semibold transition"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                pendingOrRejectedUsers.map((user) => {
+                  const userId = user._id || user.id;
+                  return (
+                    <tr key={userId} className="hover:bg-[#241a14]/60 transition-colors">
+                      <td className="p-4 font-bold text-white text-base">{user.fullName || user.name || "N/A"}</td>
+                      <td className="p-4 text-stone-300 text-sm">{user.email}</td>
+                      <td className="p-4">
+                        <span className="bg-[#241a14] text-amber-400 border border-amber-500/20 px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider">
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider border ${
+                          getUserStatus(user) === 'rejected' 
+                            ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' 
+                            : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                        }`}>
+                          {getUserStatus(user)}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right space-x-2">
+                        <select
+                          value={getUserStatus(user)}
+                          onChange={(e) => handleStatusUpdate(userId, e.target.value)}
+                          className="bg-[#0f0a07] border border-[#3d2f26] text-stone-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-amber-600 outline-none"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="approved">Approve / Accept</option>
+                          <option value="rejected">Reject</option>
+                        </select>
+                        <button
+                          onClick={() => openEditModal(user)}
+                          className="bg-[#241a14] hover:bg-[#32251d] text-stone-200 px-3 py-1.5 rounded-lg text-xs font-semibold border border-[#3d2f26] transition"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(userId)}
+                          className="bg-rose-500/10 hover:bg-rose-600 text-rose-400 hover:text-white px-3 py-1.5 rounded-lg text-xs font-semibold border border-rose-500/20 transition"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* ================= CREATE / UPDATE USER MODAL ================= */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-[#1e1713] border border-[#4a3b32] rounded-3xl p-6 w-full max-w-lg space-y-4 shadow-2xl text-[#f5efe6]">
-            <div className="flex justify-between items-center border-b border-[#4a3b32] pb-3">
-              <h2 className="text-xl font-bold">{editingUser ? "Update User Information" : "Create New User"}</h2>
-              <button onClick={closeModal} className="text-[#a39081] hover:text-white font-bold">✕</button>
+        <div className="fixed inset-0 bg-[#0f0a07]/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1c1410] border border-[#2d221b] rounded-3xl p-6 w-full max-w-lg space-y-4 shadow-2xl text-stone-100">
+            <div className="flex justify-between items-center border-b border-[#2d221b] pb-3">
+              <h2 className="text-xl font-bold text-white">{editingUser ? "Update User Information" : "Create New User"}</h2>
+              <button onClick={closeModal} className="text-stone-400 hover:text-white font-bold transition">✕</button>
             </div>
 
-            <form onSubmit={handleSaveUser} className="space-y-3">
+            <form onSubmit={handleSaveUser} className="space-y-4">
               <div>
-                <label className="text-xs text-[#a39081]">Full Name</label>
+                <label className="text-xs text-stone-300 font-medium uppercase tracking-wider">Full Name</label>
                 <input
                   type="text"
                   required
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  className="w-full rounded-xl border border-[#4a3b32] bg-transparent px-3 py-2 text-sm focus:border-[#c89b7b] focus:outline-none"
+                  className="w-full mt-1 rounded-xl border border-[#2d221b] bg-[#0f0a07] px-3 py-2 text-sm text-white focus:border-amber-600 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-[#a39081]">Email Address</label>
+                <label className="text-xs text-stone-300 font-medium uppercase tracking-wider">Email Address</label>
                 <input
                   type="email"
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full rounded-xl border border-[#4a3b32] bg-transparent px-3 py-2 text-sm focus:border-[#c89b7b] focus:outline-none"
+                  className="w-full mt-1 rounded-xl border border-[#2d221b] bg-[#0f0a07] px-3 py-2 text-sm text-white focus:border-amber-600 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-[#a39081]">
-                  {editingUser ? "New Password (leave blank to keep unchanged)" : "Password"}
+                <label className="text-xs text-stone-300 font-medium uppercase tracking-wider">
+                  {editingUser ? "New Password (Leave blank to keep current)" : "Password"}
                 </label>
                 <input
                   type="password"
                   required={!editingUser}
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full rounded-xl border border-[#4a3b32] bg-transparent px-3 py-2 text-sm focus:border-[#c89b7b] focus:outline-none"
-                  placeholder={editingUser ? "••••••••" : "Minimum 6 characters"}
+                  className="w-full mt-1 rounded-xl border border-[#2d221b] bg-[#0f0a07] px-3 py-2 text-sm text-white focus:border-amber-600 focus:outline-none"
+                  placeholder={editingUser ? "••••••••" : "At least 6 characters"}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-[#a39081]">Role</label>
+                  <label className="text-xs text-stone-300 font-medium uppercase tracking-wider">Role</label>
                   <select
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                    className="w-full rounded-xl border border-[#4a3b32] bg-[#16110e] px-3 py-2 text-sm text-[#f5efe6] focus:border-[#c89b7b] focus:outline-none"
+                    className="w-full mt-1 rounded-xl border border-[#2d221b] bg-[#0f0a07] px-3 py-2 text-sm text-white focus:border-amber-600 focus:outline-none"
                   >
                     <option value="student">Student</option>
                     <option value="mentor">Mentor</option>
@@ -323,28 +425,28 @@ export default function AdminUserManagement() {
                 </div>
 
                 <div>
-                  <label className="text-xs text-[#a39081]">Department</label>
+                  <label className="text-xs text-stone-300 font-medium uppercase tracking-wider">Department</label>
                   <input
                     type="text"
                     value={formData.department}
                     onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    className="w-full rounded-xl border border-[#4a3b32] bg-transparent px-3 py-2 text-sm focus:border-[#c89b7b] focus:outline-none"
+                    className="w-full mt-1 rounded-xl border border-[#2d221b] bg-[#0f0a07] px-3 py-2 text-sm text-white focus:border-amber-600 focus:outline-none"
                     placeholder="e.g. Software Engineering"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex justify-end gap-3 pt-4 border-t border-[#2d221b]">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-4 py-2 rounded-xl border border-[#4a3b32] text-xs text-[#a39081] hover:bg-[#2d231d]"
+                  className="px-4 py-2 rounded-xl border border-[#2d221b] text-xs font-semibold text-stone-300 hover:bg-[#241a14] transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-[#c89b7b] text-[#1e1713] text-xs font-semibold hover:bg-[#b08567]"
+                  className="px-4 py-2 rounded-xl bg-amber-600 text-stone-950 text-xs font-bold hover:bg-amber-500 transition"
                 >
                   {editingUser ? "Save Changes" : "Create User"}
                 </button>
