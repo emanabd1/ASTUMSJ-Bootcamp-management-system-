@@ -7,6 +7,7 @@ import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage";
 import SettingsPage from "../pages/SettingsPage";
 import StudentProfilePage from "../pages/StudentProfilePage";
+import AttendancePage from "../pages/AttendancePage"; // <--- Import here
 
 import DashboardLayout from "../components/layout/DashboardLayout";
 import ProtectedRoute from "./ProtectedRoute";
@@ -35,12 +36,8 @@ export default function AppRoutes() {
       {/* Dashboard Layout */}
       <Route element={<DashboardLayout />}>
         
-        {/* Routes accessible to all logged-in users */}
-        <Route
-          element={
-            <ProtectedRoute allowedRoles={["admin", "mentor", "student"]} />
-          }
-        >
+        {/* All logged-in users */}
+        <Route element={<ProtectedRoute allowedRoles={["admin", "mentor", "student"]} />}>
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
         </Route>
@@ -66,18 +63,11 @@ export default function AppRoutes() {
         {/* Student Routes */}
         <Route element={<ProtectedRoute allowedRoles={["student"]} />}>
           <Route path="/student/dashboard" element={<StudentDashboard />} />
-
-          <Route
-            path="/student/profile"
-            element={<StudentProfilePage />}
-          />
-
+          <Route path="/student/profile" element={<StudentProfilePage />} />
+          <Route path="/student/attendance" element={<AttendancePage />} /> {/* <--- New Attendance Route */}
           <Route path="/student/assignments" element={<AssignmentsPage />} />
           <Route path="/student/coding" element={<CodingPage />} />
-          <Route
-            path="/student/announcements"
-            element={<AnnouncementsPage />}
-          />
+          <Route path="/student/announcements" element={<AnnouncementsPage />} />
         </Route>
       </Route>
 
