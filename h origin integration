@@ -1,0 +1,20 @@
+[33m97b5232[m[33m ([m[1;31morigin/integration[m[33m)[m Your commit message here
+[33mf48bc91[m Your commit message here
+[33md466eba[m  integrated
+[33m38f63b8[m  user management
+[33m30e96be[m  user management
+[33mc01ffdf[m  user controller
+[33m95e77c0[m  admin and mentor dashboard
+[33mc7ddbcc[m  sidebar and nav
+[33mbb478c9[m  login and signup snimation sip
+[33me6014fb[m  login and signup
+[33ma2e60df[m Resolve merge conflicts for integration
+[33m82f29de[m Merge remote-tracking branch 'origin/nesrin-feature' into integration
+[33mea968fe[m[33m ([m[1;31morigin/user-management[m[33m, [m[1;32muser-management[m[33m)[m  clean
+[33mfa1b334[m  finish test the user management
+[33mc60b022[m  dependencies
+[33m53268f4[m  server
+[33mb093a84[m  user module
+[33ma9674e7[m  register
+[33mcf96627[m[33m ([m[1;31morigin/nesrin-feature[m[33m, [m[1;32mnesrin-feature[m[33m)[m initial commit
+[33m735b793[m[33m ([m[1;31morigin/signup[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m  repository setup
