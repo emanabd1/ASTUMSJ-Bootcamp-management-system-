@@ -1,19 +1,234 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+
+// Auth pages
 import LoginPage from "../pages/LoginPage";
 import SignupPage from "../pages/SignupPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage";
+
+// Shared pages/layout
 import SettingsPage from "../pages/SettingsPage";
+import NotificationsPage from "../pages/NotificationsPage";
 import DashboardLayout from "../components/layout/DashboardLayout";
 import ProtectedRoute from "./ProtectedRoute";
+
+// Admin pages
 import AdminDashboard from "../pages/AdminDashboard";
 import AdminUserManagement from "../pages/AdminUserManagement";
-import MentorDashboard from "../pages/MentorDashboard";
-import StudentDashboard from "../pages/StudentDashboard";
+import BatchesPage from "../pages/BatchesPage";
 import AssignmentsPage from "../pages/AssignmentsPage";
 import CodingPage from "../pages/CodingPage";
-import NotificationsPage from "../pages/NotificationsPage";
-import BatchesPage from "../pages/BatchesPage";
 import AnnouncementsPage from "../pages/AnnouncementsPage";
-export default function AppRoutes(){return <Routes><Route path="/login" element={<LoginPage/>}/><Route path="/signup" element={<SignupPage/>}/><Route path="/register" element={<SignupPage/>}/><Route path="/forgot-password" element={<ForgotPasswordPage/>}/><Route path="/reset-password" element={<ResetPasswordPage/>}/><Route element={<DashboardLayout/>}><Route element={<ProtectedRoute allowedRoles={["admin","mentor","student"]}/>}><Route path="/settings" element={<SettingsPage/>}/><Route path="/notifications" element={<NotificationsPage/>}/></Route><Route element={<ProtectedRoute allowedRoles={["admin"]}/>}><Route path="/admin/dashboard" element={<AdminDashboard/>}/><Route path="/admin/users" element={<AdminUserManagement/>}/><Route path="/admin/batches" element={<BatchesPage/>}/><Route path="/admin/announcements" element={<AnnouncementsPage/>}/><Route path="/admin/assignments" element={<AssignmentsPage/>}/><Route path="/admin/coding" element={<CodingPage/>}/></Route><Route element={<ProtectedRoute allowedRoles={["mentor"]}/>}><Route path="/mentor/dashboard" element={<MentorDashboard/>}/><Route path="/mentor/assignments" element={<AssignmentsPage/>}/><Route path="/mentor/coding" element={<CodingPage/>}/><Route path="/mentor/announcements" element={<AnnouncementsPage/>}/></Route><Route element={<ProtectedRoute allowedRoles={["student"]}/>}><Route path="/student/dashboard" element={<StudentDashboard/>}/><Route path="/student/assignments" element={<AssignmentsPage/>}/><Route path="/student/coding" element={<CodingPage/>}/><Route path="/student/announcements" element={<AnnouncementsPage/>}/></Route></Route><Route path="/" element={<Navigate to="/login" replace/>}/><Route path="*" element={<Navigate to="/login" replace/>}/></Routes>}
+import AdminAttendance from "../AdminAttendance";
+
+// Mentor pages
+import MentorDashboard from "../pages/MentorDashboard";
+import MentorAnnouncements from "../pages/MentorAnnouncements";
+import MentorAssignments from "../pages/MentorAssignments";
+import MentorAttendance from "../pages/MentorAttendance";
+import MentorProgress from "../pages/MentorProgress";
+
+// Student pages
+import StudentDashboard from "../pages/StudentDashboard";
+import StudentAttendancePage from "../pages/StudentAttendancePage";
+import StudentProfilePage from "../pages/StudentProfilePage";
+import ResourcesPage from "../pages/ResourcesPage";
+
+export default function AppRoutes() {
+  return (
+    <Routes>
+      {/* =========================
+          PUBLIC / AUTH ROUTES
+      ========================== */}
+
+      <Route path="/login" element={<LoginPage />} />
+
+      <Route path="/signup" element={<SignupPage />} />
+
+      <Route path="/register" element={<SignupPage />} />
+
+      <Route
+        path="/forgot-password"
+        element={<ForgotPasswordPage />}
+      />
+
+      <Route
+        path="/reset-password"
+        element={<ResetPasswordPage />}
+      />
+
+      {/* =========================
+          PROTECTED APPLICATION
+      ========================== */}
+
+      <Route element={<DashboardLayout />}>
+        {/* =========================
+            SHARED ROUTES
+        ========================== */}
+
+        <Route
+          element={
+            <ProtectedRoute
+              allowedRoles={["admin", "mentor", "student"]}
+            />
+          }
+        >
+          <Route
+            path="/settings"
+            element={<SettingsPage />}
+          />
+
+          <Route
+            path="/notifications"
+            element={<NotificationsPage />}
+          />
+        </Route>
+
+        {/* =========================
+            ADMIN ROUTES
+        ========================== */}
+
+        <Route
+          element={
+            <ProtectedRoute allowedRoles={["admin"]} />
+          }
+        >
+          <Route
+            path="/admin/dashboard"
+            element={<AdminDashboard />}
+          />
+
+          <Route
+            path="/admin/users"
+            element={<AdminUserManagement />}
+          />
+
+          <Route
+            path="/admin/batches"
+            element={<BatchesPage />}
+          />
+
+          <Route
+            path="/admin/attendance"
+            element={<AdminAttendance />}
+          />
+
+          <Route
+            path="/admin/announcements"
+            element={<AnnouncementsPage />}
+          />
+
+          <Route
+            path="/admin/assignments"
+            element={<AssignmentsPage />}
+          />
+
+          <Route
+            path="/admin/coding"
+            element={<CodingPage />}
+          />
+        </Route>
+
+        {/* =========================
+            MENTOR ROUTES
+        ========================== */}
+
+        <Route
+          element={
+            <ProtectedRoute allowedRoles={["mentor"]} />
+          }
+        >
+          <Route
+            path="/mentor/dashboard"
+            element={<MentorDashboard />}
+          />
+
+          <Route
+            path="/mentor/attendance"
+            element={<MentorAttendance />}
+          />
+
+          <Route
+            path="/mentor/progress"
+            element={<MentorProgress />}
+          />
+
+          <Route
+            path="/mentor/assignments"
+            element={<MentorAssignments />}
+          />
+
+          <Route
+            path="/mentor/coding"
+            element={<CodingPage />}
+          />
+
+          <Route
+            path="/mentor/announcements"
+            element={<MentorAnnouncements />}
+          />
+        </Route>
+
+        {/* =========================
+            STUDENT ROUTES
+        ========================== */}
+
+        <Route
+          element={
+            <ProtectedRoute allowedRoles={["student"]} />
+          }
+        >
+          <Route
+            path="/student/dashboard"
+            element={<StudentDashboard />}
+          />
+
+          <Route
+            path="/student/attendance"
+            element={<StudentAttendancePage />}
+          />
+
+          <Route
+            path="/student/profile"
+            element={<StudentProfilePage />}
+          />
+
+          <Route
+            path="/student/resources"
+            element={<ResourcesPage />}
+          />
+
+          <Route
+            path="/student/assignments"
+            element={<AssignmentsPage />}
+          />
+
+          <Route
+            path="/student/coding"
+            element={<CodingPage />}
+          />
+
+          <Route
+            path="/student/announcements"
+            element={<AnnouncementsPage />}
+          />
+        </Route>
+      </Route>
+
+      {/* =========================
+          DEFAULT ROUTES
+      ========================== */}
+
+      <Route
+        path="/"
+        element={<Navigate to="/login" replace />}
+      />
+
+      <Route
+        path="*"
+        element={<Navigate to="/login" replace />}
+      />
+    </Routes>
+  );
+}

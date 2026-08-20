@@ -1,2 +1,153 @@
-import React,{useEffect,useState} from 'react';import axiosInstance from '../api/axiosInstance';
-export default function StudentDashboard(){const [data,setData]=useState(null),[coding,setCoding]=useState({}),[loading,setLoading]=useState(true),[error,setError]=useState('');useEffect(()=>{Promise.all([axiosInstance.get('/students/dashboard'),axiosInstance.get('/coding/stats')]).then(([r,c])=>{setData(r.data.dashboard);setCoding(c.data.stats?.[r.data.dashboard.student._id]||{})}).catch(e=>setError(e.response?.data?.message||'Could not load dashboard.')).finally(()=>setLoading(false))},[]);if(loading)return <p className="text-[#a39081]">Loading your dashboard...</p>;if(error)return <p className="rounded-xl border border-rose-900 bg-[#1e1713] p-4 text-rose-300">{error}</p>;const d=data,mentor=d.student.mentor;return <div className="space-y-7"><div><h1 className="text-3xl font-extrabold">My Performance Overview</h1><p className="text-xs text-[#a39081]">Everything below is loaded from your MongoDB records.</p></div><div className="grid grid-cols-2 gap-4 lg:grid-cols-6">{[['Attendance',`${d.attendancePercentage}%`],['Progress',`${d.completedTopics}/${d.totalTopics}`],['Average Grade',`${d.averageGrade}%`],['Assignments',d.assignments.length],['Mentor',mentor?.fullName||'Not assigned'],['Batch',d.student.batch?.name||'Not enrolled']].map(([k,v])=><div key={k} className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5"><p className="text-xs text-[#a39081]">{k}</p><p className="mt-2 text-xl font-bold text-[#c89b7b]">{v}</p></div>)}</div><div className="grid grid-cols-1 gap-4 md:grid-cols-3">{['leetcode','codeforces','github'].map(p=><div key={p} className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5"><p className="text-xs uppercase text-[#a39081]">{p} streak</p><p className="mt-2 text-2xl font-bold text-[#c89b7b]">{coding[p]?.streak||0} days</p><p className="text-[11px] text-[#a39081]">{coding[p]?.count||0} activities</p></div>)}</div><div className="grid grid-cols-1 gap-6 lg:grid-cols-2"><section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6"><h2 className="font-bold">Upcoming Deadlines</h2><div className="mt-4 space-y-2">{d.upcomingDeadlines.length?d.upcomingDeadlines.map(x=><div key={x.assignment._id} className="rounded-xl border border-[#4a3b32] p-3 text-sm"><b>{x.assignment.title}</b><p className="text-xs text-[#a39081]">Due {new Date(x.assignment.deadline).toLocaleString()} · {x.submission?.status==='redo'?'Resubmission requested':'Not submitted'}</p></div>):<p className="text-xs text-[#a39081]">No upcoming deadlines.</p>}</div></section><section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6"><h2 className="font-bold">Recent Announcements</h2><div className="mt-4 space-y-2">{d.announcements.length?d.announcements.map(a=><div key={a._id} className="rounded-xl border border-[#4a3b32] p-3"><b>{a.title}</b><p className="mt-1 text-xs text-[#a39081]">{a.content}</p></div>):<p className="text-xs text-[#a39081]">No announcements yet.</p>}</div></section></div><section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6"><h2 className="font-bold">Progress Tracker</h2><div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{d.progress.length?d.progress.map(p=><div key={p._id} className="rounded-xl border border-[#4a3b32] p-3 text-sm"><div className="flex justify-between gap-2"><span>{p.topic}</span><span className="text-[#c89b7b]">{p.status}</span></div>{p.note&&<p className="mt-1 text-xs text-[#a39081]">{p.note}</p>}</div>):<p className="text-xs text-[#a39081]">Your mentor has not added progress records yet.</p>}</div></section></div>}
+import React, { useEffect, useState } from "react";
+import axiosInstance from "../api/axiosInstance";
+import ArcGauge from "../components/dashboard/ArcGauge";
+import BarCompare from "../components/dashboard/BarCompare";
+import AttendanceStrip from "../components/dashboard/AttendanceStrip";
+import ProgressChecklist from "../components/dashboard/ProgressChecklist";
+import DeadlineList from "../components/dashboard/DeadlineList";
+import AnnouncementFeed from "../components/dashboard/AnnouncementFeed";
+
+export default function StudentDashboard() {
+  const [data, setData] = useState(null);
+  const [coding, setCoding] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    Promise.all([
+      axiosInstance.get("/students/dashboard"),
+      axiosInstance.get("/coding/stats"),
+    ])
+      .then(([r, c]) => {
+        setData(r.data.dashboard);
+        setCoding(c.data.stats?.[r.data.dashboard.student._id] || {});
+      })
+      .catch((e) =>
+        setError(e.response?.data?.message || "Could not load dashboard.")
+      )
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <p className="text-[#a39081]">Loading your dashboard...</p>;
+  if (error)
+    return (
+      <p className="rounded-xl border border-rose-900 bg-[#1e1713] p-4 text-rose-300">
+        {error}
+      </p>
+    );
+
+  const d = data;
+  const mentor = d.student.mentor;
+  const progressPct = d.totalTopics
+    ? Math.round((d.completedTopics / d.totalTopics) * 100)
+    : 0;
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="font-serif text-3xl font-bold text-[#f5efe6]">
+          My Performance Overview
+        </h1>
+        <p className="mt-1 text-xs text-[#a39081]">
+          Everything below is loaded from your MongoDB records.
+        </p>
+      </div>
+
+      <section className="grid grid-cols-1 gap-6 rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6 sm:grid-cols-3">
+        <ArcGauge
+          value={d.attendancePercentage}
+          label="Attendance"
+          sublabel="all sessions"
+          color="#c89b7b"
+        />
+        <ArcGauge
+          value={progressPct}
+          label="Topics Completed"
+          sublabel={`${d.completedTopics}/${d.totalTopics} topics`}
+          color="#7fa693"
+        />
+        <ArcGauge
+          value={d.averageGrade}
+          label="Average Grade"
+          sublabel={`${d.assignments.length} assignments`}
+          color="#d9ad63"
+        />
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5">
+          <p className="text-xs uppercase tracking-wide text-[#a39081]">Mentor</p>
+          <p className="mt-1.5 font-serif text-lg font-bold text-[#f5efe6]">
+            {mentor?.fullName || "Not assigned"}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5">
+          <p className="text-xs uppercase tracking-wide text-[#a39081]">Batch</p>
+          <p className="mt-1.5 font-serif text-lg font-bold text-[#f5efe6]">
+            {d.student.batch?.name || "Not enrolled"}
+          </p>
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6">
+          <h2 className="font-serif text-lg font-bold text-[#f5efe6]">
+            Coding Streaks
+          </h2>
+          <p className="mb-5 text-xs text-[#a39081]">
+            Consecutive active days per platform.
+          </p>
+          <BarCompare
+            items={[
+              { label: "LeetCode", value: coding.leetcode?.streak || 0, color: "#c89b7b" },
+              { label: "Codeforces", value: coding.codeforces?.streak || 0, color: "#7fa693" },
+              { label: "GitHub", value: coding.github?.streak || 0, color: "#d9ad63" },
+            ]}
+          />
+        </section>
+
+        <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6">
+          <h2 className="font-serif text-lg font-bold text-[#f5efe6]">
+            Attendance History
+          </h2>
+          <p className="mb-5 text-xs text-[#a39081]">
+            Your last {Math.min(30, d.attendance.length)} recorded sessions.
+          </p>
+          <AttendanceStrip records={d.attendance} />
+        </section>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6">
+          <h2 className="font-serif text-lg font-bold text-[#f5efe6]">
+            Upcoming Deadlines
+          </h2>
+          <p className="mb-5 text-xs text-[#a39081]">
+            Assignments you still need to submit.
+          </p>
+          <DeadlineList items={d.upcomingDeadlines} />
+        </section>
+
+        <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6">
+          <h2 className="font-serif text-lg font-bold text-[#f5efe6]">
+            Recent Announcements
+          </h2>
+          <p className="mb-5 text-xs text-[#a39081]">
+            From your mentors and admins.
+          </p>
+          <AnnouncementFeed items={d.announcements} />
+        </section>
+      </div>
+
+      <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6">
+        <h2 className="font-serif text-lg font-bold text-[#f5efe6]">
+          Progress Tracker
+        </h2>
+        <p className="mb-5 text-xs text-[#a39081]">
+          Topic-by-topic status from your mentor.
+        </p>
+        <ProgressChecklist items={d.progress} />
+      </section>
+    </div>
+  );
+}
