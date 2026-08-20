@@ -100,7 +100,7 @@ const register = async (req, res, next) => {
     return res.status(201).json({
       success: true,
       message:
-        "Registration submitted successfully. Your application is now pending admin approval.",
+        "Registration submitted successfully. ",
       user: safeUser(user),
     });
   } catch (error) {
