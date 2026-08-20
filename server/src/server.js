@@ -20,6 +20,7 @@ const errorHandler = require("./middleware/errorHandler");
 const { startNotificationScheduler } = require("./utils/notificationScheduler");
 
 const app = express();
+app.use(passport.initialize());
 const PORT = process.env.PORT || 5000;
 
 if (!process.env.MONGO_URI) {
