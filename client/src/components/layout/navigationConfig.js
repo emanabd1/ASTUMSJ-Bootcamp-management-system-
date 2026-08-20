@@ -5,9 +5,7 @@ export const navigationConfig = {
     { name: "Batches", path: "/admin/batches" },
     { name: "Assignments", path: "/admin/assignments" },
     { name: "Coding Challenges", path: "/admin/coding" },
-    { name: "Notifications", path: "/notifications" },
     { name: "Announcements", path: "/admin/announcements" },
-    { name: "Settings", path: "/settings" },
   ],
   mentor: [
     { name: "Dashboard", path: "/mentor/dashboard" },
@@ -16,9 +14,7 @@ export const navigationConfig = {
     { name: "Progress Tracker", path: "/mentor/progress" },
     { name: "Assignments & Grading", path: "/mentor/assignments" },
     { name: "Coding Progress", path: "/mentor/coding" },
-    { name: "Notifications", path: "/notifications" },
     { name: "Announcements", path: "/mentor/announcements" },
-    { name: "Settings", path: "/settings" },
   ],
   student: [
     { name: "Dashboard", path: "/student/dashboard" },
@@ -26,8 +22,6 @@ export const navigationConfig = {
     { name: "My Progress", path: "/student/progress" },
     { name: "Assignments", path: "/student/assignments" },
     { name: "Coding Practice", path: "/student/coding" },
-    { name: "Notifications", path: "/notifications" },
     { name: "Announcements", path: "/student/announcements" },
-    { name: "Settings", path: "/settings" },
   ]
 };
