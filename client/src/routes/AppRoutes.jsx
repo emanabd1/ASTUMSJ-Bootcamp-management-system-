@@ -16,6 +16,9 @@ import AdminDashboard from "../pages/AdminDashboard";
 import AdminUserManagement from "../pages/AdminUserManagement";
 import MentorDashboard from "../pages/MentorDashboard";
 import StudentDashboard from "../pages/StudentDashboard";
+//new
+import ResourcesPage from "../pages/ResourcesPage";
+import StudentAttendancePage from "../pages/StudentAttendancePage";
 
 import AssignmentsPage from "../pages/AssignmentsPage";
 import CodingPage from "../pages/CodingPage";
