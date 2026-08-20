@@ -369,7 +369,7 @@ function CpTab({ user }) {
                 </div>
 
                 {item.kind === "resource" ? (
-                  
+                  <a
                     href={item.url}
                     target="_blank"
                     rel="noreferrer"
@@ -380,7 +380,7 @@ function CpTab({ user }) {
                 ) : (
                   <div className="flex w-full flex-col gap-2 lg:w-[380px]">
                     {item.problemUrl && (
-                      
+                      <a
                         href={item.problemUrl}
                         target="_blank"
                         rel="noreferrer"
@@ -500,7 +500,7 @@ function DevTab() {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 {items.map((item) => (
-                  
+                  <a
                     key={item.title}
                     href={item.url}
                     target="_blank"
