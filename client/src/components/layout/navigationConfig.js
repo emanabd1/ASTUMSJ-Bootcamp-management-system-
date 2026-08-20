@@ -21,7 +21,7 @@ export const navigationConfig = {
     { name: "My Attendance", path: "/student/attendance" },
     { name: "My Progress", path: "/student/progress" },
     { name: "Assignments", path: "/student/assignments" },
-    { name: "Coding Practice", path: "/student/coding" },
+    { name: "Resources", path: "/student/resources" },
     { name: "Announcements", path: "/student/announcements" },
   ]
 };
