@@ -71,6 +71,8 @@ export default function AppRoutes() {
           <Route path="/student/assignments" element={<AssignmentsPage />} />
           <Route path="/student/coding" element={<CodingPage />} />
           <Route path="/student/announcements" element={<AnnouncementsPage />} />
+          <Route path="/student/attendance" element={<StudentAttendancePage/>}/>
+<Route path="/student/resources" element={<ResourcesPage/>}/>
         </Route>
       </Route>
 
