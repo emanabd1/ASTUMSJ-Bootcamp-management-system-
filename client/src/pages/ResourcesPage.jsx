@@ -2,10 +2,6 @@ import React, { useEffect, useState } from "react";
 import axiosInstance from "../api/axiosInstance";
 import { useAuth } from "../hooks/useAuth";
 
-/* ------------------------------------------------------------------ */
-/*  EDIT THESE — hardcoded until a backend "resources" module exists. */
-/* ------------------------------------------------------------------ */
-
 const CP_RESOURCES = [
   {
     platform: "LeetCode",
@@ -47,7 +43,9 @@ const CP_RESOURCES = [
 
 const DEV_RESOURCES = [
   {
-    topic: "HTML / CSS",
+    week: "Week 1",
+    title: "HTML & CSS Foundations",
+    topics: ["HTML / CSS"],
     items: [
       {
         title: "Kevin Powell — CSS Channel",
@@ -60,7 +58,9 @@ const DEV_RESOURCES = [
     ],
   },
   {
-    topic: "JavaScript",
+    week: "Week 2",
+    title: "JavaScript Fundamentals",
+    topics: ["JavaScript"],
     items: [
       {
         title: "Namaste JavaScript — Akshay Saini",
@@ -73,7 +73,9 @@ const DEV_RESOURCES = [
     ],
   },
   {
-    topic: "React",
+    week: "Week 3",
+    title: "React",
+    topics: ["React"],
     items: [
       {
         title: "React Official Docs",
@@ -86,7 +88,9 @@ const DEV_RESOURCES = [
     ],
   },
   {
-    topic: "Node.js / Express",
+    week: "Week 4",
+    title: "Backend Development",
+    topics: ["Node.js", "Express"],
     items: [
       {
         title: "Traversy Media — Node Crash Course",
@@ -99,7 +103,9 @@ const DEV_RESOURCES = [
     ],
   },
   {
-    topic: "MongoDB",
+    week: "Week 5",
+    title: "Database",
+    topics: ["MongoDB"],
     items: [
       {
         title: "MongoDB Official University",
@@ -108,7 +114,9 @@ const DEV_RESOURCES = [
     ],
   },
   {
-    topic: "Git / GitHub",
+    week: "Week 6",
+    title: "Git & GitHub",
+    topics: ["Git", "GitHub"],
     items: [
       {
         title: "Git & GitHub Crash Course — freeCodeCamp",
@@ -118,7 +126,10 @@ const DEV_RESOURCES = [
   },
 ];
 
-/* ------------------------------------------------------------------ */
+const field =
+  "w-full rounded-xl border border-[#4a3b32] bg-[#16110e] px-3 py-2 text-sm text-[#f5efe6] placeholder:text-[#6f6259] focus:border-[#c89b7b] focus:outline-none";
+
+const PLATFORM_FILTERS = ["All", "LeetCode", "Codeforces"];
 
 function ArrowIcon() {
   return (
@@ -136,21 +147,31 @@ function ArrowIcon() {
   );
 }
 
-const field =
-  "w-full rounded-xl border border-[#4a3b32] bg-[#16110e] px-3 py-2 text-sm text-[#f5efe6] focus:border-[#c89b7b] focus:outline-none";
-
-const PLATFORM_FILTERS = ["All", "LeetCode", "Codeforces"];
+function SearchIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-4-4" />
+    </svg>
+  );
+}
 
 function CpTab({ user }) {
   const [stats, setStats] = useState({});
   const [challenges, setChallenges] = useState([]);
-  const [activity, setActivity] = useState({
-    platform: "leetcode",
-    url: "",
-    note: "",
-  });
-  const [msg, setMsg] = useState("");
+  const [cpTab, setCpTab] = useState("practice");
   const [platformFilter, setPlatformFilter] = useState("All");
+  const [solutionLinks, setSolutionLinks] = useState({});
+  const [submittingId, setSubmittingId] = useState("");
+  const [msg, setMsg] = useState("");
 
   const load = async () => {
     try {
@@ -170,22 +191,34 @@ function CpTab({ user }) {
     load();
   }, []);
 
-  const submit = async (e) => {
-    e.preventDefault();
+  const submitSolution = async (challenge) => {
+    const url = solutionLinks[challenge._id]?.trim();
+
+    if (!url) {
+      setMsg("Please enter your solution link first.");
+      return;
+    }
+
+    setSubmittingId(challenge._id);
 
     try {
-      await axiosInstance.post("/coding/activity", activity);
-
-      setMsg("Coding activity recorded.");
-      setActivity({
-        ...activity,
-        url: "",
-        note: "",
+      await axiosInstance.post("/coding/activity", {
+        platform: challenge.platform?.toLowerCase(),
+        url,
+        note: `Solution submitted for: ${challenge.title}`,
       });
 
+      setSolutionLinks((prev) => ({
+        ...prev,
+        [challenge._id]: "",
+      }));
+
+      setMsg("Solution link submitted successfully.");
       load();
     } catch (e) {
-      setMsg(e.response?.data?.message || "Could not record activity.");
+      setMsg(e.response?.data?.message || "Could not submit solution.");
+    } finally {
+      setSubmittingId("");
     }
   };
 
@@ -199,230 +232,311 @@ function CpTab({ user }) {
   return (
     <div className="space-y-7">
       {msg && (
-        <p className="rounded-xl border border-[#4a3b32] bg-[#1e1713] p-3 text-sm text-amber-400">
-          {msg}
-        </p>
+        <div className="flex items-center justify-between rounded-xl border border-[#4a3b32] bg-[#1e1713] p-3 text-sm text-amber-400">
+          <span>{msg}</span>
+          <button
+            onClick={() => setMsg("")}
+            className="ml-4 text-[#a39081] hover:text-[#f5efe6]"
+          >
+            ×
+          </button>
+        </div>
       )}
 
-      {/* Coding Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        {["leetcode", "codeforces", "github"].map((platform) => (
+      <div className="grid gap-4 md:grid-cols-2">
+        {["leetcode", "codeforces"].map((platform) => (
           <div
             key={platform}
             className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5"
           >
-            <p className="text-xs uppercase text-[#a39081]">
-              {platform}
-            </p>
+            <p className="text-xs uppercase text-[#a39081]">{platform}</p>
 
-            <p className="text-3xl font-bold text-[#c89b7b]">
+            <p className="mt-2 text-3xl font-bold text-[#c89b7b]">
               {stats[user?._id]?.[platform]?.streak || 0} days
             </p>
 
-            <p className="text-xs text-[#a39081]">
+            <p className="mt-1 text-xs text-[#a39081]">
               {stats[user?._id]?.[platform]?.count || 0} recorded activities
             </p>
           </div>
         ))}
       </div>
 
-      {/* Record Activity */}
-      <form
-        onSubmit={submit}
-        className="space-y-3 rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6"
-      >
-        <h2 className="font-bold text-[#f5efe6]">
-          Record Completed Problem / Activity
-        </h2>
+      <div className="flex flex-wrap gap-2">
+        {[
+          { key: "practice", label: "Practice Sheets" },
+          { key: "unsolved", label: "Unsolved Questions" },
+        ].map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => setCpTab(item.key)}
+            className={`rounded-xl px-5 py-2 text-xs font-bold uppercase tracking-wide transition ${
+              cpTab === item.key
+                ? "bg-[#c89b7b] text-[#1e1713]"
+                : "border border-[#4a3b32] text-[#a39081] hover:text-[#f5efe6]"
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
 
-        <select
-          className={field}
-          value={activity.platform}
-          onChange={(e) =>
-            setActivity({
-              ...activity,
-              platform: e.target.value,
-            })
-          }
-        >
-          <option value="leetcode">LeetCode</option>
-          <option value="codeforces">Codeforces</option>
-          <option value="github">GitHub</option>
-        </select>
-
-        <input
-          className={field}
-          placeholder="Problem / commit / repository URL"
-          value={activity.url}
-          onChange={(e) =>
-            setActivity({
-              ...activity,
-              url: e.target.value,
-            })
-          }
-        />
-
-        <textarea
-          className={field}
-          placeholder="Notes (optional)"
-          value={activity.note}
-          onChange={(e) =>
-            setActivity({
-              ...activity,
-              note: e.target.value,
-            })
-          }
-        />
-
-        <button
-          type="submit"
-          className="rounded-xl bg-[#c89b7b] px-5 py-2 text-xs font-bold text-[#1e1713]"
-        >
-          Record Activity
-        </button>
-      </form>
-
-      {/* Assigned Problems */}
-      {challenges.length > 0 && (
+      {cpTab === "practice" && (
         <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6">
-          <h2 className="font-bold text-[#f5efe6]">
-            Assigned Problems
-          </h2>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-bold text-[#f5efe6]">Practice Sheets</h2>
+              <p className="mt-1 text-xs text-[#a39081]">
+                Choose a platform and start practicing.
+              </p>
+            </div>
 
-          <div className="mt-4 space-y-3">
-            {challenges.map((challenge) => (
-              <div
-                key={challenge._id}
-                className="rounded-xl border border-[#4a3b32] p-4"
-              >
-                <b className="text-[#f5efe6]">{challenge.title}</b>
+            <div className="flex gap-1.5">
+              {PLATFORM_FILTERS.map((platform) => (
+                <button
+                  key={platform}
+                  type="button"
+                  onClick={() => setPlatformFilter(platform)}
+                  className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition ${
+                    platformFilter === platform
+                      ? "bg-[#c89b7b] text-[#1e1713]"
+                      : "border border-[#4a3b32] text-[#a39081] hover:text-[#f5efe6]"
+                  }`}
+                >
+                  {platform}
+                </button>
+              ))}
+            </div>
+          </div>
 
-                <span className="ml-2 text-[10px] uppercase text-[#c89b7b]">
-                  {challenge.platform}
-                </span>
+          <div className="overflow-hidden rounded-xl border border-[#4a3b32]">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-[#4a3b32] bg-[#16110e] text-[10px] uppercase tracking-wide text-[#a39081]">
+                  <th className="px-4 py-2.5">Platform</th>
+                  <th className="px-4 py-2.5">Sheet / Resource</th>
+                  <th className="px-4 py-2.5">Tag</th>
+                  <th className="px-4 py-2.5"></th>
+                </tr>
+              </thead>
 
-                <p className="text-xs text-[#a39081]">
-                  {challenge.description}
-                </p>
-
-                {challenge.problemUrl && (
-                  <a
-                    href={challenge.problemUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-[#c89b7b]"
+              <tbody>
+                {filteredResources.map((resource) => (
+                  <tr
+                    key={resource.title}
+                    className="border-b border-[#4a3b32] last:border-0"
                   >
-                    Open problem
-                  </a>
-                )}
-              </div>
-            ))}
+                    <td className="px-4 py-2.5 text-[#c89b7b]">
+                      {resource.platform}
+                    </td>
+
+                    <td className="px-4 py-2.5 text-[#f5efe6]">
+                      {resource.title}
+                    </td>
+
+                    <td className="px-4 py-2.5 text-xs text-[#a39081]">
+                      {resource.tag}
+                    </td>
+
+                    <td className="px-4 py-2.5 text-right">
+                      <a
+                        href={resource.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-semibold text-[#c89b7b] hover:underline"
+                      >
+                        Open <ArrowIcon />
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
       )}
 
-      {/* Practice Sheets */}
-      <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-bold text-[#f5efe6]">
-            Practice Sheets
-          </h2>
-
-          <div className="flex gap-1.5">
-            {PLATFORM_FILTERS.map((platform) => (
-              <button
-                key={platform}
-                type="button"
-                onClick={() => setPlatformFilter(platform)}
-                className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition ${
-                  platformFilter === platform
-                    ? "bg-[#c89b7b] text-[#1e1713]"
-                    : "border border-[#4a3b32] text-[#a39081] hover:text-[#f5efe6]"
-                }`}
-              >
-                {platform}
-              </button>
-            ))}
+      {cpTab === "unsolved" && (
+        <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6">
+          <div className="mb-5">
+            <h2 className="font-bold text-[#f5efe6]">Unsolved Questions</h2>
+            <p className="mt-1 text-xs text-[#a39081]">
+              Open the question and submit your solution link beside it.
+            </p>
           </div>
-        </div>
 
-        <div className="overflow-hidden rounded-xl border border-[#4a3b32]">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-[#4a3b32] bg-[#16110e] text-[10px] uppercase tracking-wide text-[#a39081]">
-                <th className="px-4 py-2.5">Platform</th>
-                <th className="px-4 py-2.5">Sheet / Resource</th>
-                <th className="px-4 py-2.5">Tag</th>
-                <th className="px-4 py-2.5"></th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {filteredResources.map((resource) => (
-                <tr
-                  key={resource.title}
-                  className="border-b border-[#4a3b32] last:border-0"
+          {challenges.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-[#4a3b32] p-8 text-center text-sm text-[#a39081]">
+              No unsolved questions assigned yet.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {challenges.map((challenge) => (
+                <div
+                  key={challenge._id}
+                  className="rounded-xl border border-[#4a3b32] bg-[#16110e] p-4"
                 >
-                  <td className="px-4 py-2.5 text-[#c89b7b]">
-                    {resource.platform}
-                  </td>
+                  <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-bold text-[#f5efe6]">
+                          {challenge.title}
+                        </h3>
 
-                  <td className="px-4 py-2.5 text-[#f5efe6]">
-                    {resource.title}
-                  </td>
+                        <span className="rounded-full bg-[#c89b7b]/10 px-2 py-1 text-[10px] font-bold uppercase text-[#c89b7b]">
+                          {challenge.platform}
+                        </span>
+                      </div>
 
-                  <td className="px-4 py-2.5 text-xs text-[#a39081]">
-                    {resource.tag}
-                  </td>
+                      {challenge.description && (
+                        <p className="mt-2 text-xs leading-5 text-[#a39081]">
+                          {challenge.description}
+                        </p>
+                      )}
 
-                  <td className="px-4 py-2.5 text-right">
-                    <a
-                      href={resource.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs font-semibold text-[#c89b7b] hover:underline"
-                    >
-                      Open <ArrowIcon />
-                    </a>
-                  </td>
-                </tr>
+                      {challenge.problemUrl && (
+                        <a
+                          href={challenge.problemUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-3 inline-block text-xs font-semibold text-[#c89b7b] hover:underline"
+                        >
+                          Open Question <ArrowIcon />
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="flex w-full flex-col gap-2 lg:w-[380px]">
+                      <input
+                        type="url"
+                        className={field}
+                        placeholder="Paste your solution link"
+                        value={solutionLinks[challenge._id] || ""}
+                        onChange={(e) =>
+                          setSolutionLinks((prev) => ({
+                            ...prev,
+                            [challenge._id]: e.target.value,
+                          }))
+                        }
+                      />
+
+                      <button
+                        type="button"
+                        disabled={submittingId === challenge._id}
+                        onClick={() => submitSolution(challenge)}
+                        className="rounded-xl bg-[#c89b7b] px-4 py-2 text-xs font-bold text-[#1e1713] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {submittingId === challenge._id
+                          ? "Submitting..."
+                          : "Submit Solution"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }
 
 function DevTab() {
+  const [search, setSearch] = useState("");
+
+  const filteredResources = DEV_RESOURCES.filter((section) => {
+    const query = search.toLowerCase().trim();
+
+    if (!query) return true;
+
+    return (
+      section.week.toLowerCase().includes(query) ||
+      section.title.toLowerCase().includes(query) ||
+      section.topics.some((topic) => topic.toLowerCase().includes(query)) ||
+      section.items.some((item) =>
+        item.title.toLowerCase().includes(query)
+      )
+    );
+  });
+
   return (
     <div className="space-y-6">
-      {DEV_RESOURCES.map((section) => (
-        <section
-          key={section.topic}
-          className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6"
-        >
-          <h2 className="mb-4 font-bold text-[#f5efe6]">
-            {section.topic}
-          </h2>
+      <div className="relative">
+        <SearchIcon />
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            {section.items.map((item) => (
-              <a
-                key={item.title}
-                href={item.url}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-xl border border-[#4a3b32] p-4 text-sm text-[#f5efe6] transition hover:border-[#c89b7b] hover:bg-[#16110e]"
-              >
-                {item.title}
-                <ArrowIcon />
-              </a>
-            ))}
-          </div>
-        </section>
-      ))}
+        <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#a39081]">
+          <SearchIcon />
+        </div>
+
+        <input
+          className={`${field} pl-10`}
+          placeholder="Search resources, topics, or weeks..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      {filteredResources.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-[#4a3b32] bg-[#1e1713] p-10 text-center text-sm text-[#a39081]">
+          No resources found.
+        </div>
+      ) : (
+        filteredResources.map((section) => {
+          const query = search.toLowerCase().trim();
+
+          const items =
+            !query ||
+            section.week.toLowerCase().includes(query) ||
+            section.title.toLowerCase().includes(query) ||
+            section.topics.some((topic) =>
+              topic.toLowerCase().includes(query)
+            )
+              ? section.items
+              : section.items.filter((item) =>
+                  item.title.toLowerCase().includes(query)
+                );
+
+          return (
+            <section
+              key={section.week}
+              className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6"
+            >
+              <div className="mb-4 flex flex-wrap items-center gap-3">
+                <span className="rounded-full bg-[#c89b7b] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#1e1713]">
+                  {section.week}
+                </span>
+
+                <div>
+                  <h2 className="font-bold text-[#f5efe6]">
+                    {section.title}
+                  </h2>
+
+                  <p className="mt-1 text-xs text-[#a39081]">
+                    {section.topics.join(" • ")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                {items.map((item) => (
+                  <a
+                    key={item.title}
+                    href={item.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-xl border border-[#4a3b32] p-4 text-sm text-[#f5efe6] transition hover:border-[#c89b7b] hover:bg-[#16110e]"
+                  >
+                    {item.title}
+                    <ArrowIcon />
+                  </a>
+                ))}
+              </div>
+            </section>
+          );
+        })
+      )}
     </div>
   );
 }
@@ -439,12 +553,11 @@ export default function ResourcesPage() {
         </h1>
 
         <p className="text-xs text-[#a39081]">
-          Competitive programming practice and dev-track learning materials,
-          all in one place.
+          Competitive programming practice and week-by-week development
+          resources.
         </p>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-2">
         {[
           { key: "cp", label: "CP" },
