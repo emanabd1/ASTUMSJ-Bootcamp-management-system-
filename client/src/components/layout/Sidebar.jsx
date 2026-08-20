@@ -9,7 +9,7 @@ export default function Sidebar() {
   const links = navigationConfig[role] || [];
 
   return (
-    <aside className="flex h-[calc(100vh-4rem)] w-64 flex-col border-r border-[#4a3b32] bg-[#1e1713] p-6 text-[#f5efe6]">
+    <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-[#4a3b32] bg-[#1e1713] p-6 text-[#f5efe6]">
       <div className="mb-6 flex items-center space-x-3 px-2">
         <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 border-[#c89b7b] bg-white">
           <img
@@ -27,7 +27,7 @@ export default function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1.5">
+      <nav className="flex-1 space-y-1.5 overflow-y-auto">
         {links.map((link) => (
           <NavLink
             key={link.path}
