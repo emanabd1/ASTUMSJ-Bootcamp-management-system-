@@ -50,10 +50,12 @@ const DEV_RESOURCES = [
       {
         title: "Kevin Powell — CSS Channel",
         url: "https://www.youtube.com/@KevinPowell",
+        type: "Video",
       },
       {
         title: "freeCodeCamp — Responsive Web Design",
         url: "https://www.freecodecamp.org/learn/2022/responsive-web-design/",
+        type: "Course",
       },
     ],
   },
@@ -65,10 +67,12 @@ const DEV_RESOURCES = [
       {
         title: "Namaste JavaScript — Akshay Saini",
         url: "https://www.youtube.com/@akshaymarch7",
+        type: "Video",
       },
       {
         title: "JavaScript.info",
         url: "https://javascript.info/",
+        type: "Notes",
       },
     ],
   },
@@ -80,10 +84,12 @@ const DEV_RESOURCES = [
       {
         title: "React Official Docs",
         url: "https://react.dev/learn",
+        type: "Notes",
       },
       {
         title: "Net Ninja — React Playlist",
         url: "https://www.youtube.com/@NetNinja",
+        type: "Video",
       },
     ],
   },
@@ -95,10 +101,12 @@ const DEV_RESOURCES = [
       {
         title: "Traversy Media — Node Crash Course",
         url: "https://www.youtube.com/@TraversyMedia",
+        type: "Video",
       },
       {
         title: "Express Official Docs",
         url: "https://expressjs.com/",
+        type: "Notes",
       },
     ],
   },
@@ -110,6 +118,7 @@ const DEV_RESOURCES = [
       {
         title: "MongoDB Official University",
         url: "https://learn.mongodb.com/",
+        type: "Course",
       },
     ],
   },
@@ -121,6 +130,7 @@ const DEV_RESOURCES = [
       {
         title: "Git & GitHub Crash Course — freeCodeCamp",
         url: "https://www.youtube.com/@freecodecamp",
+        type: "Video",
       },
     ],
   },
@@ -130,6 +140,13 @@ const field =
   "w-full rounded-xl border border-[#4a3b32] bg-[#16110e] px-3 py-2 text-sm text-[#f5efe6] placeholder:text-[#6f6259] focus:border-[#c89b7b] focus:outline-none";
 
 const PLATFORM_FILTERS = ["All", "LeetCode", "Codeforces"];
+
+// small style map for dev resource type tags
+const TYPE_STYLES = {
+  Video: "bg-red-400/10 text-red-300",
+  Notes: "bg-sky-400/10 text-sky-300",
+  Course: "bg-emerald-400/10 text-emerald-300",
+};
 
 function ArrowIcon() {
   return (
@@ -164,10 +181,19 @@ function SearchIcon() {
   );
 }
 
+// normalize API platform values ("leetcode") to the display labels used
+// by the static resource list ("LeetCode") so the same filter works on both.
+function normalizePlatform(p) {
+  if (!p) return "";
+  const lower = p.toLowerCase();
+  if (lower === "leetcode") return "LeetCode";
+  if (lower === "codeforces") return "Codeforces";
+  return p;
+}
+
 function CpTab({ user }) {
   const [stats, setStats] = useState({});
   const [challenges, setChallenges] = useState([]);
-  const [cpTab, setCpTab] = useState("practice");
   const [platformFilter, setPlatformFilter] = useState("All");
   const [solutionLinks, setSolutionLinks] = useState({});
   const [submittingId, setSubmittingId] = useState("");
@@ -222,12 +248,33 @@ function CpTab({ user }) {
     }
   };
 
-  const filteredResources =
+  // merge static practice-sheet links + unsolved API challenges into one list,
+  // filterable by the same platform buttons
+  const combinedItems = [
+    ...CP_RESOURCES.map((r) => ({
+      kind: "resource",
+      key: `resource-${r.title}`,
+      platform: r.platform,
+      title: r.title,
+      tag: r.tag,
+      url: r.url,
+    })),
+    ...challenges.map((c) => ({
+      kind: "challenge",
+      key: `challenge-${c._id}`,
+      _id: c._id,
+      platform: normalizePlatform(c.platform),
+      title: c.title,
+      tag: "Unsolved",
+      description: c.description,
+      problemUrl: c.problemUrl,
+    })),
+  ];
+
+  const filteredItems =
     platformFilter === "All"
-      ? CP_RESOURCES
-      : CP_RESOURCES.filter(
-          (resource) => resource.platform === platformFilter
-        );
+      ? combinedItems
+      : combinedItems.filter((item) => item.platform === platformFilter);
 
   return (
     <div className="space-y-7">
@@ -262,183 +309,117 @@ function CpTab({ user }) {
         ))}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {[
-          { key: "practice", label: "Practice Sheets" },
-          { key: "unsolved", label: "Unsolved Questions" },
-        ].map((item) => (
-          <button
-            key={item.key}
-            type="button"
-            onClick={() => setCpTab(item.key)}
-            className={`rounded-xl px-5 py-2 text-xs font-bold uppercase tracking-wide transition ${
-              cpTab === item.key
-                ? "bg-[#c89b7b] text-[#1e1713]"
-                : "border border-[#4a3b32] text-[#a39081] hover:text-[#f5efe6]"
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
-      {cpTab === "practice" && (
-        <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="font-bold text-[#f5efe6]">Practice Sheets</h2>
-              <p className="mt-1 text-xs text-[#a39081]">
-                Choose a platform and start practicing.
-              </p>
-            </div>
-
-            <div className="flex gap-1.5">
-              {PLATFORM_FILTERS.map((platform) => (
-                <button
-                  key={platform}
-                  type="button"
-                  onClick={() => setPlatformFilter(platform)}
-                  className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition ${
-                    platformFilter === platform
-                      ? "bg-[#c89b7b] text-[#1e1713]"
-                      : "border border-[#4a3b32] text-[#a39081] hover:text-[#f5efe6]"
-                  }`}
-                >
-                  {platform}
-                </button>
-              ))}
-            </div>
+      <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-bold text-[#f5efe6]">Practice Sheets</h2>
+            <p className="mt-1 text-xs text-[#a39081]">
+              Practice links plus any unsolved questions assigned to you —
+              submit your solution link right where you see the question.
+            </p>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-[#4a3b32]">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-[#4a3b32] bg-[#16110e] text-[10px] uppercase tracking-wide text-[#a39081]">
-                  <th className="px-4 py-2.5">Platform</th>
-                  <th className="px-4 py-2.5">Sheet / Resource</th>
-                  <th className="px-4 py-2.5">Tag</th>
-                  <th className="px-4 py-2.5"></th>
-                </tr>
-              </thead>
+          <div className="flex gap-1.5">
+            {PLATFORM_FILTERS.map((platform) => (
+              <button
+                key={platform}
+                type="button"
+                onClick={() => setPlatformFilter(platform)}
+                className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition ${
+                  platformFilter === platform
+                    ? "bg-[#c89b7b] text-[#1e1713]"
+                    : "border border-[#4a3b32] text-[#a39081] hover:text-[#f5efe6]"
+                }`}
+              >
+                {platform}
+              </button>
+            ))}
+          </div>
+        </div>
 
-              <tbody>
-                {filteredResources.map((resource) => (
-                  <tr
-                    key={resource.title}
-                    className="border-b border-[#4a3b32] last:border-0"
+        {filteredItems.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-[#4a3b32] p-8 text-center text-sm text-[#a39081]">
+            Nothing here for this platform yet.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredItems.map((item) => (
+              <div
+                key={item.key}
+                className="flex flex-col justify-between gap-4 rounded-xl border border-[#4a3b32] bg-[#16110e] p-4 lg:flex-row lg:items-center"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-[#c89b7b]/10 px-2 py-1 text-[10px] font-bold uppercase text-[#c89b7b]">
+                      {item.platform}
+                    </span>
+
+                    <h3 className="font-bold text-[#f5efe6]">{item.title}</h3>
+
+                    <span className="text-[10px] uppercase tracking-wide text-[#a39081]">
+                      {item.tag}
+                    </span>
+                  </div>
+
+                  {item.description && (
+                    <p className="mt-2 text-xs leading-5 text-[#a39081]">
+                      {item.description}
+                    </p>
+                  )}
+                </div>
+
+                {item.kind === "resource" ? (
+                  
+                    href={item.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="whitespace-nowrap text-xs font-semibold text-[#c89b7b] hover:underline"
                   >
-                    <td className="px-4 py-2.5 text-[#c89b7b]">
-                      {resource.platform}
-                    </td>
-
-                    <td className="px-4 py-2.5 text-[#f5efe6]">
-                      {resource.title}
-                    </td>
-
-                    <td className="px-4 py-2.5 text-xs text-[#a39081]">
-                      {resource.tag}
-                    </td>
-
-                    <td className="px-4 py-2.5 text-right">
-                      <a
-                        href={resource.url}
+                    Open <ArrowIcon />
+                  </a>
+                ) : (
+                  <div className="flex w-full flex-col gap-2 lg:w-[380px]">
+                    {item.problemUrl && (
+                      
+                        href={item.problemUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="text-xs font-semibold text-[#c89b7b] hover:underline"
                       >
-                        Open <ArrowIcon />
+                        Open Question <ArrowIcon />
                       </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
+                    )}
 
-      {cpTab === "unsolved" && (
-        <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6">
-          <div className="mb-5">
-            <h2 className="font-bold text-[#f5efe6]">Unsolved Questions</h2>
-            <p className="mt-1 text-xs text-[#a39081]">
-              Open the question and submit your solution link beside it.
-            </p>
-          </div>
+                    <input
+                      type="url"
+                      className={field}
+                      placeholder="Paste your solution link"
+                      value={solutionLinks[item._id] || ""}
+                      onChange={(e) =>
+                        setSolutionLinks((prev) => ({
+                          ...prev,
+                          [item._id]: e.target.value,
+                        }))
+                      }
+                    />
 
-          {challenges.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-[#4a3b32] p-8 text-center text-sm text-[#a39081]">
-              No unsolved questions assigned yet.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {challenges.map((challenge) => (
-                <div
-                  key={challenge._id}
-                  className="rounded-xl border border-[#4a3b32] bg-[#16110e] p-4"
-                >
-                  <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-bold text-[#f5efe6]">
-                          {challenge.title}
-                        </h3>
-
-                        <span className="rounded-full bg-[#c89b7b]/10 px-2 py-1 text-[10px] font-bold uppercase text-[#c89b7b]">
-                          {challenge.platform}
-                        </span>
-                      </div>
-
-                      {challenge.description && (
-                        <p className="mt-2 text-xs leading-5 text-[#a39081]">
-                          {challenge.description}
-                        </p>
-                      )}
-
-                      {challenge.problemUrl && (
-                        <a
-                          href={challenge.problemUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-3 inline-block text-xs font-semibold text-[#c89b7b] hover:underline"
-                        >
-                          Open Question <ArrowIcon />
-                        </a>
-                      )}
-                    </div>
-
-                    <div className="flex w-full flex-col gap-2 lg:w-[380px]">
-                      <input
-                        type="url"
-                        className={field}
-                        placeholder="Paste your solution link"
-                        value={solutionLinks[challenge._id] || ""}
-                        onChange={(e) =>
-                          setSolutionLinks((prev) => ({
-                            ...prev,
-                            [challenge._id]: e.target.value,
-                          }))
-                        }
-                      />
-
-                      <button
-                        type="button"
-                        disabled={submittingId === challenge._id}
-                        onClick={() => submitSolution(challenge)}
-                        className="rounded-xl bg-[#c89b7b] px-4 py-2 text-xs font-bold text-[#1e1713] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {submittingId === challenge._id
-                          ? "Submitting..."
-                          : "Submit Solution"}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      disabled={submittingId === item._id}
+                      onClick={() => submitSolution(item)}
+                      className="rounded-xl bg-[#c89b7b] px-4 py-2 text-xs font-bold text-[#1e1713] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {submittingId === item._id
+                        ? "Submitting..."
+                        : "Submit Solution"}
+                    </button>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -464,8 +445,6 @@ function DevTab() {
   return (
     <div className="space-y-6">
       <div className="relative">
-        <SearchIcon />
-
         <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#a39081]">
           <SearchIcon />
         </div>
@@ -521,15 +500,28 @@ function DevTab() {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 {items.map((item) => (
-                  <a
+                  
                     key={item.title}
                     href={item.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="rounded-xl border border-[#4a3b32] p-4 text-sm text-[#f5efe6] transition hover:border-[#c89b7b] hover:bg-[#16110e]"
+                    className="flex items-center justify-between gap-3 rounded-xl border border-[#4a3b32] p-4 text-sm text-[#f5efe6] transition hover:border-[#c89b7b] hover:bg-[#16110e]"
                   >
-                    {item.title}
-                    <ArrowIcon />
+                    <span className="flex items-center">
+                      {item.title}
+                      <ArrowIcon />
+                    </span>
+
+                    {item.type && (
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${
+                          TYPE_STYLES[item.type] ||
+                          "bg-[#a39081]/10 text-[#a39081]"
+                        }`}
+                      >
+                        {item.type}
+                      </span>
+                    )}
                   </a>
                 ))}
               </div>
