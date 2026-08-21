@@ -11,16 +11,13 @@ export const navigationConfig = {
   ],
   mentor: [
     { name: "Dashboard", path: "/mentor/dashboard" },
-    { name: "My Students", path: "/mentor/dashboard" },
     { name: "Attendance", path: "/mentor/attendance" },
     { name: "Progress Tracker", path: "/mentor/progress" },
     { name: "Assignments & Grading", path: "/mentor/assignments" },
     { name: "Coding Progress", path: "/mentor/coding" },
-    // { name: "Notifications", path: "/notifications" },
     { name: "Announcements", path: "/mentor/announcements" },
-    // { name: "Settings", path: "/settings" },
   ],
-student: [
+  student: [
     { name: "Dashboard", path: "/student/dashboard" },
     { name: "My Attendance", path: "/student/attendance" },
     { name: "Assignments", path: "/student/assignments" },
