@@ -2,6 +2,7 @@ import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
 // Auth pages
+import LandingPage from '../pages/LandingPage';
 import LoginPage from "../pages/LoginPage";
 import SignupPage from "../pages/SignupPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
@@ -41,6 +42,7 @@ export default function AppRoutes() {
       {/* =========================
           PUBLIC / AUTH ROUTES
       ========================== */}
+      <Route path="/" element={<LandingPage />} />
 
       <Route path="/login" element={<LoginPage />} />
 
