@@ -7,7 +7,7 @@ const LandingPage = () => {
       {/* Navigation */}
       <nav className="flex justify-between items-center p-6 bg-[#2c1a11] text-[#fdf6e3] sticky top-0 z-50">
         <div className="flex items-center gap-2">
-          <img src="/logo.jpg" alt="ASTU MSJ Logo" className="w-10 h-10 rounded-full object-cover border-2 border-[#d8b493]" />
+          <img src="/logo.png" alt="ASTU MSJ Logo" className="w-10 h-10 rounded-full object-cover border-2 border-[#d8b493]" />
           <span className="font-bold text-xl tracking-tight">ASTU MSJ</span>
         </div>
         <div className="hidden md:flex gap-8 font-medium">
@@ -61,7 +61,15 @@ const LandingPage = () => {
       {/* 6. Contact Section */}
       <footer id="contact" className="bg-[#ede0d4] py-16 px-10 text-center border-t border-[#d8b493]">
         <h2 className="text-3xl font-bold mb-4">Contact Us</h2>
-        <p className="text-gray-700 mb-6">Have questions? Reach out to us at astumsjbootcamp2026@gmail.com</p>
+        <p className="text-gray-700 mb-6">
+  Have questions? Reach out to us at{" "}
+  <a 
+    href="mailto:astumsjbootcamp2026@gmail.com" 
+    className="text-amber-700 underline hover:text-amber-800 transition"
+  >
+    astumsjbootcamp2026@gmail.com
+  </a>
+</p>
         <div className="text-sm text-gray-500">© 2026 ASTU MSJ Summer Bootcamp. All Rights Reserved.</div>
       </footer>
     </div>
