@@ -139,7 +139,7 @@ const DEV_RESOURCES = [
 const field =
   "w-full rounded-xl border border-[#4a3b32] bg-[#16110e] px-3 py-2 text-sm text-[#f5efe6] placeholder:text-[#6f6259] focus:border-[#c89b7b] focus:outline-none";
 
-const PLATFORM_FILTERS = ["All", "LeetCode", "Codeforces"];
+const PLATFORM_FILTERS = ["All", "LeetCode", "Codeforces", "Unsolved"];
 
 // small style map for dev resource type tags
 const TYPE_STYLES = {
@@ -147,6 +147,82 @@ const TYPE_STYLES = {
   Notes: "bg-sky-400/10 text-sky-300",
   Course: "bg-emerald-400/10 text-emerald-300",
 };
+
+// how each filter pill is accented when active
+const FILTER_ACCENTS = {
+  All: "bg-[#c89b7b] text-[#1e1713]",
+  LeetCode: "bg-[#ffa116] text-[#1e1713]",
+  Codeforces: "bg-[#5b8bf7] text-[#0e1420]",
+  Unsolved: "bg-rose-400 text-[#1e1713]",
+};
+
+function timeAgo(dateStr) {
+  if (!dateStr) return "";
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diffMs / 60000);
+
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+
+  return new Date(dateStr).toLocaleDateString();
+}
+
+function LeetCodeMark() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 4 9 12l6 8" />
+      <path d="M5 12h4" />
+    </svg>
+  );
+}
+
+function CodeforcesMark() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+      <rect x="3" y="13" width="4" height="8" rx="1" />
+      <rect x="10" y="7" width="4" height="14" rx="1" />
+      <rect x="17" y="3" width="4" height="18" rx="1" />
+    </svg>
+  );
+}
+
+function PlatformMark({ platform }) {
+  if (platform === "LeetCode") return <LeetCodeMark />;
+  if (platform === "Codeforces") return <CodeforcesMark />;
+  return null;
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+function RefreshIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+      <path d="M21 3v6h-6" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 3" />
+    </svg>
+  );
+}
 
 function ArrowIcon() {
   return (
@@ -232,6 +308,7 @@ function CpTab({ user }) {
         platform: challenge.platform?.toLowerCase(),
         url,
         note: `Solution submitted for: ${challenge.title}`,
+        challenge: challenge._id,
       });
 
       setSolutionLinks((prev) => ({
@@ -239,7 +316,11 @@ function CpTab({ user }) {
         [challenge._id]: "",
       }));
 
-      setMsg("Solution link submitted successfully.");
+      setMsg(
+        challenge.mySubmission
+          ? "New attempt submitted successfully."
+          : "Solution link submitted successfully."
+      );
       load();
     } catch (e) {
       setMsg(e.response?.data?.message || "Could not submit solution.");
@@ -268,13 +349,33 @@ function CpTab({ user }) {
       tag: "Unsolved",
       description: c.description,
       problemUrl: c.problemUrl,
+      mySubmission: c.mySubmission || null,
     })),
   ];
 
-  const filteredItems =
-    platformFilter === "All"
-      ? combinedItems
-      : combinedItems.filter((item) => item.platform === platformFilter);
+  const filteredItems = combinedItems.filter((item) => {
+    if (platformFilter === "All") return true;
+    if (platformFilter === "Unsolved") {
+      return item.kind === "challenge" && !item.mySubmission;
+    }
+    return item.platform === platformFilter;
+  });
+
+  const filterCounts = {
+    All: combinedItems.length,
+    LeetCode: combinedItems.filter((i) => i.platform === "LeetCode").length,
+    Codeforces: combinedItems.filter((i) => i.platform === "Codeforces")
+      .length,
+    Unsolved: combinedItems.filter(
+      (i) => i.kind === "challenge" && !i.mySubmission
+    ).length,
+  };
+
+  const assignedCount = challenges.length;
+  const solvedCount = challenges.filter((c) => c.mySubmission).length;
+  const solvedPct = assignedCount
+    ? Math.round((solvedCount / assignedCount) * 100)
+    : 0;
 
   return (
     <div className="space-y-7">
@@ -290,7 +391,7 @@ function CpTab({ user }) {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         {["leetcode", "codeforces"].map((platform) => (
           <div
             key={platform}
@@ -307,6 +408,38 @@ function CpTab({ user }) {
             </p>
           </div>
         ))}
+
+        <div className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5">
+          <div className="flex items-center justify-between">
+            <p className="text-xs uppercase text-[#a39081]">
+              Assigned Problems
+            </p>
+            <span className="rounded-full bg-[#c89b7b]/10 px-2 py-0.5 text-[10px] font-bold text-[#c89b7b]">
+              {solvedPct}%
+            </span>
+          </div>
+
+          <p className="mt-2 text-3xl font-bold text-[#c89b7b]">
+            {solvedCount}
+            <span className="text-base font-semibold text-[#a39081]">
+              {" "}
+              / {assignedCount}
+            </span>
+          </p>
+
+          <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#16110e]">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#c89b7b] to-emerald-400 transition-all"
+              style={{ width: `${solvedPct}%` }}
+            />
+          </div>
+
+          <p className="mt-2 text-[11px] text-[#a39081]">
+            {assignedCount - solvedCount > 0
+              ? `${assignedCount - solvedCount} still unsolved`
+              : "All caught up 🎉"}
+          </p>
+        </div>
       </div>
 
       <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6">
@@ -319,19 +452,31 @@ function CpTab({ user }) {
             </p>
           </div>
 
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {PLATFORM_FILTERS.map((platform) => (
               <button
                 key={platform}
                 type="button"
                 onClick={() => setPlatformFilter(platform)}
-                className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition ${
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition ${
                   platformFilter === platform
-                    ? "bg-[#c89b7b] text-[#1e1713]"
+                    ? FILTER_ACCENTS[platform]
                     : "border border-[#4a3b32] text-[#a39081] hover:text-[#f5efe6]"
                 }`}
               >
+                {platform !== "All" && platform !== "Unsolved" && (
+                  <PlatformMark platform={platform} />
+                )}
                 {platform}
+                <span
+                  className={`rounded-full px-1.5 text-[9px] font-bold ${
+                    platformFilter === platform
+                      ? "bg-black/15"
+                      : "bg-[#4a3b32] text-[#a39081]"
+                  }`}
+                >
+                  {filterCounts[platform]}
+                </span>
               </button>
             ))}
           </div>
@@ -343,80 +488,135 @@ function CpTab({ user }) {
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredItems.map((item) => (
-              <div
-                key={item.key}
-                className="flex flex-col justify-between gap-4 rounded-xl border border-[#4a3b32] bg-[#16110e] p-4 lg:flex-row lg:items-center"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-[#c89b7b]/10 px-2 py-1 text-[10px] font-bold uppercase text-[#c89b7b]">
-                      {item.platform}
-                    </span>
+            {filteredItems.map((item) => {
+              const submission = item.mySubmission;
+              const nextAttempt = (submission?.attempts || 0) + 1;
 
-                    <h3 className="font-bold text-[#f5efe6]">{item.title}</h3>
+              return (
+                <div
+                  key={item.key}
+                  className={`flex flex-col justify-between gap-4 rounded-xl border bg-[#16110e] p-4 lg:flex-row lg:items-center ${
+                    item.kind === "challenge" && !submission
+                      ? "border-rose-400/30"
+                      : "border-[#4a3b32]"
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="flex items-center gap-1 rounded-full bg-[#c89b7b]/10 px-2 py-1 text-[10px] font-bold uppercase text-[#c89b7b]">
+                        <PlatformMark platform={item.platform} />
+                        {item.platform}
+                      </span>
 
-                    <span className="text-[10px] uppercase tracking-wide text-[#a39081]">
-                      {item.tag}
-                    </span>
-                  </div>
+                      <h3 className="font-bold text-[#f5efe6]">
+                        {item.title}
+                      </h3>
 
-                  {item.description && (
-                    <p className="mt-2 text-xs leading-5 text-[#a39081]">
-                      {item.description}
-                    </p>
-                  )}
-                </div>
+                      {item.kind === "challenge" ? (
+                        <>
+                          <span
+                            className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                              submission
+                                ? "bg-emerald-400/10 text-emerald-300"
+                                : "bg-rose-400/10 text-rose-300"
+                            }`}
+                          >
+                            {submission ? <CheckIcon /> : null}
+                            {submission ? "Submitted" : "Unsolved"}
+                          </span>
 
-                {item.kind === "resource" ? (
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="whitespace-nowrap text-xs font-semibold text-[#c89b7b] hover:underline"
-                  >
-                    Open <ArrowIcon />
-                  </a>
-                ) : (
-                  <div className="flex w-full flex-col gap-2 lg:w-[380px]">
-                    {item.problemUrl && (
-                      <a
-                        href={item.problemUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-xs font-semibold text-[#c89b7b] hover:underline"
-                      >
-                        Open Question <ArrowIcon />
-                      </a>
+                          <span className="flex items-center gap-1 rounded-full bg-[#4a3b32] px-2 py-0.5 text-[10px] font-bold text-[#a39081]">
+                            <RefreshIcon />
+                            {submission?.attempts || 0} attempt
+                            {(submission?.attempts || 0) === 1 ? "" : "s"}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-[10px] uppercase tracking-wide text-[#a39081]">
+                          {item.tag}
+                        </span>
+                      )}
+                    </div>
+
+                    {item.description && (
+                      <p className="mt-2 text-xs leading-5 text-[#a39081]">
+                        {item.description}
+                      </p>
                     )}
 
-                    <input
-                      type="url"
-                      className={field}
-                      placeholder="Paste your solution link"
-                      value={solutionLinks[item._id] || ""}
-                      onChange={(e) =>
-                        setSolutionLinks((prev) => ({
-                          ...prev,
-                          [item._id]: e.target.value,
-                        }))
-                      }
-                    />
-
-                    <button
-                      type="button"
-                      disabled={submittingId === item._id}
-                      onClick={() => submitSolution(item)}
-                      className="rounded-xl bg-[#c89b7b] px-4 py-2 text-xs font-bold text-[#1e1713] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {submittingId === item._id
-                        ? "Submitting..."
-                        : "Submit Solution"}
-                    </button>
+                    {submission && (
+                      <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-[#4a3b32] bg-[#1e1713] px-2.5 py-1.5">
+                        <span className="flex items-center gap-1 text-[10px] text-[#a39081]">
+                          <ClockIcon /> Last submitted {timeAgo(submission.completedAt)}
+                        </span>
+                        <a
+                          href={submission.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="truncate text-[11px] font-semibold text-[#c89b7b] hover:underline"
+                        >
+                          {submission.url}
+                        </a>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
+
+                  {item.kind === "resource" ? (
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="whitespace-nowrap text-xs font-semibold text-[#c89b7b] hover:underline"
+                    >
+                      Open <ArrowIcon />
+                    </a>
+                  ) : (
+                    <div className="flex w-full flex-col gap-2 lg:w-[380px]">
+                      {item.problemUrl && (
+                        <a
+                          href={item.problemUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs font-semibold text-[#c89b7b] hover:underline"
+                        >
+                          Open Question <ArrowIcon />
+                        </a>
+                      )}
+
+                      <input
+                        type="url"
+                        className={field}
+                        placeholder={
+                          submission
+                            ? `Paste a new link for attempt #${nextAttempt}`
+                            : "Paste your solution link"
+                        }
+                        value={solutionLinks[item._id] || ""}
+                        onChange={(e) =>
+                          setSolutionLinks((prev) => ({
+                            ...prev,
+                            [item._id]: e.target.value,
+                          }))
+                        }
+                      />
+
+                      <button
+                        type="button"
+                        disabled={submittingId === item._id}
+                        onClick={() => submitSolution(item)}
+                        className="rounded-xl bg-[#c89b7b] px-4 py-2 text-xs font-bold text-[#1e1713] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {submittingId === item._id
+                          ? "Submitting..."
+                          : submission
+                          ? `Resubmit — Attempt #${nextAttempt}`
+                          : "Submit Solution"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
