@@ -82,7 +82,28 @@ router.get('/challenges', async (req, res, next) => {
       .populate('createdBy', 'fullName')
       .sort({ dueDate: 1 });
 
-    res.json({ success: true, challenges });
+    // attach the current user's own submission (link + attempt count) for
+    // each challenge so the student UI can show submission status inline
+    const myActivities = await CodingActivity.find({
+      student: req.user._id,
+      challenge: { $in: challenges.map((c) => c._id) }
+    });
+
+    const activityMap = {};
+    myActivities.forEach((a) => {
+      activityMap[String(a.challenge)] = a;
+    });
+
+    const withSubmissions = challenges.map((c) => {
+      const obj = c.toObject();
+      const a = activityMap[String(c._id)];
+      obj.mySubmission = a
+        ? { url: a.url, attempts: a.attempts || 1, completedAt: a.completedAt }
+        : null;
+      return obj;
+    });
+
+    res.json({ success: true, challenges: withSubmissions });
   } catch (e) {
     next(e);
   }
@@ -130,13 +151,28 @@ router.post('/activity', authorize('student'), async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Platform is required.' });
     }
 
-    const a = await CodingActivity.create({
-      student: req.user._id,
-      platform,
-      url,
-      note,
-      challenge: challenge || null
-    });
+    // if this activity is tied to an assigned challenge, treat repeated
+    // submissions as attempts on the same record instead of duplicates
+    let a = challenge
+      ? await CodingActivity.findOne({ student: req.user._id, challenge })
+      : null;
+
+    if (a) {
+      a.url = url;
+      a.note = note;
+      a.attempts = (a.attempts || 1) + 1;
+      a.completedAt = new Date();
+      await a.save();
+    } else {
+      a = await CodingActivity.create({
+        student: req.user._id,
+        platform,
+        url,
+        note,
+        challenge: challenge || null,
+        attempts: 1
+      });
+    }
 
     res.status(201).json({ success: true, activity: a });
   } catch (e) {
