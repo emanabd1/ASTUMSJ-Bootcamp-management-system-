@@ -4,17 +4,14 @@ import React, { useState, useEffect } from "react";
 export default function MentorAttendance() {
   const [attendanceData, setAttendanceData] = useState([]);
 
-  // Fetch users from backend with Authorization header and filter by mentor's name
+  // Fetch dashboard data to get assigned students
   useEffect(() => {
     const fetchAssignedStudents = async () => {
       try {
-        // 1. Get logged-in mentor info and token from localStorage
         const loggedInUser = JSON.parse(localStorage.getItem("user") || "{}");
         const token = localStorage.getItem("token") || loggedInUser?.token;
-        const mentorName = loggedInUser?.fullName || loggedInUser?.name || "Foziya Awel";
 
-        // 2. Fetch users from backend API with Authorization header
-        const response = await fetch("http://localhost:5000/api/attendance", {
+        const response = await fetch("http://localhost:5000/api/mentors/dashboard", {
           headers: {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -22,30 +19,16 @@ export default function MentorAttendance() {
         });
         const data = await response.json();
 
-        // Handle both Array response and Object response ({ success, users })
-        const usersArray = Array.isArray(data) 
-          ? data 
-          : (data.users || data.data || []);
+        // Extract assigned students from the nested dashboard response
+        const studentsArray = 
+          data?.dashboard?.assignedStudents || 
+          data?.assignedStudents || 
+          data?.users || 
+          data?.data || 
+          [];
 
-        if (usersArray.length > 0) {
-          // 3. Flexible filtering: match student role and compare assigned mentor safely
-          const filteredStudents = usersArray.filter((user) => {
-            const role = (user.role || "").toLowerCase();
-            if (role !== "student") return false;
-            
-            // Check multiple potential field names for mentor assignment
-            const assignedField = user.assignedMentor || user.mentor || user.mentorName || "";
-            if (!assignedField) return false;
-
-            const assigned = assignedField.trim().toLowerCase();
-            const currentMentor = mentorName.trim().toLowerCase();
-
-            // Match exact or contains
-            return assigned === currentMentor || assigned.includes(currentMentor) || currentMentor.includes(assigned);
-          });
-
-          // 4. Initialize attendance structure for the assigned students
-          const initialData = filteredStudents.map((student, index) => ({
+        if (studentsArray.length > 0) {
+          const initialData = studentsArray.map((student, index) => ({
             id: student._id || student.id,
             name: student.fullName || student.name || `${student.firstName || ""} ${student.lastName || ""}`.trim(),
             idNumber: student.idNumber || student.studentId || `RU/000${index + 1}/18`,
@@ -66,20 +49,18 @@ export default function MentorAttendance() {
     fetchAssignedStudents();
   }, []);
 
-  // Corrected Percentage Calculation Logic (Present=1, Late=0.5, Excused=1, Absent=0)
   const calculateScore = (lecture) => {
     const statuses = [lecture.start, lecture.mid, lecture.end];
     let points = 0;
     statuses.forEach((status) => {
       if (status === "Present" || status === "Excused") points += 1;
-      else if (status === "Late") points += 0.5; // Late = 50% Credit
+      else if (status === "Late") points += 0.5;
       else if (status === "Absent") points += 0;
     });
     const percentage = Math.round((points / 3) * 100);
     return `${percentage}%`;
   };
 
-  // Calculate overall P, EX, A counts correctly
   const calculateTotals = (lectures) => {
     let P = 0, EX = 0, A = 0;
     Object.values(lectures).forEach((lec) => {
@@ -169,19 +150,16 @@ export default function MentorAttendance() {
               <th className="py-3 px-3 uppercase text-[10px] text-center">EX</th>
               <th className="py-3 px-3 uppercase text-[10px] text-center">A</th>
               
-              {/* Lecture 1 */}
               <th colSpan="4" className="py-3 px-3 text-center border-l border-r border-[#4a3b32] bg-[#2d231d]/40">
                 <div className="text-[10px] font-bold text-[#c89b7b]">CP LECTURE - 1</div>
                 <div className="text-[9px] text-[#a39081]">TUE, JUN 9</div>
               </th>
 
-              {/* Lecture 2 */}
               <th colSpan="4" className="py-3 px-3 text-center border-r border-[#4a3b32] bg-[#2d231d]/40">
                 <div className="text-[10px] font-bold text-[#c89b7b]">CP LECTURE - 2</div>
                 <div className="text-[9px] text-[#a39081]">THU, JUN 11</div>
               </th>
 
-              {/* Lecture 3 */}
               <th colSpan="4" className="py-3 px-3 text-center bg-[#2d231d]/40">
                 <div className="text-[10px] font-bold text-[#c89b7b]">CP LECTURE - 3</div>
                 <div className="text-[9px] text-[#a39081]">MON, JUN 15</div>
@@ -220,12 +198,10 @@ export default function MentorAttendance() {
                     <td className="py-3 px-3 text-center font-bold text-blue-400">{totals.EX}</td>
                     <td className="py-3 px-3 text-center font-bold text-red-400">{totals.A}</td>
 
-                    {/* Lecture 1, 2, 3 */}
                     {["lecture1", "lecture2", "lecture3"].map((lecKey, lIdx) => {
                       const score = calculateScore(student.lectures[lecKey]);
                       return (
                         <React.Fragment key={lecKey}>
-                          {/* START */}
                           <td className={`py-3 px-1 text-center border-l ${lIdx === 0 ? "border-[#4a3b32]" : ""}`}>
                             <select
                               value={student.lectures[lecKey].start}
@@ -238,7 +214,6 @@ export default function MentorAttendance() {
                               <option value="Excused" className="bg-[#1e1713] text-blue-300">Excused</option>
                             </select>
                           </td>
-                          {/* MID */}
                           <td className="py-3 px-1 text-center">
                             <select
                               value={student.lectures[lecKey].mid}
@@ -251,7 +226,6 @@ export default function MentorAttendance() {
                               <option value="Excused" className="bg-[#1e1713] text-blue-300">Excused</option>
                             </select>
                           </td>
-                          {/* END */}
                           <td className="py-3 px-1 text-center">
                             <select
                               value={student.lectures[lecKey].end}
@@ -264,7 +238,6 @@ export default function MentorAttendance() {
                               <option value="Excused" className="bg-[#1e1713] text-blue-300">Excused</option>
                             </select>
                           </td>
-                          {/* % SCORE */}
                           <td className="py-3 px-2 text-center border-r border-[#4a3b32] font-bold text-green-400 text-xs">
                             {score}
                           </td>
