@@ -3,13 +3,10 @@ import axios from "axios";
 
 export default function MentorAssignments() {
   const [students, setStudents] = useState([]);
+  const [batchId, setBatchId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  const [assignments, setAssignments] = useState(() => {
-    const saved = localStorage.getItem("mentorAssignments");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [assignments, setAssignments] = useState([]);
 
   const [showForm, setShowForm] = useState(false);
   const [grading, setGrading] = useState(null);
@@ -19,34 +16,32 @@ export default function MentorAssignments() {
     module: "",
     description: "",
     dueDate: "",
+    maximumScore: "100",
+    batch: "", // Added manual batch input fallback
   });
 
   const [gradeForm, setGradeForm] = useState({
     grade: "",
     feedback: "",
+    status: "graded",
   });
 
-  // Fetch assigned students from the backend API safely
+  // Fetch assigned students and assignments from backend API
   useEffect(() => {
-    const fetchAssignedStudents = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         setError("");
         const token = localStorage.getItem("token");
+        const headers = { Authorization: `Bearer ${token}` };
 
-        const response = await axios.get(
+        // 1. Fetch mentor dashboard / students
+        const studentRes = await axios.get(
           "http://localhost:5000/api/mentors/dashboard",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
+          { headers }
         );
 
-        console.log("API Response:", response.data);
-
-        // Safely extract the array from response.data.dashboard.assignedStudents
-        let rawData = response.data;
+        let rawData = studentRes.data;
         if (rawData && typeof rawData === "object" && !Array.isArray(rawData)) {
           rawData = 
             rawData.dashboard?.assignedStudents || 
@@ -57,33 +52,43 @@ export default function MentorAssignments() {
         }
 
         const fetchedStudents = Array.isArray(rawData) ? rawData : [];
-
-        // Normalize student data structure
         const normalizedStudents = fetchedStudents.map((s) => ({
           id: s._id || s.id,
           name: s.fullName || s.name || `${s.firstName || ""} ${s.lastName || ""}`.trim() || "Student",
           email: s.email,
+          batch: s.batch?._id || s.batch,
         }));
 
         setStudents(normalizedStudents);
+        
+        // Try to automatically grab batch ID if available
+        if (normalizedStudents.length > 0 && normalizedStudents[0].batch) {
+          const autoBatch = normalizedStudents[0].batch;
+          setBatchId(autoBatch);
+          setForm((prev) => ({ ...prev, batch: autoBatch }));
+        }
+
+        // 2. Fetch actual backend assignments
+        const assignmentRes = await axios.get(
+          "http://localhost:5000/api/assignments",
+          { headers }
+        );
+        if (assignmentRes.data.success) {
+          setAssignments(assignmentRes.data.assignments);
+        }
       } catch (err) {
-        console.error("Error fetching assigned students:", err);
-        setError("Unable to load assigned students from server.");
+        console.error("Error fetching data:", err);
+        setError("Unable to load dashboard data from server.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchAssignedStudents();
+    fetchData();
   }, []);
 
-  // Save assignments
-  useEffect(() => {
-    localStorage.setItem("mentorAssignments", JSON.stringify(assignments));
-  }, [assignments]);
-
-  // Create assignment
-  const createAssignment = (e) => {
+  // Create assignment (Sends to Backend API)
+  const createAssignment = async (e) => {
     e.preventDefault();
 
     if (!students.length) {
@@ -91,77 +96,102 @@ export default function MentorAssignments() {
       return;
     }
 
-    const newAssignment = {
-      id: Date.now(),
-      title: form.title,
-      module: form.module,
-      description: form.description,
-      dueDate: form.dueDate,
-
-      students: students.map((student) => ({
-        id: student.id,
-        name: student.name,
-        email: student.email,
-        status: "Pending",
-        submission: "",
-        submittedAt: null,
-        grade: null,
-        feedback: "",
-      })),
-    };
-
-    setAssignments([...assignments, newAssignment]);
-
-    setForm({
-      title: "",
-      module: "",
-      description: "",
-      dueDate: "",
-    });
-
-    setShowForm(false);
-  };
-
-  // Give grade
-  const giveGrade = (e) => {
-    e.preventDefault();
-
-    const updatedAssignments = assignments.map((assignment) => {
-      if (assignment.id !== grading.assignmentId) {
-        return assignment;
-      }
-
-      return {
-        ...assignment,
-        students: assignment.students.map((student) => {
-          if (student.id !== grading.studentId) {
-            return student;
-          }
-
-          return {
-            ...student,
-            grade: Number(gradeForm.grade),
-            feedback: gradeForm.feedback,
-            status: "Graded",
-          };
-        }),
-      };
-    });
-
-    setAssignments(updatedAssignments);
-    setGrading(null);
-    setGradeForm({
-      grade: "",
-      feedback: "",
-    });
-  };
-
-  // Delete assignment
-  const deleteAssignment = (id) => {
-    if (!window.confirm("Delete this assignment?")) {
+    const targetBatchId = batchId || form.batch;
+    if (!targetBatchId) {
+      alert("Batch ID is missing. Please provide a valid Batch ID.");
       return;
     }
-    setAssignments(assignments.filter((assignment) => assignment.id !== id));
+
+    try {
+      const token = localStorage.getItem("token");
+      const studentIds = students.map((s) => s.id);
+
+      const payload = {
+        title: form.title,
+        description: `${form.module ? `[Module: ${form.module}] ` : ""}${form.description}`,
+        batch: targetBatchId,
+        deadline: new Date(form.dueDate).toISOString(),
+        maximumScore: Number(form.maximumScore),
+        studentIds: studentIds,
+      };
+
+      const response = await axios.post(
+        "http://localhost:5000/api/assignments",
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data.success) {
+        setAssignments([response.data.assignment, ...assignments]);
+        setForm({
+          title: "",
+          module: "",
+          description: "",
+          dueDate: "",
+          maximumScore: "100",
+          batch: batchId,
+        });
+        setShowForm(false);
+        alert("Assignment created successfully!");
+      }
+    } catch (err) {
+      console.error("Error creating assignment:", err);
+      alert(err.response?.data?.message || "Failed to create assignment.");
+    }
+  };
+
+  // Give grade via backend API
+  const giveGrade = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.patch(
+        `http://localhost:5000/api/assignments/${grading.assignmentId}/submissions/${grading.submissionId}/grade`,
+        {
+          score: Number(gradeForm.grade),
+          feedback: gradeForm.feedback,
+          status: gradeForm.status,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.data.success) {
+        alert("Grade saved successfully!");
+        setGrading(null);
+        const assignmentRes = await axios.get(
+          "http://localhost:5000/api/assignments",
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (assignmentRes.data.success) {
+          setAssignments(assignmentRes.data.assignments);
+        }
+      }
+    } catch (err) {
+      console.error("Error grading submission:", err);
+      alert(err.response?.data?.message || "Failed to save grade.");
+    }
+  };
+
+  // Delete assignment via backend API
+  const deleteAssignment = async (id) => {
+    if (!window.confirm("Delete this assignment?")) return;
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`http://localhost:5000/api/assignments/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setAssignments(assignments.filter((a) => a._id !== id));
+    } catch (err) {
+      console.error("Error deleting assignment:", err);
+      alert(err.response?.data?.message || "Failed to delete assignment.");
+    }
   };
 
   return (
@@ -183,7 +213,6 @@ export default function MentorAssignments() {
         </button>
       </div>
 
-      {/* ERROR / LOADING */}
       {error && (
         <div className="mb-6 rounded-lg border border-red-700 bg-red-950 p-4 text-red-400">
           {error}
@@ -192,17 +221,7 @@ export default function MentorAssignments() {
 
       {loading && (
         <div className="mb-6 rounded-lg bg-[#1d1511] p-4 text-[#c99d78]">
-          Loading students...
-        </div>
-      )}
-
-      {/* NO STUDENTS */}
-      {!loading && students.length === 0 && (
-        <div className="mb-6 rounded-lg border border-yellow-700 bg-yellow-950 p-5 text-yellow-300">
-          <h2 className="font-bold">No Students Assigned</h2>
-          <p className="mt-1 text-sm">
-            Students assigned to you by the administrator will appear here.
-          </p>
+          Loading data...
         </div>
       )}
 
@@ -216,121 +235,26 @@ export default function MentorAssignments() {
         <div className="space-y-8">
           {assignments.map((assignment) => (
             <div
-              key={assignment.id}
+              key={assignment._id || assignment.id}
               className="rounded-xl border border-[#4a3528] bg-[#1d1511] p-6"
             >
               <div className="mb-6 flex items-start justify-between">
                 <div>
                   <h2 className="text-2xl font-bold">{assignment.title}</h2>
-                  <p className="mt-1 text-[#c99d78]">{assignment.module}</p>
                   <p className="mt-3 text-sm text-gray-400">
                     {assignment.description}
                   </p>
                   <p className="mt-2 text-sm text-gray-500">
-                    Due: {assignment.dueDate}
+                    Due: {new Date(assignment.deadline).toLocaleDateString()} | Max Score: {assignment.maximumScore}
                   </p>
                 </div>
 
                 <button
-                  onClick={() => deleteAssignment(assignment.id)}
+                  onClick={() => deleteAssignment(assignment._id || assignment.id)}
                   className="rounded border border-red-700 px-3 py-2 text-red-400"
                 >
                   Delete
                 </button>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-[#4a3528] text-left text-[#c99d78]">
-                      <th className="p-3">Student</th>
-                      <th className="p-3">Status</th>
-                      <th className="p-3">Grade</th>
-                      <th className="p-3">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {assignment.students.map((student) => (
-                      <tr
-                        key={student.id}
-                        className="border-b border-[#33251e]"
-                      >
-                        <td className="p-3">
-                          <div className="font-bold">{student.name}</div>
-                          <div className="text-xs text-gray-500">
-                            {student.email}
-                          </div>
-                        </td>
-
-                        <td className="p-3">
-                          <span
-                            className={`rounded px-3 py-1 text-xs font-bold ${
-                              student.status === "Graded"
-                                ? "bg-green-700"
-                                : student.status === "Submitted"
-                                ? "bg-blue-700"
-                                : "bg-yellow-700"
-                            }`}
-                          >
-                            {student.status}
-                          </span>
-                        </td>
-
-                        <td className="p-3">
-                          {student.grade !== null
-                            ? `${student.grade}/100`
-                            : "-"}
-                        </td>
-
-                        <td className="p-3">
-                          {student.status === "Submitted" && (
-                            <button
-                              onClick={() => {
-                                setGrading({
-                                  assignmentId: assignment.id,
-                                  studentId: student.id,
-                                  studentName: student.name,
-                                  assignmentTitle: assignment.title,
-                                });
-                                setGradeForm({
-                                  grade: "",
-                                  feedback: "",
-                                });
-                              }}
-                              className="rounded-lg bg-[#c99d78] px-4 py-2 font-bold text-black"
-                            >
-                              Grade
-                            </button>
-                          )}
-                          {student.status === "Graded" && (
-                            <button
-                              onClick={() => {
-                                setGrading({
-                                  assignmentId: assignment.id,
-                                  studentId: student.id,
-                                  studentName: student.name,
-                                  assignmentTitle: assignment.title,
-                                });
-                                setGradeForm({
-                                  grade: student.grade,
-                                  feedback: student.feedback,
-                                });
-                              }}
-                              className="rounded-lg border border-[#c99d78] px-4 py-2 text-[#c99d78]"
-                            >
-                              Review
-                            </button>
-                          )}
-                          {student.status === "Pending" && (
-                            <span className="text-sm text-gray-500">
-                              Waiting for submission
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
             </div>
           ))}
@@ -343,10 +267,7 @@ export default function MentorAssignments() {
           <div className="w-full max-w-xl rounded-xl border border-[#4a3528] bg-[#1d1511]">
             <div className="flex justify-between border-b border-[#4a3528] p-6">
               <h2 className="text-2xl font-bold">Create Assignment</h2>
-              <button
-                onClick={() => setShowForm(false)}
-                className="text-2xl"
-              >
+              <button onClick={() => setShowForm(false)} className="text-2xl">
                 ×
               </button>
             </div>
@@ -356,19 +277,14 @@ export default function MentorAssignments() {
                 required
                 placeholder="Assignment title"
                 value={form.title}
-                onChange={(e) =>
-                  setForm({ ...form, title: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
                 className="w-full rounded-lg border border-[#4a3528] bg-[#120d0a] p-3 text-white"
               />
 
               <input
-                required
-                placeholder="Module"
+                placeholder="Module / Topic"
                 value={form.module}
-                onChange={(e) =>
-                  setForm({ ...form, module: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, module: e.target.value })}
                 className="w-full rounded-lg border border-[#4a3528] bg-[#120d0a] p-3 text-white"
               />
 
@@ -377,21 +293,42 @@ export default function MentorAssignments() {
                 rows="4"
                 placeholder="Assignment description"
                 value={form.description}
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
                 className="w-full rounded-lg border border-[#4a3528] bg-[#120d0a] p-3 text-white"
               />
 
-              <input
-                required
-                type="date"
-                value={form.dueDate}
-                onChange={(e) =>
-                  setForm({ ...form, dueDate: e.target.value })
-                }
-                className="w-full rounded-lg border border-[#4a3528] bg-[#120d0a] p-3 text-white"
-              />
+              <div>
+                <label className="mb-1 block text-sm text-gray-400">Batch ID</label>
+                <input
+                  required
+                  placeholder="Enter Batch ID (e.g., from MongoDB)"
+                  value={form.batch}
+                  onChange={(e) => setForm({ ...form, batch: e.target.value })}
+                  className="w-full rounded-lg border border-[#4a3528] bg-[#120d0a] p-3 text-white"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm text-gray-400">Due Date</label>
+                <input
+                  required
+                  type="date"
+                  value={form.dueDate}
+                  onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+                  className="w-full rounded-lg border border-[#4a3528] bg-[#120d0a] p-3 text-white"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm text-gray-400">Maximum Score</label>
+                <input
+                  required
+                  type="number"
+                  value={form.maximumScore}
+                  onChange={(e) => setForm({ ...form, maximumScore: e.target.value })}
+                  className="w-full rounded-lg border border-[#4a3528] bg-[#120d0a] p-3 text-white"
+                />
+              </div>
 
               <div className="flex justify-end gap-3">
                 <button
@@ -406,65 +343,6 @@ export default function MentorAssignments() {
                   className="rounded-lg bg-[#c99d78] px-5 py-3 font-bold text-black"
                 >
                   Create Assignment
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* GRADING MODAL */}
-      {grading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-lg rounded-xl border border-[#4a3528] bg-[#1d1511]">
-            <div className="border-b border-[#4a3528] p-6">
-              <h2 className="text-2xl font-bold">Grade Submission</h2>
-              <p className="mt-2 text-[#c99d78]">{grading.studentName}</p>
-              <p className="text-sm text-gray-400">{grading.assignmentTitle}</p>
-            </div>
-
-            <form onSubmit={giveGrade} className="space-y-5 p-6">
-              <div>
-                <label className="mb-2 block">Grade / 100</label>
-                <input
-                  required
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={gradeForm.grade}
-                  onChange={(e) =>
-                    setGradeForm({ ...gradeForm, grade: e.target.value })
-                  }
-                  className="w-full rounded-lg border border-[#4a3528] bg-[#120d0a] p-3 text-white"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block">Feedback</label>
-                <textarea
-                  rows="5"
-                  placeholder="Give feedback to the student..."
-                  value={gradeForm.feedback}
-                  onChange={(e) =>
-                    setGradeForm({ ...gradeForm, feedback: e.target.value })
-                  }
-                  className="w-full rounded-lg border border-[#4a3528] bg-[#120d0a] p-3 text-white"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setGrading(null)}
-                  className="rounded-lg border border-[#4a3528] px-5 py-3"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="rounded-lg bg-green-700 px-5 py-3 font-bold text-white"
-                >
-                  Save Grade
                 </button>
               </div>
             </form>
