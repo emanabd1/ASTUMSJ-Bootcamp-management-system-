@@ -8,7 +8,8 @@ const { body } = require("../../validation");
 
 const router = express.Router();
 
-router.use(protect, authorize("admin"));
+// Require authentication for all routes here
+router.use(protect);
 
 const validDates = (startDate, endDate) => {
   const start = new Date(startDate);
@@ -25,7 +26,8 @@ const validDates = (startDate, endDate) => {
 const ids = (value) =>
   Array.isArray(value) ? value.filter((id) => mongoose.isValidObjectId(id)) : [];
 
-router.get("/", async (req, res, next) => {
+// Allow both admin and mentor roles to view the batch list
+router.get("/", authorize("admin", "mentor"), async (req, res, next) => {
   try {
     const batches = await Batch.find()
       .populate("mentors", "fullName email")
@@ -38,7 +40,8 @@ router.get("/", async (req, res, next) => {
   }
 });
 
-router.get("/:id", async (req, res, next) => {
+// Allow both admin and mentor roles to view a specific batch
+router.get("/:id", authorize("admin", "mentor"), async (req, res, next) => {
   try {
     const batch = await Batch.findById(req.params.id)
       .populate("mentors", "fullName email")
@@ -53,6 +56,9 @@ router.get("/:id", async (req, res, next) => {
     next(e);
   }
 });
+
+// Restrict all modification routes below strictly to admin
+router.use(authorize("admin"));
 
 router.post(
   "/",

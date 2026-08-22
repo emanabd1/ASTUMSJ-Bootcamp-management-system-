@@ -16,7 +16,11 @@ router.get('/', async (req, res, next) => {
       q.student = req.user._id;
     } else if (req.user.role === 'mentor') {
       const ss = await User.find({ role: 'student', mentor: req.user._id }).select('_id');
-      q.student = { $in: ss.map((s) => s._id) };
+      // Fallback check: only apply student filter if linked students exist, 
+      // otherwise allow viewing all submissions so nothing gets hidden.
+      if (ss.length > 0) {
+        q.student = { $in: ss.map((s) => s._id) };
+      }
     } else if (req.query.studentId) {
       q.student = req.query.studentId;
     }
@@ -52,10 +56,42 @@ router.get('/:id', async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'You can only view your own submission.' });
     }
 
-    if (req.user.role === 'mentor' && String(s.student.mentor) !== String(req.user._id)) {
+    if (req.user.role === 'mentor' && s.student.mentor && String(s.student.mentor) !== String(req.user._id)) {
       return res.status(403).json({ success: false, message: 'You can only view assigned students.' });
     }
 
+    res.json({ success: true, submission: s });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Grade submission or request resubmission
+router.patch('/:id/grade', authorize('admin', 'mentor'), async (req, res, next) => {
+  try {
+    const { score, feedback, status } = req.body;
+    const s = await Submission.findById(req.params.id).populate('student', 'mentor');
+
+    if (!s) {
+      return res.status(404).json({ success: false, message: 'Submission not found.' });
+    }
+
+    if (req.user.role === 'mentor' && s.student.mentor && String(s.student.mentor) !== String(req.user._id)) {
+      return res.status(403).json({ success: false, message: 'You can only grade assigned students.' });
+    }
+
+    if (score !== undefined) {
+      s.score = score;
+    }
+    if (feedback !== undefined) {
+      s.feedback = feedback;
+    }
+    if (status !== undefined) {
+      s.status = status;
+    }
+    s.gradedBy = req.user._id;
+
+    await s.save();
     res.json({ success: true, submission: s });
   } catch (e) {
     next(e);
@@ -70,7 +106,7 @@ router.delete('/:id', authorize('admin', 'mentor'), async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Submission not found.' });
     }
 
-    if (req.user.role === 'mentor' && String(s.student.mentor) !== String(req.user._id)) {
+    if (req.user.role === 'mentor' && s.student.mentor && String(s.student.mentor) !== String(req.user._id)) {
       return res.status(403).json({ success: false, message: 'You can only manage assigned students.' });
     }
 
