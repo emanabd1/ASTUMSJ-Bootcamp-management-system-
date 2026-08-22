@@ -30,7 +30,7 @@ export default function MentorDashboard() {
         const token = localStorage.getItem("token");
 
         const response = await axios.get(
-          "http://localhost:5000/api/mentor/assigned-students",
+          "http://localhost:5000/api/mentors/dashboard",
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -38,11 +38,15 @@ export default function MentorDashboard() {
           }
         );
 
-        // Handle different possible backend response formats
+        console.log("API Response:", response.data);
+
+        // Safely extract from response.data.dashboard.assignedStudents
+        const rawData = response.data;
         const students =
-          response.data?.students ||
-          response.data?.data ||
-          response.data ||
+          rawData?.dashboard?.assignedStudents ||
+          rawData?.students ||
+          rawData?.data ||
+          rawData ||
           [];
 
         setAssignedStudents(Array.isArray(students) ? students : []);

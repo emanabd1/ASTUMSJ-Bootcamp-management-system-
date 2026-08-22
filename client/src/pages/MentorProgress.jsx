@@ -120,33 +120,13 @@ export default function MentorProgress() {
       }
 
       const response = await axios.get(
-        `${API_URL}/progress/mentor`,
+        `${API_URL}/progress`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         }
       );
-
-      /*
-       * Expected backend response:
-       *
-       * [
-       *   {
-       *     _id: "...",
-       *     student: {
-       *       _id: "...",
-       *       name: "...",
-       *       email: "..."
-       *     },
-       *     module: "React",
-       *     percentage: 70,
-       *     status: "In Progress",
-       *     note: "...",
-       *     updatedAt: "..."
-       *   }
-       * ]
-       */
 
       const data = Array.isArray(response.data)
         ? response.data
@@ -357,7 +337,6 @@ export default function MentorProgress() {
 
     try {
       setSaving(true);
-
       setError("");
 
       const token = getToken();
@@ -380,7 +359,6 @@ export default function MentorProgress() {
       );
 
       closeModal();
-
       await fetchProgress();
     } catch (err) {
       console.error(
@@ -444,7 +422,6 @@ export default function MentorProgress() {
         <div className="flex min-h-[500px] items-center justify-center">
           <div className="text-center">
             <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[#4a3528] border-t-[#c99d78]" />
-
             <p className="text-[#c99d78]">
               Loading your assigned students...
             </p>
@@ -460,13 +437,11 @@ export default function MentorProgress() {
 
   return (
     <div className="min-h-screen bg-[#120d0a] px-4 py-8 text-white md:px-8">
-
       {/* HEADER */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold md:text-4xl">
           Student Progress Tracker
         </h1>
-
         <p className="mt-1 text-sm text-[#c99d78]">
           Monitor and update the learning progress
           of your assigned students
@@ -482,12 +457,10 @@ export default function MentorProgress() {
 
       {/* STATISTICS */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-
         <div className="rounded-xl border border-[#4a3528] bg-[#1d1511] p-5">
           <p className="text-sm text-[#a98a72]">
             Assigned Students
           </p>
-
           <h2 className="mt-2 text-3xl font-bold">
             {totalStudents}
           </h2>
@@ -497,7 +470,6 @@ export default function MentorProgress() {
           <p className="text-sm text-[#a98a72]">
             Average Progress
           </p>
-
           <h2 className="mt-2 text-3xl font-bold">
             {averageProgress}%
           </h2>
@@ -507,7 +479,6 @@ export default function MentorProgress() {
           <p className="text-sm text-[#a98a72]">
             Completed
           </p>
-
           <h2 className="mt-2 text-3xl font-bold text-green-500">
             {completedStudents}
           </h2>
@@ -517,17 +488,14 @@ export default function MentorProgress() {
           <p className="text-sm text-[#a98a72]">
             Needs Attention
           </p>
-
           <h2 className="mt-2 text-3xl font-bold text-yellow-500">
             {needsAttention}
           </h2>
         </div>
-
       </div>
 
       {/* SEARCH + FILTER */}
       <div className="mb-6 flex flex-col gap-3 rounded-xl border border-[#4a3528] bg-[#1d1511] p-4 md:flex-row">
-
         <input
           type="text"
           placeholder="Search assigned students..."
@@ -545,30 +513,21 @@ export default function MentorProgress() {
           }
           className="rounded-lg border border-[#4a3528] bg-[#120d0a] px-4 py-3 text-white outline-none focus:border-[#c99d78]"
         >
-          <option value="All">
-            All Statuses
-          </option>
-
+          <option value="All">All Statuses</option>
           {STATUS_OPTIONS.map((status) => (
-            <option
-              key={status}
-              value={status}
-            >
+            <option key={status} value={status}>
               {status}
             </option>
           ))}
         </select>
-
       </div>
 
       {/* PROGRESS TABLE */}
       <div className="overflow-hidden rounded-xl border border-[#4a3528] bg-[#1d1511]">
-
         <div className="border-b border-[#4a3528] px-6 py-5">
           <h2 className="text-xl font-bold text-[#c99d78]">
             Progress Overview
           </h2>
-
           <p className="mt-1 text-sm text-[#8f7664]">
             Only students assigned to you by the
             administrator are displayed.
@@ -576,207 +535,135 @@ export default function MentorProgress() {
         </div>
 
         {filteredProgress.length === 0 ? (
-
-          /* NO STUDENTS */
           <div className="px-6 py-20 text-center">
-
             <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-[#2a1d16] text-4xl">
               👨‍🎓
             </div>
-
             <h3 className="text-xl font-bold text-white">
               No Students Assigned
             </h3>
-
             <p className="mx-auto mt-2 max-w-md text-sm text-[#8f7664]">
               You currently have no students assigned
               to you. Students will appear here after
               an administrator assigns them to your
               batch.
             </p>
-
           </div>
-
         ) : (
-
           <div className="overflow-x-auto">
-
             <table className="w-full min-w-[950px]">
-
               <thead>
                 <tr className="border-b border-[#4a3528] text-left text-sm uppercase text-[#c99d78]">
-
-                  <th className="px-6 py-4">
-                    Student Name
-                  </th>
-
-                  <th className="px-6 py-4">
-                    Current Module
-                  </th>
-
-                  <th className="px-6 py-4">
-                    Progress
-                  </th>
-
-                  <th className="px-6 py-4">
-                    Status
-                  </th>
-
-                  <th className="px-6 py-4">
-                    Last Updated
-                  </th>
-
-                  <th className="px-6 py-4">
-                    Actions
-                  </th>
-
+                  <th className="px-6 py-4">Student Name</th>
+                  <th className="px-6 py-4">Current Module</th>
+                  <th className="px-6 py-4">Progress</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Last Updated</th>
+                  <th className="px-6 py-4">Actions</th>
                 </tr>
               </thead>
-
               <tbody>
-
-                {filteredProgress.map(
-                  (student) => (
-
-                    <tr
-                      key={student.id}
-                      className="border-b border-[#4a3528] transition hover:bg-[#241a15]"
-                    >
-
-                      {/* STUDENT */}
-                      <td className="px-6 py-5">
-
-                        <div className="font-bold text-white">
-                          {student.name}
+                {filteredProgress.map((student) => (
+                  <tr
+                    key={student.id}
+                    className="border-b border-[#4a3528] transition hover:bg-[#241a15]"
+                  >
+                    <td className="px-6 py-5">
+                      <div className="font-bold text-white">
+                        {student.name}
+                      </div>
+                      {student.email && (
+                        <div className="mt-1 text-xs text-[#806957]">
+                          {student.email}
                         </div>
+                      )}
+                    </td>
 
-                        {student.email && (
-                          <div className="mt-1 text-xs text-[#806957]">
-                            {student.email}
-                          </div>
-                        )}
+                    <td className="px-6 py-5 text-[#d4b9a4]">
+                      {student.module}
+                    </td>
 
-                      </td>
-
-                      {/* MODULE */}
-                      <td className="px-6 py-5 text-[#d4b9a4]">
-                        {student.module}
-                      </td>
-
-                      {/* PROGRESS */}
-                      <td className="px-6 py-5">
-
-                        <div className="flex items-center gap-3">
-
-                          <div className="h-3 w-36 overflow-hidden rounded-full border border-[#4a3528] bg-[#2b211b]">
-
-                            <div
-                              className={`h-full rounded-full ${getProgressBarClass(
-                                student.percentage
-                              )}`}
-                              style={{
-                                width: `${student.percentage}%`,
-                              }}
-                            />
-
-                          </div>
-
-                          <span className="font-bold">
-                            {student.percentage}%
-                          </span>
-
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-3">
+                        <div className="h-3 w-36 overflow-hidden rounded-full border border-[#4a3528] bg-[#2b211b]">
+                          <div
+                            className={`h-full rounded-full ${getProgressBarClass(
+                              student.percentage
+                            )}`}
+                            style={{
+                              width: `${student.percentage}%`,
+                            }}
+                          />
                         </div>
-
-                        <p className="mt-1 text-xs text-[#806957]">
+                        <span className="font-bold">
                           {student.percentage}%
-                          completed
-                        </p>
-
-                      </td>
-
-                      {/* STATUS */}
-                      <td className="px-6 py-5">
-
-                        <span
-                          className={`rounded-md px-3 py-1.5 text-xs font-bold ${getStatusClass(
-                            student.status
-                          )}`}
-                        >
-                          {student.status}
                         </span>
+                      </div>
+                      <p className="mt-1 text-xs text-[#806957]">
+                        {student.percentage}% completed
+                      </p>
+                    </td>
 
-                      </td>
+                    <td className="px-6 py-5">
+                      <span
+                        className={`rounded-md px-3 py-1.5 text-xs font-bold ${getStatusClass(
+                          student.status
+                        )}`}
+                      >
+                        {student.status}
+                      </span>
+                    </td>
 
-                      {/* DATE */}
-                      <td className="px-6 py-5 text-sm text-[#a98a72]">
-                        {student.lastUpdated
-                          ? new Date(
-                              student.lastUpdated
-                            ).toLocaleDateString()
-                          : "Not updated"}
-                      </td>
+                    <td className="px-6 py-5 text-sm text-[#a98a72]">
+                      {student.lastUpdated
+                        ? new Date(
+                            student.lastUpdated
+                          ).toLocaleDateString()
+                        : "Not updated"}
+                    </td>
 
-                      {/* ACTIONS */}
-                      <td className="px-6 py-5">
-
-                        <div className="flex gap-2">
-
-                          <button
-                            onClick={() =>
-                              openEditModal(
-                                student
-                              )
-                            }
-                            className="rounded-md bg-[#c99d78] px-3 py-2 text-xs font-bold text-[#21150f] hover:bg-[#d8ae8b]"
-                          >
-                            Update
-                          </button>
-
-                          <button
-                            onClick={() =>
-                              handleDeleteProgress(
-                                student.id
-                              )
-                            }
-                            className="rounded-md border border-red-800 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-900/30"
-                          >
-                            Delete
-                          </button>
-
-                        </div>
-
-                      </td>
-
-                    </tr>
-
-                  )
-                )}
-
+                    <td className="px-6 py-5">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() =>
+                            openEditModal(student)
+                          }
+                          className="rounded-md bg-[#c99d78] px-3 py-2 text-xs font-bold text-[#21150f] hover:bg-[#d8ae8b]"
+                        >
+                          Update
+                        </button>
+                        <button
+                          onClick={() =>
+                            handleDeleteProgress(
+                              student.id
+                            )
+                          }
+                          className="rounded-md border border-red-800 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-900/30"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
-
             </table>
-
           </div>
-
         )}
-
       </div>
 
       {/* NEEDS ATTENTION */}
       {needsAttention > 0 && (
         <div className="mt-8 rounded-xl border border-yellow-800/60 bg-[#21180e] p-6">
-
           <h2 className="text-xl font-bold text-yellow-500">
             Students Needing Attention
           </h2>
-
           <p className="mt-1 text-sm text-[#a98a72]">
             Students assigned to you who may need
             additional mentoring.
           </p>
 
           <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-
             {normalizedProgress
               .filter(
                 (student) =>
@@ -784,28 +671,22 @@ export default function MentorProgress() {
                   "Needs Improvement"
               )
               .map((student) => (
-
                 <div
                   key={student.id}
                   className="rounded-lg border border-[#4a3528] bg-[#1d1511] p-4"
                 >
-
                   <div className="flex items-center justify-between">
-
                     <div>
                       <h3 className="font-bold">
                         {student.name}
                       </h3>
-
                       <p className="text-sm text-[#a98a72]">
                         {student.module}
                       </p>
                     </div>
-
                     <span className="text-xl font-bold text-yellow-500">
                       {student.percentage}%
                     </span>
-
                   </div>
 
                   <button
@@ -816,110 +697,76 @@ export default function MentorProgress() {
                   >
                     Update Progress
                   </button>
-
                 </div>
-
               ))}
-
           </div>
-
         </div>
       )}
 
       {/* UPDATE MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-[#4a3528] bg-[#1d1511]">
-
-            {/* HEADER */}
             <div className="flex items-center justify-between border-b border-[#4a3528] px-6 py-5">
-
               <div>
                 <h2 className="text-2xl font-bold">
                   Update Student Progress
                 </h2>
-
                 <p className="mt-1 text-sm text-[#a98a72]">
                   {formData.name}
                 </p>
               </div>
-
               <button
                 onClick={closeModal}
                 className="text-3xl text-[#a98a72] hover:text-white"
               >
                 ×
               </button>
-
             </div>
 
-            {/* FORM */}
             <form
               onSubmit={handleSaveProgress}
               className="space-y-6 p-6"
             >
-
-              {/* STUDENT */}
               <div>
-
                 <label className="mb-2 block text-sm font-bold text-[#c99d78]">
                   Student
                 </label>
-
                 <input
                   type="text"
                   value={formData.name}
                   disabled
                   className="w-full rounded-lg border border-[#4a3528] bg-[#120d0a] px-4 py-3 text-[#a98a72]"
                 />
-
               </div>
 
-              {/* MODULE */}
               <div>
-
                 <label className="mb-2 block text-sm font-bold text-[#c99d78]">
                   Topic / Module
                 </label>
-
                 <select
                   name="module"
                   value={formData.module}
                   onChange={handleInputChange}
                   className="w-full rounded-lg border border-[#4a3528] bg-[#120d0a] px-4 py-3 text-white outline-none focus:border-[#c99d78]"
                 >
-
-                  {MODULES.map(
-                    (module) => (
-                      <option
-                        key={module}
-                        value={module}
-                      >
-                        {module}
-                      </option>
-                    )
-                  )}
-
+                  {MODULES.map((module) => (
+                    <option key={module} value={module}>
+                      {module}
+                    </option>
+                  ))}
                 </select>
-
               </div>
 
-              {/* PERCENTAGE */}
               <div>
-
                 <div className="mb-2 flex justify-between">
-
                   <label className="text-sm font-bold text-[#c99d78]">
                     Progress
                   </label>
-
                   <span className="text-xl font-bold">
                     {formData.percentage}%
                   </span>
-
                 </div>
-
                 <input
                   type="range"
                   min="0"
@@ -931,44 +778,29 @@ export default function MentorProgress() {
                   }
                   className="w-full accent-[#c99d78]"
                 />
-
               </div>
 
-              {/* STATUS */}
               <div>
-
                 <label className="mb-2 block text-sm font-bold text-[#c99d78]">
                   Status
                 </label>
-
                 <select
                   value={formData.status}
                   onChange={handleStatusChange}
                   className="w-full rounded-lg border border-[#4a3528] bg-[#120d0a] px-4 py-3 text-white outline-none focus:border-[#c99d78]"
                 >
-
-                  {STATUS_OPTIONS.map(
-                    (status) => (
-                      <option
-                        key={status}
-                        value={status}
-                      >
-                        {status}
-                      </option>
-                    )
-                  )}
-
+                  {STATUS_OPTIONS.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
                 </select>
-
               </div>
 
-              {/* NOTE */}
               <div>
-
                 <label className="mb-2 block text-sm font-bold text-[#c99d78]">
                   Progress Note
                 </label>
-
                 <textarea
                   name="note"
                   value={formData.note}
@@ -977,12 +809,9 @@ export default function MentorProgress() {
                   placeholder="Add a progress note..."
                   className="w-full resize-none rounded-lg border border-[#4a3528] bg-[#120d0a] px-4 py-3 text-white outline-none placeholder:text-[#806957] focus:border-[#c99d78]"
                 />
-
               </div>
 
-              {/* BUTTONS */}
               <div className="flex justify-end gap-3 border-t border-[#4a3528] pt-5">
-
                 <button
                   type="button"
                   onClick={closeModal}
@@ -990,7 +819,6 @@ export default function MentorProgress() {
                 >
                   Cancel
                 </button>
-
                 <button
                   type="submit"
                   disabled={saving}
@@ -1000,16 +828,11 @@ export default function MentorProgress() {
                     ? "Saving..."
                     : "Save Progress"}
                 </button>
-
               </div>
-
             </form>
-
           </div>
-
         </div>
       )}
-
     </div>
   );
 }

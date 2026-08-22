@@ -14,7 +14,7 @@ export default function MentorAttendance() {
         const mentorName = loggedInUser?.fullName || loggedInUser?.name || "Foziya Awel";
 
         // 2. Fetch users from backend API with Authorization header
-        const response = await fetch("http://localhost:5000/api/users", {
+        const response = await fetch("http://localhost:5000/api/attendance", {
           headers: {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
