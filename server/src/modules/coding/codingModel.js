@@ -20,12 +20,16 @@ const codingActivitySchema = new mongoose.Schema(
     url: { type: String, default: '' },
     note: { type: String, default: '' },
     challenge: { type: mongoose.Schema.Types.ObjectId, ref: 'CodingChallenge', default: null },
+    resourceKey: { type: String, default: null },
+    attempts: { type: Number, default: 1 },
+    timeSpentMinutes: { type: Number, default: null },
     completedAt: { type: Date, default: Date.now }
   },
   { timestamps: true }
 );
 
 codingActivitySchema.index({ student: 1, platform: 1, completedAt: 1 });
+codingActivitySchema.index({ student: 1, resourceKey: 1 });
 
 module.exports = {
   CodingChallenge: mongoose.model('CodingChallenge', codingChallengeSchema),

@@ -82,7 +82,60 @@ router.get('/challenges', async (req, res, next) => {
       .populate('createdBy', 'fullName')
       .sort({ dueDate: 1 });
 
-    res.json({ success: true, challenges });
+    // attach the current user's own submission (link + attempt count) for
+    // each challenge so the student UI can show submission status inline
+    const myActivities = await CodingActivity.find({
+      student: req.user._id,
+      challenge: { $in: challenges.map((c) => c._id) }
+    });
+
+    const activityMap = {};
+    myActivities.forEach((a) => {
+      activityMap[String(a.challenge)] = a;
+    });
+
+    const withSubmissions = challenges.map((c) => {
+      const obj = c.toObject();
+      const a = activityMap[String(c._id)];
+      obj.mySubmission = a
+        ? {
+            url: a.url,
+            attempts: a.attempts || 1,
+            timeSpentMinutes: a.timeSpentMinutes || null,
+            completedAt: a.completedAt
+          }
+        : null;
+      return obj;
+    });
+
+    res.json({ success: true, challenges: withSubmissions });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// static practice-sheet resources aren't stored in the DB, so submissions
+// against them are keyed by a stable `resourceKey` sent from the client
+// instead of a challenge id. This returns the current student's submission
+// (link, attempts, time spent) for every resource they've submitted to.
+router.get('/resource-submissions', async (req, res, next) => {
+  try {
+    const activities = await CodingActivity.find({
+      student: req.user._id,
+      resourceKey: { $ne: null }
+    });
+
+    const submissions = {};
+    activities.forEach((a) => {
+      submissions[a.resourceKey] = {
+        url: a.url,
+        attempts: a.attempts || 1,
+        timeSpentMinutes: a.timeSpentMinutes || null,
+        completedAt: a.completedAt
+      };
+    });
+
+    res.json({ success: true, submissions });
   } catch (e) {
     next(e);
   }
@@ -124,19 +177,49 @@ router.post('/challenges', authorize('admin'), async (req, res, next) => {
 
 router.post('/activity', authorize('student'), async (req, res, next) => {
   try {
-    const { platform, url, note, challenge } = req.body;
+    const { platform, url, note, challenge, resourceKey, timeSpentMinutes } = req.body;
 
     if (!platform) {
       return res.status(400).json({ success: false, message: 'Platform is required.' });
     }
 
-    const a = await CodingActivity.create({
-      student: req.user._id,
-      platform,
-      url,
-      note,
-      challenge: challenge || null
-    });
+    const parsedTime =
+      timeSpentMinutes === undefined || timeSpentMinutes === null || timeSpentMinutes === ''
+        ? null
+        : Number(timeSpentMinutes);
+
+    // if this activity is tied to an assigned challenge or a static practice
+    // resource, treat repeated submissions as attempts on the same record
+    // instead of creating duplicates
+    let a = null;
+
+    if (challenge) {
+      a = await CodingActivity.findOne({ student: req.user._id, challenge });
+    } else if (resourceKey) {
+      a = await CodingActivity.findOne({ student: req.user._id, resourceKey });
+    }
+
+    if (a) {
+      a.url = url;
+      a.note = note;
+      a.attempts = (a.attempts || 1) + 1;
+      a.completedAt = new Date();
+      if (parsedTime !== null && !Number.isNaN(parsedTime)) {
+        a.timeSpentMinutes = parsedTime;
+      }
+      await a.save();
+    } else {
+      a = await CodingActivity.create({
+        student: req.user._id,
+        platform,
+        url,
+        note,
+        challenge: challenge || null,
+        resourceKey: resourceKey || null,
+        attempts: 1,
+        timeSpentMinutes: parsedTime !== null && !Number.isNaN(parsedTime) ? parsedTime : null
+      });
+    }
 
     res.status(201).json({ success: true, activity: a });
   } catch (e) {
