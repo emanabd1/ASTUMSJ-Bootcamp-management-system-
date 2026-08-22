@@ -48,9 +48,7 @@ export default function StudentDashboard() {
         <h1 className="font-serif text-3xl font-bold text-[#f5efe6]">
           My Performance Overview
         </h1>
-        <p className="mt-1 text-xs text-[#a39081]">
-          Everything below is loaded from your MongoDB records.
-        </p>
+        
       </div>
 
       <section className="grid grid-cols-1 gap-6 rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6 sm:grid-cols-3">
