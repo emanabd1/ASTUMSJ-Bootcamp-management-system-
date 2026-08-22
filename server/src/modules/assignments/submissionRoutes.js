@@ -107,7 +107,6 @@ router.post("/assignments/:assignmentId", authorize("student"), upload.array("fi
 
     const { method, githubUrl = "", liveDemoUrl = "", textAnswer = "" } = req.body;
     
-    // Support text answers or links being mapped into `content` or `githubUrl` seamlessly
     const content = textAnswer || githubUrl || liveDemoUrl || "";
 
     const files = (req.files || []).map((f) => ({
@@ -187,7 +186,6 @@ router.patch("/:id/grade", authorize("admin", "mentor"), async (req, res, next) 
       return res.status(400).json({ success: false, message: `Score must be between 0 and ${submission.assignment.maximumScore}.` });
     }
 
-    // Accept both 'resubmission_requested' or 'redo' from frontend/buttons safely
     const requestedStatus = req.body.status;
     const status = (requestedStatus === "resubmission_requested" || requestedStatus === "redo") 
       ? "resubmission_requested" 
@@ -203,17 +201,23 @@ router.patch("/:id/grade", authorize("admin", "mentor"), async (req, res, next) 
 
     await submission.save();
 
-    await Notification.create({
-      user: submission.student._id,
-      title: status === "resubmission_requested" ? "Resubmission requested" : "Assignment graded",
-      message:
-        status === "resubmission_requested"
-          ? `Please resubmit ${submission.assignment.title}. Feedback: ${feedback}`
-          : `${submission.assignment.title} was graded. Score: ${score}/${submission.assignment.maximumScore}. ${feedback}`,
-      type: status === "resubmission_requested" ? "redo" : "grade",
-      link: "/student/assignments",
-      meta: { assignmentId: String(submission.assignment._id), submissionId: String(submission._id) },
-    });
+    // Safely create notification with terminal error logging
+    try {
+      const notif = await Notification.create({
+        user: submission.student._id,
+        title: status === "resubmission_requested" ? "Resubmission requested" : "Assignment graded",
+        message:
+          status === "resubmission_requested"
+            ? `Please resubmit ${submission.assignment.title}. Feedback: ${feedback}`
+            : `${submission.assignment.title} was graded. Score: ${score}/${submission.assignment.maximumScore}. ${feedback}`,
+        type: status === "resubmission_requested" ? "redo" : "grade",
+        link: "/student/assignments",
+        meta: { assignmentId: String(submission.assignment._id), submissionId: String(submission._id) },
+      });
+      console.log("Notification successfully created for student ID:", notif.user);
+    } catch (notifErr) {
+      console.error("ERROR creating notification in grade route:", notifErr);
+    }
 
     res.json({ success: true, submission });
   } catch (error) {
