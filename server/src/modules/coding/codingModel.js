@@ -20,6 +20,7 @@ const codingActivitySchema = new mongoose.Schema(
     url: { type: String, default: '' },
     note: { type: String, default: '' },
     challenge: { type: mongoose.Schema.Types.ObjectId, ref: 'CodingChallenge', default: null },
+    attempts: { type: Number, default: 1 },
     completedAt: { type: Date, default: Date.now }
   },
   { timestamps: true }
