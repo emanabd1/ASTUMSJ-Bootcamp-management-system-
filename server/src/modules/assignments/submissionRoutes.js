@@ -98,10 +98,16 @@ router.post("/assignments/:assignmentId", authorize("student"), upload.array("fi
     const assignment = await Assignment.findById(req.params.assignmentId);
     if (!assignment) return res.status(404).json({ success: false, message: "Assignment not found." });
     
-    if (assignment.targetStudents?.length && !assignment.targetStudents.some((id) => String(id) === String(req.user._id))) {
+    if (
+      assignment.targetStudents &&
+      Array.isArray(assignment.targetStudents) &&
+      assignment.targetStudents.length > 0 &&
+      !assignment.targetStudents.some((id) => String(id) === String(req.user._id))
+    ) {
       return res.status(403).json({ success: false, message: "This assignment is not assigned to you." });
     }
-    if (assignment.status === "closed" || new Date(assignment.deadline) < new Date()) {
+
+    if (assignment.status === "closed" || (assignment.deadline && new Date(assignment.deadline) < new Date())) {
       return res.status(400).json({ success: false, message: "The assignment deadline has passed or the assignment is closed." });
     }
 
@@ -186,10 +192,20 @@ router.patch("/:id/grade", authorize("admin", "mentor"), async (req, res, next) 
       return res.status(400).json({ success: false, message: `Score must be between 0 and ${submission.assignment.maximumScore}.` });
     }
 
+    // Robust status-determination logic
     const requestedStatus = req.body.status;
-    const status = (requestedStatus === "resubmission_requested" || requestedStatus === "redo") 
-      ? "resubmission_requested" 
-      : "graded";
+    let status = "graded";
+
+    if (
+      requestedStatus === "resubmission_requested" || 
+      requestedStatus === "redo" || 
+      requestedStatus === "request_resubmission" ||
+      req.url.includes("redo")
+    ) {
+      status = "resubmission_requested";
+    } else if (requestedStatus === "graded") {
+      status = "graded";
+    }
 
     const feedback = String(req.body.feedback || "").trim();
 
@@ -201,16 +217,16 @@ router.patch("/:id/grade", authorize("admin", "mentor"), async (req, res, next) 
 
     await submission.save();
 
-    // Safely create notification with terminal error logging
+    // Safely create notification using 'info' type so the student feed renders it natively
     try {
       const notif = await Notification.create({
         user: submission.student._id,
-        title: status === "resubmission_requested" ? "Resubmission requested" : "Assignment graded",
+        title: status === "resubmission_requested" ? "Resubmission Requested" : "Assignment Graded",
         message:
           status === "resubmission_requested"
-            ? `Please resubmit ${submission.assignment.title}. Feedback: ${feedback}`
+            ? `Please resubmit ${submission.assignment.title}. Feedback: ${feedback || "No feedback provided."}`
             : `${submission.assignment.title} was graded. Score: ${score}/${submission.assignment.maximumScore}. ${feedback}`,
-        type: status === "resubmission_requested" ? "redo" : "grade",
+        type: "info", 
         link: "/student/assignments",
         meta: { assignmentId: String(submission.assignment._id), submissionId: String(submission._id) },
       });
