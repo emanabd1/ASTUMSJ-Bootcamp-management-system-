@@ -1,3 +1,4 @@
+// client/src/pages/MentorProgress.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
@@ -21,10 +22,23 @@ const MODULES = [
   "Git / GitHub",
 ];
 
-const getToken = () =>
-  localStorage.getItem("token") ||
-  localStorage.getItem("accessToken") ||
-  localStorage.getItem("jwt");
+const getToken = () => {
+  return (
+    localStorage.getItem("token") ||
+    localStorage.getItem("accessToken") ||
+    localStorage.getItem("jwt")
+  );
+};
+
+const getStatusFromPercentage = (percentage) => {
+  const value = Number(percentage);
+
+  if (value === 0) return "Not Started";
+  if (value === 100) return "Completed";
+  if (value < 50) return "Needs Improvement";
+
+  return "In Progress";
+};
 
 const getStatusClass = (status) => {
   switch (status) {
@@ -34,18 +48,18 @@ const getStatusClass = (status) => {
       return "bg-blue-700 text-white";
     case "Needs Improvement":
       return "bg-yellow-700 text-white";
-    default:
+    case "Not Started":
       return "bg-gray-700 text-gray-200";
+    default:
+      return "bg-gray-700 text-white";
   }
 };
 
 const getProgressBarClass = (percentage) => {
   const value = Number(percentage);
-
   if (value === 100) return "bg-green-600";
   if (value < 50) return "bg-red-500";
   if (value < 80) return "bg-yellow-600";
-
   return "bg-[#c99d78]";
 };
 
@@ -53,10 +67,8 @@ export default function MentorProgress() {
   const [progressData, setProgressData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -79,30 +91,43 @@ export default function MentorProgress() {
 
       if (!token) {
         setError("You are not logged in. Please login again.");
+        setLoading(false);
         return;
       }
 
-      /*
-       * IMPORTANT:
-       * Use /progress because the backend already filters this
-       * request to students assigned to the logged-in mentor.
-       */
-      const response = await axios.get(`${API_URL}/progress`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // Keep the existing mentor dashboard request.
+      const response = await axios.get(
+        `${API_URL}/mentors/dashboard`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-      const records = response.data?.progress || [];
+      const rawData = response.data;
 
-      setProgressData(records);
+      const studentsArray =
+        rawData?.dashboard?.assignedStudents ||
+        rawData?.assignedStudents ||
+        rawData?.progress ||
+        rawData?.data ||
+        [];
+
+      setProgressData(studentsArray);
     } catch (err) {
       console.error("Failed to load progress:", err);
 
-      setError(
-        err.response?.data?.message ||
-          "Failed to load assigned students."
-      );
+      if (err.response?.status === 401) {
+        setError("Your session has expired. Please login again.");
+      } else if (err.response?.status === 403) {
+        setError("You are not authorized to view these students.");
+      } else {
+        setError(
+          err.response?.data?.message ||
+            "Failed to load assigned students."
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -114,32 +139,35 @@ export default function MentorProgress() {
 
   const normalizedProgress = useMemo(() => {
     return progressData.map((item) => {
-      const student = item.student || {};
+      const student = item.student || item;
 
       return {
-        id: item._id,
-        studentId: student._id || item.student,
-        name: student.fullName || student.name || "Student",
+        id: item._id || item.id,
+        studentId: student._id || student.id || item.studentId,
+        name:
+          student.name ||
+          student.fullName ||
+          `${student.firstName || ""} ${student.lastName || ""}`.trim() ||
+          "Student",
         email: student.email || "",
-        module: item.topic || "HTML / CSS",
-        percentage: Number(item.percentage || 0),
-        status: item.status || "Not Started",
-        note: item.note || "",
-        lastUpdated: item.updatedAt || null,
+        module: item.module || item.topic || "HTML / CSS",
+        percentage: Number(item.percentage ?? item.progress ?? 0),
+        status:
+          item.status ||
+          getStatusFromPercentage(
+            item.percentage ?? item.progress ?? 0
+          ),
+        note: item.note || item.notes || "",
+        lastUpdated: item.updatedAt || item.lastUpdated || null,
       };
     });
   }, [progressData]);
 
-  /*
-   * Search suggestions.
-   *
-   * Example:
-   * typing "n" -> Nancy, Nesrin, Nathan...
-   */
+  // Search suggestions from assigned students
   const searchSuggestions = useMemo(() => {
-    const search = searchTerm.trim().toLowerCase();
+    if (!searchTerm.trim()) return [];
 
-    if (!search) return [];
+    const search = searchTerm.toLowerCase();
 
     return normalizedProgress
       .filter(
@@ -147,22 +175,20 @@ export default function MentorProgress() {
           student.name.toLowerCase().includes(search) ||
           student.email.toLowerCase().includes(search)
       )
-      .slice(0, 8);
+      .slice(0, 6);
   }, [normalizedProgress, searchTerm]);
 
   const filteredProgress = useMemo(() => {
-    const search = searchTerm.trim().toLowerCase();
-
     return normalizedProgress.filter((student) => {
+      const search = searchTerm.toLowerCase();
+
       const matchesSearch =
-        !search ||
         student.name.toLowerCase().includes(search) ||
         student.email.toLowerCase().includes(search) ||
         student.module.toLowerCase().includes(search);
 
       const matchesStatus =
-        statusFilter === "All" ||
-        student.status === statusFilter;
+        statusFilter === "All" || student.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -208,13 +234,20 @@ export default function MentorProgress() {
     setSelectedStudent(null);
   };
 
+  // Percentage no longer changes the status automatically.
+  const handlePercentageChange = (e) => {
+    const percentage = Number(e.target.value);
+
+    setFormData((previous) => ({
+      ...previous,
+      percentage,
+    }));
+  };
+
   const handleSaveProgress = async (e) => {
     e.preventDefault();
 
-    if (!selectedStudent?.id) {
-      setError("No progress record selected.");
-      return;
-    }
+    if (!selectedStudent?.id) return;
 
     try {
       setSaving(true);
@@ -222,17 +255,15 @@ export default function MentorProgress() {
 
       const token = getToken();
 
-      /*
-       * IMPORTANT:
-       * Backend uses PATCH, NOT PUT.
-       */
+      // FIX: backend route is PATCH, not PUT
       await axios.patch(
         `${API_URL}/progress/${selectedStudent.id}`,
         {
+          module: formData.module,
           topic: formData.module,
           percentage: Number(formData.percentage),
           status: formData.status,
-          note: formData.note.trim(),
+          note: formData.note,
         },
         {
           headers: {
@@ -242,7 +273,6 @@ export default function MentorProgress() {
       );
 
       closeModal();
-
       await fetchProgress();
     } catch (err) {
       console.error("Failed to update progress:", err);
@@ -257,8 +287,6 @@ export default function MentorProgress() {
   };
 
   const handleDeleteProgress = async (id) => {
-    if (!id) return;
-
     const confirmed = window.confirm(
       "Are you sure you want to delete this progress record?"
     );
@@ -303,7 +331,6 @@ export default function MentorProgress() {
 
   return (
     <div className="min-h-screen bg-[#120d0a] px-4 py-8 text-white md:px-8">
-
       <div className="mb-8">
         <h1 className="text-3xl font-bold md:text-4xl">
           Student Progress Tracker
@@ -321,7 +348,6 @@ export default function MentorProgress() {
       )}
 
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-
         <div className="rounded-xl border border-[#4a3528] bg-[#1d1511] p-5">
           <p className="text-sm text-[#a98a72]">
             Assigned Students
@@ -363,74 +389,62 @@ export default function MentorProgress() {
         </div>
       </div>
 
-      {/* SEARCH */}
-      <div className="relative mb-6">
-
-        <div className="flex flex-col gap-3 rounded-xl border border-[#4a3528] bg-[#1d1511] p-4 md:flex-row">
-
+      <div className="mb-6 flex flex-col gap-3 rounded-xl border border-[#4a3528] bg-[#1d1511] p-4 md:flex-row">
+        <div className="relative flex-1">
           <input
             type="text"
             placeholder="Search assigned students..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 rounded-lg border border-[#4a3528] bg-[#120d0a] px-4 py-3 text-white outline-none placeholder:text-[#806957] focus:border-[#c99d78]"
+            className="w-full rounded-lg border border-[#4a3528] bg-[#120d0a] px-4 py-3 text-white outline-none placeholder:text-[#806957] focus:border-[#c99d78]"
           />
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-lg border border-[#4a3528] bg-[#120d0a] px-4 py-3 text-white outline-none focus:border-[#c99d78]"
-          >
-            <option value="All">
-              All Statuses
-            </option>
-
-            {STATUS_OPTIONS.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* SEARCH SUGGESTIONS */}
-        {searchTerm.trim() &&
-          searchSuggestions.length > 0 && (
-            <div className="absolute left-0 right-0 z-30 mt-1 overflow-hidden rounded-lg border border-[#4a3528] bg-[#1d1511] shadow-xl">
-
-              {searchSuggestions.map((student) => (
-                <button
-                  key={student.studentId}
-                  type="button"
-                  onClick={() => {
-                    setSearchTerm(student.name);
-                  }}
-                  className="flex w-full items-center justify-between border-b border-[#4a3528] px-4 py-3 text-left hover:bg-[#2a1d16]"
-                >
-                  <div>
-                    <p className="font-semibold text-white">
+          {searchTerm.trim() && (
+            <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-[#4a3528] bg-[#1d1511] shadow-xl">
+              {searchSuggestions.length > 0 ? (
+                searchSuggestions.map((student) => (
+                  <button
+                    key={student.studentId}
+                    type="button"
+                    onClick={() => setSearchTerm(student.name)}
+                    className="block w-full border-b border-[#4a3528] px-4 py-3 text-left text-sm text-white hover:bg-[#2a1d16]"
+                  >
+                    <div className="font-medium">
                       {student.name}
-                    </p>
+                    </div>
 
                     {student.email && (
-                      <p className="text-xs text-[#806957]">
+                      <div className="text-xs text-[#806957]">
                         {student.email}
-                      </p>
+                      </div>
                     )}
-                  </div>
-
-                  <span className="text-xs text-[#c99d78]">
-                    {student.percentage}%
-                  </span>
-                </button>
-              ))}
+                  </button>
+                ))
+              ) : (
+                <p className="px-4 py-3 text-sm text-[#8f7664]">
+                  No assigned student found.
+                </p>
+              )}
             </div>
           )}
+        </div>
+
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded-lg border border-[#4a3528] bg-[#120d0a] px-4 py-3 text-white outline-none focus:border-[#c99d78]"
+        >
+          <option value="All">All Statuses</option>
+
+          {STATUS_OPTIONS.map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </select>
       </div>
 
-      {/* TABLE */}
       <div className="overflow-hidden rounded-xl border border-[#4a3528] bg-[#1d1511]">
-
         <div className="border-b border-[#4a3528] px-6 py-5">
           <h2 className="text-xl font-bold text-[#c99d78]">
             Progress Overview
@@ -457,12 +471,9 @@ export default function MentorProgress() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-
             <table className="w-full min-w-[950px]">
-
               <thead>
                 <tr className="border-b border-[#4a3528] text-left text-sm uppercase text-[#c99d78]">
-
                   <th className="px-6 py-4">
                     Student Name
                   </th>
@@ -486,18 +497,15 @@ export default function MentorProgress() {
                   <th className="px-6 py-4">
                     Actions
                   </th>
-
                 </tr>
               </thead>
 
               <tbody>
-
                 {filteredProgress.map((student) => (
                   <tr
                     key={student.id}
                     className="border-b border-[#4a3528] transition hover:bg-[#241a15]"
                   >
-
                     <td className="px-6 py-5">
                       <div className="font-bold text-white">
                         {student.name}
@@ -515,11 +523,8 @@ export default function MentorProgress() {
                     </td>
 
                     <td className="px-6 py-5">
-
                       <div className="flex items-center gap-3">
-
                         <div className="h-3 w-36 overflow-hidden rounded-full border border-[#4a3528] bg-[#2b211b]">
-
                           <div
                             className={`h-full rounded-full ${getProgressBarClass(
                               student.percentage
@@ -528,19 +533,15 @@ export default function MentorProgress() {
                               width: `${student.percentage}%`,
                             }}
                           />
-
                         </div>
 
                         <span className="font-bold">
                           {student.percentage}%
                         </span>
-
                       </div>
-
                     </td>
 
                     <td className="px-6 py-5">
-
                       <span
                         className={`rounded-md px-3 py-1.5 text-xs font-bold ${getStatusClass(
                           student.status
@@ -548,7 +549,6 @@ export default function MentorProgress() {
                       >
                         {student.status}
                       </span>
-
                     </td>
 
                     <td className="px-6 py-5 text-sm text-[#a98a72]">
@@ -560,9 +560,7 @@ export default function MentorProgress() {
                     </td>
 
                     <td className="px-6 py-5">
-
                       <div className="flex gap-2">
-
                         <button
                           onClick={() =>
                             openEditModal(student)
@@ -580,26 +578,20 @@ export default function MentorProgress() {
                         >
                           Delete
                         </button>
-
                       </div>
-
                     </td>
-
                   </tr>
                 ))}
-
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* UPDATE MODAL */}
+      {/* Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-
           <div className="w-full max-w-md rounded-xl border border-[#4a3528] bg-[#1d1511] p-6 text-white">
-
             <h2 className="mb-4 text-xl font-bold text-[#c99d78]">
               Update Student Progress
             </h2>
@@ -608,8 +600,6 @@ export default function MentorProgress() {
               onSubmit={handleSaveProgress}
               className="space-y-4"
             >
-
-              {/* STUDENT */}
               <div>
                 <label className="mb-1 block text-xs text-[#a98a72]">
                   Student
@@ -623,7 +613,6 @@ export default function MentorProgress() {
                 />
               </div>
 
-              {/* MODULE */}
               <div>
                 <label className="mb-1 block text-xs text-[#a98a72]">
                   Current Module
@@ -647,39 +636,24 @@ export default function MentorProgress() {
                 </select>
               </div>
 
-              {/* PERCENTAGE */}
               <div>
                 <label className="mb-1 block text-xs text-[#a98a72]">
-                  Progress Percentage
+                  Progress Percentage ({formData.percentage}%)
                 </label>
 
-                <div className="flex items-center gap-3">
-
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={formData.percentage}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        percentage: Number(e.target.value),
-                      })
-                    }
-                    className="w-full accent-[#c99d78]"
-                  />
-
-                  <span className="w-12 font-bold">
-                    {formData.percentage}%
-                  </span>
-
-                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={formData.percentage}
+                  onChange={handlePercentageChange}
+                  className="w-full accent-[#c99d78]"
+                />
               </div>
 
-              {/* MANUAL STATUS */}
               <div>
                 <label className="mb-1 block text-xs text-[#a98a72]">
-                  Progress Status
+                  Status
                 </label>
 
                 <select
@@ -700,10 +674,9 @@ export default function MentorProgress() {
                 </select>
               </div>
 
-              {/* NOTES */}
               <div>
                 <label className="mb-1 block text-xs text-[#a98a72]">
-                  Mentor Notes
+                  Notes
                 </label>
 
                 <textarea
@@ -714,14 +687,13 @@ export default function MentorProgress() {
                       note: e.target.value,
                     })
                   }
-                  rows="4"
-                  placeholder="Write feedback or notes for the student..."
+                  rows="3"
                   className="w-full rounded-lg border border-[#4a3528] bg-[#120d0a] px-3 py-2 text-white outline-none"
+                  placeholder="Optional mentor remarks..."
                 />
               </div>
 
               <div className="mt-6 flex justify-end gap-3">
-
                 <button
                   type="button"
                   onClick={closeModal}
@@ -737,9 +709,7 @@ export default function MentorProgress() {
                 >
                   {saving ? "Saving..." : "Save Changes"}
                 </button>
-
               </div>
-
             </form>
           </div>
         </div>
