@@ -1,6 +1,45 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
+const TRACKS = [
+  {
+    title: 'Web Development',
+    description:
+      'Learn to build full-stack applications with HTML, CSS, JavaScript, React, Node.js, Express, and MongoDB — the same stack this platform is built on.',
+    icon: '🌐',
+  },
+  {
+    title: 'Competitive Programming',
+    description:
+      'Sharpen algorithmic thinking and problem-solving through structured practice sheets, timed contests, and curated Codeforces/LeetCode challenges.',
+    icon: '🧮',
+  },
+  {
+    title: 'Mobile Development',
+    description:
+      'Explore building cross-platform mobile apps, from UI fundamentals to connecting with real backend APIs.',
+    icon: '📱',
+  },
+];
+
+const MENTORS = [
+  {
+    name: 'Web Development Mentors',
+    focus: 'Full-Stack (MERN)',
+    bio: 'Experienced student mentors guiding learners through frontend, backend, and deployment best practices.',
+  },
+  {
+    name: 'Competitive Programming Mentors',
+    focus: 'Algorithms & Data Structures',
+    bio: 'Active competitive programmers who help students build problem-solving speed and accuracy.',
+  },
+  {
+    name: 'Mobile Development Mentors',
+    focus: 'Cross-Platform Apps',
+    bio: 'Mentors focused on helping students design and ship their first mobile applications.',
+  },
+];
+
 const LandingPage = () => {
   return (
     <div className="bg-[#fdf6e3] min-h-screen font-sans text-[#2c1a11]">
@@ -12,6 +51,8 @@ const LandingPage = () => {
         </div>
         <div className="hidden md:flex gap-8 font-medium">
           <a href="#about" className="hover:text-[#d8b493]">About</a>
+          <a href="#tracks" className="hover:text-[#d8b493]">Tracks</a>
+          <a href="#mentors" className="hover:text-[#d8b493]">Mentors</a>
           <a href="#faq" className="hover:text-[#d8b493]">FAQ</a>
         </div>
         <div className="flex gap-4">
@@ -41,6 +82,51 @@ const LandingPage = () => {
           Through hands-on projects, daily attendance tracking, and professional mentorship, 
           we ensure every student stays on track to success.
         </p>
+      </section>
+
+      {/* 3. Tracks Section */}
+      <section id="tracks" className="py-20 px-10">
+        <h2 className="text-4xl font-bold text-center mb-4">Bootcamp Tracks</h2>
+        <p className="max-w-2xl mx-auto text-center text-gray-700 mb-12">
+          Choose a path that fits your goals. Every track combines guided lessons, hands-on
+          projects, and mentor feedback.
+        </p>
+        <div className="grid gap-8 md:grid-cols-3 max-w-6xl mx-auto">
+          {TRACKS.map((track) => (
+            <div
+              key={track.title}
+              className="bg-white rounded-2xl shadow-sm p-8 text-center hover:shadow-lg transition-shadow"
+            >
+              <div className="text-5xl mb-4">{track.icon}</div>
+              <h3 className="text-xl font-bold mb-3">{track.title}</h3>
+              <p className="text-gray-600 text-sm leading-relaxed">{track.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 4. Mentors Section */}
+      <section id="mentors" className="bg-[#ede0d4] py-20 px-10">
+        <h2 className="text-4xl font-bold text-center mb-4">Meet Your Mentors</h2>
+        <p className="max-w-2xl mx-auto text-center text-gray-700 mb-12">
+          Every track is guided by experienced mentors who review your work, run attendance,
+          and keep you accountable throughout the program.
+        </p>
+        <div className="grid gap-8 md:grid-cols-3 max-w-6xl mx-auto">
+          {MENTORS.map((mentor) => (
+            <div
+              key={mentor.name}
+              className="bg-white rounded-2xl shadow-sm p-8 text-center hover:shadow-lg transition-shadow"
+            >
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#d8b493] flex items-center justify-center text-2xl font-bold text-[#2c1a11]">
+                {mentor.name.charAt(0)}
+              </div>
+              <h3 className="text-lg font-bold mb-1">{mentor.name}</h3>
+              <p className="text-sm text-amber-700 font-semibold mb-3">{mentor.focus}</p>
+              <p className="text-gray-600 text-sm leading-relaxed">{mentor.bio}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* 5. FAQ Section */}
