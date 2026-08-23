@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import axiosInstance from "../api/axiosInstance";
 
 import {
   ResponsiveContainer,
@@ -17,31 +17,16 @@ export default function MentorDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // =========================================================
-  // GET STUDENTS ASSIGNED BY ADMIN
-  // =========================================================
-
   useEffect(() => {
     const fetchAssignedStudents = async () => {
       try {
         setLoading(true);
         setError("");
 
-        const token = localStorage.getItem("token");
+        const response = await axiosInstance.get("/mentors/dashboard");
 
-        const response = await axios.get(
-          "http://localhost:5000/api/mentors/dashboard",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        console.log("API Response:", response.data);
-
-        // Safely extract from response.data.dashboard.assignedStudents
         const rawData = response.data;
+
         const students =
           rawData?.dashboard?.assignedStudents ||
           rawData?.students ||
@@ -66,10 +51,6 @@ export default function MentorDashboard() {
 
     fetchAssignedStudents();
   }, []);
-
-  // =========================================================
-  // HELPER FUNCTIONS
-  // =========================================================
 
   const getStudentName = (student) => {
     if (student.name) {
@@ -98,6 +79,18 @@ export default function MentorDashboard() {
   };
 
   const getProgress = (student) => {
+    // Backend (/api/mentors/dashboard) returns progressCompleted / progressTotal
+    // rather than a single percentage field, so derive it when present.
+    if (
+      typeof student.progressCompleted === "number" &&
+      typeof student.progressTotal === "number"
+    ) {
+      if (student.progressTotal === 0) return 0;
+      return Math.round(
+        (student.progressCompleted / student.progressTotal) * 100
+      );
+    }
+
     const value =
       student.progress ??
       student.progressPercentage ??
@@ -152,10 +145,6 @@ export default function MentorDashboard() {
     );
   };
 
-  // =========================================================
-  // DASHBOARD CALCULATIONS
-  // =========================================================
-
   const totalStudents = assignedStudents.length;
 
   const averageAttendance = useMemo(() => {
@@ -199,10 +188,6 @@ export default function MentorDashboard() {
     return [...new Set(batches.filter(Boolean))].length;
   }, [assignedStudents]);
 
-  // =========================================================
-  // STUDENT STATUS
-  // =========================================================
-
   const completedStudents = assignedStudents.filter(
     (student) => getProgress(student) >= 100
   ).length;
@@ -217,10 +202,6 @@ export default function MentorDashboard() {
       getProgress(student) < 100
   ).length;
 
-  // =========================================================
-  // CHART DATA
-  // =========================================================
-
   const progressChartData = useMemo(() => {
     return assignedStudents.map((student) => ({
       name: getStudentName(student),
@@ -228,10 +209,6 @@ export default function MentorDashboard() {
       attendance: getAttendance(student),
     }));
   }, [assignedStudents]);
-
-  // =========================================================
-  // STATUS CHART DATA
-  // =========================================================
 
   const statusChartData = [
     {
@@ -248,10 +225,6 @@ export default function MentorDashboard() {
     },
   ];
 
-  // =========================================================
-  // PROGRESS COLOR
-  // =========================================================
-
   const getProgressColor = (progress) => {
     if (progress >= 100) {
       return "bg-green-500";
@@ -267,10 +240,6 @@ export default function MentorDashboard() {
 
     return "bg-red-500";
   };
-
-  // =========================================================
-  // STATUS TEXT
-  // =========================================================
 
   const getStatus = (progress) => {
     if (progress >= 100) {
@@ -296,16 +265,8 @@ export default function MentorDashboard() {
     };
   };
 
-  // =========================================================
-  // UI
-  // =========================================================
-
   return (
     <div className="space-y-6">
-
-      {/* =====================================================
-          PAGE HEADER
-      ===================================================== */}
 
       <div>
         <h1 className="text-3xl font-extrabold tracking-wide text-[#f5efe6]">
@@ -318,10 +279,6 @@ export default function MentorDashboard() {
         </p>
       </div>
 
-      {/* =====================================================
-          ERROR MESSAGE
-      ===================================================== */}
-
       {error && (
         <div className="rounded-xl border border-red-700 bg-red-950/40 px-5 py-4">
           <p className="text-sm text-red-400">
@@ -331,15 +288,11 @@ export default function MentorDashboard() {
           <p className="text-xs text-red-300/70 mt-1">
             Make sure your backend route is:
             <span className="font-semibold ml-1">
-              /api/mentor/assigned-students
+              /api/mentors/dashboard
             </span>
           </p>
         </div>
       )}
-
-      {/* =====================================================
-          LOADING
-      ===================================================== */}
 
       {loading && (
         <div className="rounded-xl border border-[#4a3b32] bg-[#1e1713] p-5">
@@ -349,13 +302,7 @@ export default function MentorDashboard() {
         </div>
       )}
 
-      {/* =====================================================
-          TOP METRIC CARDS
-      ===================================================== */}
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-
-        {/* Attendance */}
 
         <div className="bg-[#1e1713] border border-[#4a3b32] rounded-2xl p-5 shadow-md">
 
@@ -373,8 +320,6 @@ export default function MentorDashboard() {
 
         </div>
 
-        {/* Progress */}
-
         <div className="bg-[#1e1713] border border-[#4a3b32] rounded-2xl p-5 shadow-md">
 
           <span className="text-xs text-[#a39081]">
@@ -391,8 +336,6 @@ export default function MentorDashboard() {
 
         </div>
 
-        {/* Students */}
-
         <div className="bg-[#1e1713] border border-[#4a3b32] rounded-2xl p-5 shadow-md">
 
           <span className="text-xs text-[#a39081]">
@@ -408,8 +351,6 @@ export default function MentorDashboard() {
           </span>
 
         </div>
-
-        {/* Streak */}
 
         <div className="bg-[#1e1713] border border-[#4a3b32] rounded-2xl p-5 shadow-md">
 
@@ -428,10 +369,6 @@ export default function MentorDashboard() {
         </div>
 
       </div>
-
-      {/* =====================================================
-          STUDENT PROGRESS CHART
-      ===================================================== */}
 
       <div className="bg-[#1e1713] border border-[#4a3b32] rounded-2xl p-6 shadow-md">
 
@@ -565,13 +502,7 @@ export default function MentorDashboard() {
 
       </div>
 
-      {/* =====================================================
-          STATUS SUMMARY
-      ===================================================== */}
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-        {/* Completed */}
 
         <div className="bg-[#1e1713] border border-[#4a3b32] rounded-2xl p-5">
 
@@ -589,7 +520,6 @@ export default function MentorDashboard() {
 
         </div>
 
-        {/* On Track */}
 
         <div className="bg-[#1e1713] border border-[#4a3b32] rounded-2xl p-5">
 
@@ -607,7 +537,6 @@ export default function MentorDashboard() {
 
         </div>
 
-        {/* Attention */}
 
         <div className="bg-[#1e1713] border border-[#4a3b32] rounded-2xl p-5">
 
@@ -627,9 +556,6 @@ export default function MentorDashboard() {
 
       </div>
 
-      {/* =====================================================
-          ASSIGNED STUDENTS
-      ===================================================== */}
 
       <div className="bg-[#1e1713] border border-[#4a3b32] rounded-2xl p-6 shadow-md">
 
@@ -679,8 +605,6 @@ export default function MentorDashboard() {
                   className="border border-[#4a3b32] bg-[#15100d] rounded-xl p-4"
                 >
 
-                  {/* Student Header */}
-
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
 
                     <div>
@@ -703,7 +627,6 @@ export default function MentorDashboard() {
 
                   </div>
 
-                  {/* Progress */}
 
                   <div className="mt-4">
 
@@ -734,7 +657,6 @@ export default function MentorDashboard() {
 
                   </div>
 
-                  {/* Attendance */}
 
                   <div className="mt-4 flex justify-between text-xs">
 
@@ -759,10 +681,6 @@ export default function MentorDashboard() {
         )}
 
       </div>
-
-      {/* =====================================================
-          THIS WEEK'S TRAIL
-      ===================================================== */}
 
       <div className="bg-[#1e1713] border border-[#4a3b32] rounded-2xl p-6 shadow-md">
 
