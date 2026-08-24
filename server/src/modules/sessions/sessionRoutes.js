@@ -1,0 +1,139 @@
+const express = require("express");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
+const Session = require("./sessionModel");
+const Batch = require("../batches/batchModel");
+const User = require("../users/userModel");
+const Assignment = require("../assignments/assignmentModel");
+const Attendance = require("../attendance/attendanceModel");
+const Notification = require("../notifications/notificationModel");
+const sendEmail = require("../../utils/sendEmail");
+const protect = require("../../middleware/authMiddleware");
+const authorize = require("../../middleware/roleMiddleware");
+
+const uploadDir = path.join(__dirname, "../../../uploads");
+fs.mkdirSync(uploadDir, { recursive: true });
+const upload = multer({ storage: multer.diskStorage({ destination: uploadDir, filename: (_req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_")}`) }), limits: { fileSize: 20 * 1024 * 1024 } });
+
+const router = express.Router();
+router.use(protect);
+
+async function canAccess(user, batch) {
+  const members = user.role === "student" ? batch.students : batch.mentors;
+  return user.role === "admin" || members.some((member) => String(member._id || member) === String(user._id));
+}
+
+async function notifyUsers(users, title, message, link, meta) {
+  const recipients = users.filter((user, index, all) => all.findIndex((item) => String(item._id) === String(user._id)) === index);
+  await Notification.insertMany(recipients.map((user) => ({ user: user._id, title, message, type: "session", link, meta })));
+  await Promise.allSettled(recipients.filter((user) => user.email).map((user) => sendEmail({ email: user.email, subject: title, message })));
+}
+
+router.get("/", async (req, res, next) => {
+  try {
+    const batches = req.user.role === "admin" ? await Batch.find().select("_id") : await Batch.find(req.user.role === "student" ? { students: req.user._id } : { mentors: req.user._id }).select("_id");
+    const sessions = await Session.find({ batch: { $in: batches.map((batch) => batch._id) } }).populate("batch", "name").populate("createdBy", "fullName role").sort({ startsAt: -1 });
+    res.json({ success: true, sessions });
+  } catch (error) { next(error); }
+});
+
+router.post("/", async (req, res, next) => {
+  try {
+    if (req.user.role !== "admin") return res.status(403).json({ success: false, message: "Only admins can create sessions." });
+    const { title, description = "", startsAt, endsAt, meetLink = "", batchId } = req.body;
+    const batch = await Batch.findById(batchId).populate("students", "fullName email").populate("mentors", "fullName email");
+    if (!batch) return res.status(404).json({ success: false, message: "Batch not found." });
+    if (!(await canAccess(req.user, batch))) return res.status(403).json({ success: false, message: "You can only create sessions for your assigned batches." });
+    const start = new Date(startsAt); const end = new Date(endsAt);
+    if (!title?.trim() || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start || (meetLink && !/^https:\/\/meet\.google\.com\//i.test(meetLink))) return res.status(400).json({ success: false, message: "Title, valid times, and a valid Google Meet link are required." });
+    const session = await Session.create({ title: title.trim(), description: description.trim(), meetLink: meetLink.trim(), startsAt: start, endsAt: end, batch: batch._id, createdBy: req.user._id });
+    const users = [...batch.students, ...batch.mentors];
+    const message = `${session.title} is scheduled for ${start.toLocaleString()} to ${end.toLocaleString()} for batch ${batch.name}.${session.meetLink ? ` Join: ${session.meetLink}` : ""}`;
+    await notifyUsers(users, "New learning session", message, "/sessions", { sessionId: String(session._id), batchId: String(batch._id) });
+    res.status(201).json({ success: true, session });
+  } catch (error) { next(error); }
+});
+
+router.get("/:id", async (req, res, next) => {
+  try {
+    const session = await Session.findById(req.params.id).populate("batch", "name students mentors").populate("batch.students", "fullName email").populate("batch.mentors", "fullName email").populate("createdBy", "fullName role");
+    if (!session) return res.status(404).json({ success: false, message: "Session not found." });
+    if (!(await canAccess(req.user, session.batch))) return res.status(403).json({ success: false, message: "You cannot access this session." });
+    const taskQuery = req.user.role === "student" ? { session: session._id, $or: [{ targetStudents: req.user._id }, { targetStudents: { $size: 0 } }] } : { session: session._id };
+    const [tasks, attendance] = await Promise.all([Assignment.find(taskQuery).populate("creator", "fullName role").sort({ createdAt: -1 }), Attendance.find({ session: session._id }).populate("student", "fullName email").sort({ date: 1 })]);
+    const safeSession = session.toObject();
+    safeSession.feedback = safeSession.feedback.map(({ student, ...item }) => item);
+    res.json({ success: true, session: safeSession, tasks, attendance: req.user.role === "student" ? attendance.filter((record) => String(record.student?._id) === String(req.user._id)) : attendance });
+  } catch (error) { next(error); }
+});
+
+router.post("/:id/resources", upload.single("file"), async (req, res, next) => {
+  try {
+    if (!["admin", "mentor"].includes(req.user.role)) return res.status(403).json({ success: false, message: "Only admins and mentors can upload resources." });
+    const session = await Session.findById(req.params.id).populate("batch", "students mentors");
+    if (!session || !(await canAccess(req.user, session.batch))) return res.status(403).json({ success: false, message: "You cannot manage this session." });
+    const { title = "Session resource", resourceLink = "" } = req.body;
+    if (!req.file && !/^https?:\/\//i.test(resourceLink)) return res.status(400).json({ success: false, message: "Upload a file or provide a valid resource link." });
+    session.resources.push({ title, originalName: req.file?.originalname || "", path: req.file ? `/uploads/${req.file.filename}` : "", resourceLink: resourceLink.trim(), uploadedBy: req.user._id });
+    await session.save();
+    const batch = await Batch.findById(session.batch).populate("students", "fullName email").populate("mentors", "fullName email");
+    await notifyUsers([...batch.students, ...batch.mentors], "New session resource", `${title} was added to ${session.title}.`, "/sessions", { sessionId: String(session._id) });
+    res.status(201).json({ success: true, resources: session.resources });
+  } catch (error) { next(error); }
+});
+
+router.patch("/:id", async (req, res, next) => {
+  try {
+    if (req.user.role !== "admin") return res.status(403).json({ success: false, message: "Only admins can edit sessions." });
+    const session = await Session.findById(req.params.id).populate("batch", "students mentors");
+    if (!session || !(await canAccess(req.user, session.batch))) return res.status(403).json({ success: false, message: "You cannot edit this session." });
+    const { title, description, meetLink, startsAt, endsAt } = req.body;
+    if (title !== undefined) session.title = String(title).trim();
+    if (description !== undefined) session.description = String(description).trim();
+    if (meetLink !== undefined) { if (meetLink && !/^https:\/\/meet\.google\.com\//i.test(meetLink)) return res.status(400).json({ success: false, message: "Use a valid Google Meet link." }); session.meetLink = String(meetLink).trim(); }
+    if (startsAt !== undefined) session.startsAt = new Date(startsAt);
+    if (endsAt !== undefined) session.endsAt = new Date(endsAt);
+    if (Number.isNaN(session.startsAt.getTime()) || Number.isNaN(session.endsAt.getTime()) || session.endsAt <= session.startsAt) return res.status(400).json({ success: false, message: "Session times are invalid." });
+    await session.save(); res.json({ success: true, session });
+  } catch (error) { next(error); }
+});
+
+router.delete("/:id", async (req, res, next) => {
+  try {
+    if (req.user.role !== "admin") return res.status(403).json({ success: false, message: "Only admins can delete sessions." });
+    const session = await Session.findById(req.params.id).populate("batch", "students mentors");
+    if (!session || !(await canAccess(req.user, session.batch))) return res.status(403).json({ success: false, message: "You cannot delete this session." });
+    await Promise.all([Assignment.deleteMany({ session: session._id }), Attendance.deleteMany({ session: session._id })]); await session.deleteOne();
+    res.json({ success: true, message: "Session deleted." });
+  } catch (error) { next(error); }
+});
+
+router.post("/:id/feedback", async (req, res, next) => {
+  try {
+    if (req.user.role !== "student") return res.status(403).json({ success: false, message: "Only students can leave session feedback." });
+    const session = await Session.findById(req.params.id).populate("batch", "students");
+    if (!session || !session.batch.students.some((id) => String(id) === String(req.user._id))) return res.status(403).json({ success: false, message: "You cannot give feedback for this session." });
+    if (!req.body.message?.trim()) return res.status(400).json({ success: false, message: "Feedback is required." });
+    session.feedback.push({ message: req.body.message.trim(), student: req.user._id });
+    await session.save();
+    const batch = await Batch.findById(session.batch).populate("students", "fullName email").populate("mentors", "fullName email");
+    await notifyUsers([...batch.mentors], "New anonymous session feedback", `New anonymous feedback was submitted for ${session.title}.`, "/sessions", { sessionId: String(session._id) });
+    res.status(201).json({ success: true, message: "Anonymous feedback submitted." });
+  } catch (error) { next(error); }
+});
+
+router.post("/:id/attendance", async (req, res, next) => {
+  try {
+    if (!["admin", "mentor"].includes(req.user.role)) return res.status(403).json({ success: false, message: "Only admins and mentors can manage attendance." });
+    const session = await Session.findById(req.params.id).populate("batch", "students mentors");
+    if (!session || !(await canAccess(req.user, session.batch))) return res.status(403).json({ success: false, message: "You cannot manage this session." });
+    const student = session.batch.students.find((id) => String(id) === String(req.body.studentId));
+    const lateMinutes = Number(req.body.lateMinutes || 0);
+    if (!student || !["Present", "Absent", "Late", "Excused"].includes(req.body.status) || !Number.isInteger(lateMinutes) || lateMinutes < 0 || lateMinutes > 15 || (req.body.status !== "Late" && lateMinutes !== 0)) return res.status(400).json({ success: false, message: "Valid attendance status and late minutes from 0 to 15 are required." });
+    const record = await Attendance.findOneAndUpdate({ session: session._id, student }, { session: session._id, student, mentor: req.user._id, date: session.startsAt, status: req.body.status, lateMinutes, note: String(req.body.note || "").trim() }, { upsert: true, new: true, runValidators: true });
+    res.json({ success: true, attendance: record });
+  } catch (error) { next(error); }
+});
+
+module.exports = router;

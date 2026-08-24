@@ -15,6 +15,13 @@ const submissionSchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  method: { type: String, enum: ['github', 'files', 'text'], default: 'text' },
+  githubUrl: { type: String, default: '' },
+  liveDemoUrl: { type: String, default: '' },
+  textAnswer: { type: String, default: '' },
+  files: [{ originalName: String, path: String, size: Number, mimeType: String }],
+  resubmissionReason: { type: String, default: '' },
+  version: { type: Number, default: 1 },
   fileUrl: {
     type: String,
     required: false,

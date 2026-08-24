@@ -12,6 +12,7 @@ const assignmentSchema = new mongoose.Schema({
   description: { type: String, required: true, trim: true, maxlength: 5000 },
   instructions: { type: String, default: "", trim: true, maxlength: 10000 },
   batch: { type: mongoose.Schema.Types.ObjectId, ref: "Batch", required: false, default: null },
+  session: { type: mongoose.Schema.Types.ObjectId, ref: "Session", required: false, default: null },
   deadline: { type: Date, required: true },
   maximumScore: { type: Number, required: true, min: 0 },
   resourceLink: { type: String, default: "", trim: true },

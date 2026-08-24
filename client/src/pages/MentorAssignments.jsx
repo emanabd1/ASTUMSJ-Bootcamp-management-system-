@@ -13,6 +13,7 @@ export default function MentorAssignments() {
   
   const [grades, setGrades] = useState({});
   const [feedbacks, setFeedbacks] = useState({});
+  const fileBaseUrl = "http://localhost:5000";
 
   const [form, setForm] = useState({
     title: "",
@@ -185,7 +186,12 @@ export default function MentorAssignments() {
             <div>
               <div className="border-b border-[#4a3528] pb-4 mb-6">
                 <h2 className="text-2xl font-bold">{selectedAssignment.title} - Submissions</h2>
-                <p className="text-sm text-gray-400 mt-1">{selectedAssignment.description}</p>
+                <p className="text-sm text-gray-400 mt-1 whitespace-pre-wrap">{selectedAssignment.description}</p>
+                <div className="mt-3 space-y-1 text-sm text-gray-300">
+                  <p className="whitespace-pre-wrap"><span className="font-semibold text-[#c99d78]">Instructions:</span> {selectedAssignment.instructions || "No additional instructions."}</p>
+                  {selectedAssignment.resourceLink && <a href={selectedAssignment.resourceLink} target="_blank" rel="noreferrer" className="block text-blue-400 underline">Open task resource link</a>}
+                  {(selectedAssignment.resourceFiles || []).map((file) => <a key={file.path} href={`${fileBaseUrl}${file.path}`} target="_blank" rel="noreferrer" className="block text-blue-400 underline">Open task file: {file.originalName}</a>)}
+                </div>
               </div>
 
               {submissions.length === 0 ? (
@@ -195,9 +201,6 @@ export default function MentorAssignments() {
               ) : (
                 <div className="space-y-6">
                   {submissions.map((sub) => {
-                    const contentText = sub.content || sub.fileUrl || "";
-                    const isUrl = contentText.startsWith("http://") || contentText.startsWith("https://");
-
                     return (
                       <div key={sub._id} className="rounded-lg border border-[#4a3528] bg-[#120d0a] p-5 space-y-4">
                         <div className="flex justify-between items-start">
@@ -217,13 +220,12 @@ export default function MentorAssignments() {
                         {/* Student Answer Box */}
                         <div className="rounded bg-[#1d1511] p-3 border border-[#4a3528]">
                           <span className="text-xs font-bold text-[#c99d78] uppercase tracking-wider block mb-1">Student Answer / Content:</span>
-                          {isUrl ? (
-                            <a href={contentText} target="_blank" rel="noreferrer" className="text-blue-400 underline break-all text-sm">
-                              {contentText} 🔗
-                            </a>
-                          ) : (
-                            <p className="text-gray-200 text-sm whitespace-pre-wrap">{contentText || "No text provided."}</p>
-                          )}
+                          {sub.githubUrl && <a href={sub.githubUrl} target="_blank" rel="noreferrer" className="block text-blue-400 underline break-all text-sm">Open GitHub submission</a>}
+                          {sub.liveDemoUrl && <a href={sub.liveDemoUrl} target="_blank" rel="noreferrer" className="block text-blue-400 underline break-all text-sm">Open live demo</a>}
+                          {(sub.textAnswer || sub.content) && <p className="text-gray-200 text-sm whitespace-pre-wrap">{sub.textAnswer || sub.content}</p>}
+                          {(sub.files || []).map((file) => <a key={file.path} href={`${fileBaseUrl}${file.path}`} target="_blank" rel="noreferrer" className="block text-blue-400 underline text-sm">Open submitted file: {file.originalName}</a>)}
+                          {!sub.githubUrl && !sub.liveDemoUrl && !sub.textAnswer && !sub.content && !(sub.files || []).length && <p className="text-gray-200 text-sm">No submission content provided.</p>}
+                          {sub.resubmissionReason && <p className="text-amber-300 text-sm whitespace-pre-wrap">Resubmission reason: {sub.resubmissionReason}</p>}
                         </div>
 
                         {/* Feedback Input */}

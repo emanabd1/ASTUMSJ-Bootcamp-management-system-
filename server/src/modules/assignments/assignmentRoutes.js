@@ -40,7 +40,8 @@ router.get("/", async (req, res, next) => {
         $or: [{ targetStudents: req.user._id }, { targetStudents: { $size: 0 } }],
       }).populate("creator", "fullName role").populate("batch", "name startDate endDate").sort({ deadline: 1 });
     } else if (req.user.role === "mentor") {
-      assignments = await Assignment.find({ creator: req.user._id }).populate("creator", "fullName role").populate("batch", "name").sort({ createdAt: -1 });
+      const students = await User.find({ mentor: req.user._id, role: "student", status: "approved", isActive: true }).select("_id");
+      assignments = await Assignment.find({ $or: [{ creator: req.user._id }, { targetStudents: { $in: students.map((student) => student._id) } }, { targetStudents: { $size: 0 } }] }).populate("creator", "fullName role").populate("batch", "name").sort({ createdAt: -1 });
     } else {
       assignments = await Assignment.find({}).populate("creator", "fullName role").populate("batch", "name").sort({ createdAt: -1 });
     }
@@ -50,7 +51,7 @@ router.get("/", async (req, res, next) => {
 
 router.post("/", authorize("admin", "mentor"), upload.array("resourceFiles", 50), async (req, res, next) => {
   try {
-    const { title, description, instructions = "", batch, deadline, maximumScore, resourceLink = "" } = req.body;
+    const { title, description, instructions = "", batch, sessionId = null, deadline, maximumScore, resourceLink = "" } = req.body;
     const requestedStudents = Array.isArray(req.body.studentIds)
       ? req.body.studentIds
       : typeof req.body.studentIds === "string" && req.body.studentIds
@@ -65,6 +66,11 @@ router.post("/", authorize("admin", "mentor"), upload.array("resourceFiles", 50)
 
     const batchDoc = await Batch.findById(batch);
     if (!batchDoc) return res.status(404).json({ success: false, message: "Batch not found." });
+    if (sessionId) {
+      const session = await require("../sessions/sessionModel").findOne({ _id: sessionId, batch });
+      if (!session) return res.status(400).json({ success: false, message: "Session does not belong to the selected batch." });
+      if (req.user.role === "mentor" && !batchDoc.mentors.some((id) => String(id) === String(req.user._id))) return res.status(403).json({ success: false, message: "You can only add tasks to your assigned sessions." });
+    }
 
     const deadlineDate = new Date(deadline);
     if (Number.isNaN(deadlineDate.getTime()) || deadlineDate <= new Date()) {
@@ -90,7 +96,7 @@ router.post("/", authorize("admin", "mentor"), upload.array("resourceFiles", 50)
     }));
 
     const assignment = await Assignment.create({
-      title: title.trim(), description: description.trim(), instructions: instructions.trim(), batch,
+      title: title.trim(), description: description.trim(), instructions: instructions.trim(), batch, session: sessionId || null,
       deadline: deadlineDate, maximumScore: score, resourceLink: resourceLink.trim(),
       resourceFile: resourceFiles[0]?.path || "", resourceFiles,
       creator: req.user._id, targetStudents: students,
@@ -138,11 +144,15 @@ router.get("/:id", async (req, res, next) => {
       return res.json({ success: true, assignment, submission });
     }
 
-    if (req.user.role === "mentor" && String(assignment.creator?._id) !== String(req.user._id)) {
-      return res.status(403).json({ success: false, message: "You can only manage assignments you created." });
+    let submissionQuery = { assignment: assignment._id };
+    if (req.user.role === "mentor") {
+      const students = await User.find({ mentor: req.user._id, role: "student", status: "approved", isActive: true }).select("_id");
+      const canViewAssignment = String(assignment.creator?._id) === String(req.user._id) || assignment.targetStudents.length === 0 || assignment.targetStudents.some((id) => students.some((student) => String(student._id) === String(id)));
+      if (!canViewAssignment) return res.status(403).json({ success: false, message: "You can only review assignments for your assigned students." });
+      submissionQuery.student = { $in: students.map((student) => student._id) };
     }
 
-    const submissions = await Submission.find({ assignment: assignment._id })
+    const submissions = await Submission.find(submissionQuery)
       .populate("student", "fullName email department yearOfStudy")
       .populate("gradedBy", "fullName")
       .sort({ submittedAt: -1 });
@@ -158,7 +168,7 @@ router.post("/:id/submit", authorize("student"), upload.array("files", 10), asyn
     if (!allowed) return res.status(403).json({ success: false, message: "You are not assigned to this assignment." });
     if (assignment.status === "closed" || new Date(assignment.deadline) < new Date()) return res.status(400).json({ success: false, message: "The assignment deadline has passed." });
 
-    const { method, githubUrl = "", liveDemoUrl = "", textAnswer = "" } = req.body;
+    const { method, githubUrl = "", liveDemoUrl = "", textAnswer = "", resubmissionReason = "" } = req.body;
     if (!["github", "files", "text"].includes(method)) return res.status(400).json({ success: false, message: "Choose GitHub link, file upload, or written answer." });
     if (method === "github" && !/^https?:\/\//i.test(githubUrl)) return res.status(400).json({ success: false, message: "A valid GitHub URL is required." });
     if (liveDemoUrl && !/^https?:\/\//i.test(liveDemoUrl)) return res.status(400).json({ success: false, message: "Live demo URL must be a valid URL." });
@@ -167,13 +177,17 @@ router.post("/:id/submit", authorize("student"), upload.array("files", 10), asyn
 
     const files = (req.files || []).map((f) => ({ originalName: f.originalname, path: `/uploads/${f.filename}`, size: f.size, mimeType: f.mimetype }));
     let submission = await Submission.findOne({ assignment: assignment._id, student: req.user._id });
-    const data = { method, githubUrl: githubUrl.trim(), liveDemoUrl: liveDemoUrl.trim(), textAnswer: textAnswer.trim(), files, submittedAt: new Date(), status: "submitted", score: null, feedback: "", gradedBy: null, gradedAt: null };
+    const isResubmission = submission?.status === "resubmission_requested";
+    if (isResubmission && !String(resubmissionReason).trim()) {
+      return res.status(400).json({ success: false, message: "Explain why you are resubmitting this assignment." });
+    }
+    const data = { method, githubUrl: githubUrl.trim(), liveDemoUrl: liveDemoUrl.trim(), textAnswer: textAnswer.trim(), content: textAnswer.trim() || githubUrl.trim(), files, resubmissionReason: String(resubmissionReason).trim(), submittedAt: new Date(), status: "submitted", score: null, feedback: "", gradedBy: null, gradedAt: null };
     if (!submission) submission = await Submission.create({ assignment: assignment._id, student: req.user._id, ...data });
     else { Object.assign(submission, data); await submission.save(); }
 
     const student = await User.findById(req.user._id).select("fullName mentor");
     const recipients = await User.find({ $or: [{ role: "admin", status: "approved", isActive: true }, { _id: student.mentor, role: "mentor", status: "approved", isActive: true }] }).select("_id");
-    await Notification.insertMany(recipients.map((m) => ({ user: m._id, title: "Assignment submitted", message: `${student.fullName} submitted ${assignment.title}.`, type: "submission", link: "/mentor/assignments", meta: { assignmentId: String(assignment._id), studentId: String(req.user._id) } })));
+    await Notification.insertMany(recipients.map((m) => ({ user: m._id, title: isResubmission ? "Resubmission received" : "Assignment submitted", message: isResubmission ? `${student.fullName} resubmitted ${assignment.title}.` : `${student.fullName} submitted ${assignment.title}.`, type: "submission", link: "/mentor/assignments", meta: { assignmentId: String(assignment._id), studentId: String(req.user._id) } })));
 
     res.json({ success: true, message: "Assignment submitted successfully.", submission });
   } catch (e) { next(e); }
@@ -184,24 +198,26 @@ router.patch("/:assignmentId/submissions/:submissionId/grade", authorize("admin"
     const submission = await Submission.findById(req.params.submissionId).populate("assignment").populate("student", "fullName email mentor");
     if (!submission || String(submission.assignment?._id) !== String(req.params.assignmentId)) return res.status(404).json({ success: false, message: "Submission not found." });
     if (req.user.role === "mentor" && String(submission.student.mentor) !== String(req.user._id)) return res.status(403).json({ success: false, message: "You can only grade your assigned students." });
+    if (req.user.role === "mentor" && String(submission.assignment.creator) !== String(req.user._id)) return res.status(403).json({ success: false, message: "Mentors can only grade tasks they created." });
 
     const { score, feedback = "", status = "graded" } = req.body;
-    if (!String(feedback).trim() && status === "redo") return res.status(400).json({ success: false, message: "Feedback is required when requesting a resubmission." });
+    const normalizedStatus = status === "redo" ? "resubmission_requested" : status;
+    if (!String(feedback).trim() && normalizedStatus === "resubmission_requested") return res.status(400).json({ success: false, message: "Feedback is required when requesting a resubmission." });
     if (score !== undefined && score !== null && (!Number.isFinite(Number(score)) || Number(score) < 0 || Number(score) > submission.assignment.maximumScore)) return res.status(400).json({ success: false, message: "Score must be between 0 and the maximum score." });
-    if (!["graded", "redo"].includes(status)) return res.status(400).json({ success: false, message: "Invalid grading status." });
+    if (!["graded", "resubmission_requested"].includes(normalizedStatus)) return res.status(400).json({ success: false, message: "Invalid grading status." });
 
     submission.score = score === undefined || score === "" ? submission.score : Number(score);
     submission.feedback = String(feedback).trim();
-    submission.status = status;
+    submission.status = normalizedStatus;
     submission.gradedBy = req.user._id;
     submission.gradedAt = new Date();
     await submission.save();
 
     await Notification.create({
       user: submission.student._id,
-      title: status === "redo" ? "Resubmission requested" : "Assignment graded",
-      message: status === "redo" ? `Please resubmit ${submission.assignment.title}. Feedback: ${submission.feedback}` : `${submission.assignment.title} was graded. Score: ${submission.score}/${submission.assignment.maximumScore}. ${submission.feedback}`,
-      type: status === "redo" ? "redo" : "grade",
+      title: normalizedStatus === "resubmission_requested" ? "Resubmission requested" : "Assignment graded",
+      message: normalizedStatus === "resubmission_requested" ? `Please resubmit ${submission.assignment.title}. Feedback: ${submission.feedback}` : `${submission.assignment.title} was graded. Score: ${submission.score}/${submission.assignment.maximumScore}. ${submission.feedback}`,
+      type: normalizedStatus === "resubmission_requested" ? "redo" : "grade",
       link: "/student/assignments",
       meta: { assignmentId: String(submission.assignment._id), submissionId: String(submission._id) },
     });

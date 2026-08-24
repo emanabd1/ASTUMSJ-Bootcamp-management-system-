@@ -9,6 +9,7 @@
     "seed:admin": "node src/utils/seedAdmin.js",
     "migrate:users": "node src/modules/users/migrateUsers.js",
     "migrate:data": "node src/modules/users/migrateData.js",
+    "migrate:session-attendance": "node src/modules/attendance/migrateSessionAttendance.js",
     "check:syntax": "node src/utils/checkSyntax.js"
   },
   "dependencies": {
