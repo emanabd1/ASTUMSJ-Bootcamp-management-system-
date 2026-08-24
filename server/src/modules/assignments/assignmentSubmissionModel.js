@@ -1,5 +1,15 @@
 const mongoose = require('mongoose');
 
+const fileSchema = new mongoose.Schema(
+  {
+    originalName: { type: String },
+    path: { type: String },
+    size: { type: Number },
+    mimeType: { type: String },
+  },
+  { _id: false }
+);
+
 const submissionSchema = new mongoose.Schema({
   assignment: {
     type: mongoose.Schema.Types.ObjectId,
@@ -11,13 +21,26 @@ const submissionSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
-  content: {
+  method: {
     type: String,
-    required: false,
+    enum: ['github', 'files', 'text'],
+    default: 'text',
   },
-  fileUrl: {
+  githubUrl: {
     type: String,
-    required: false,
+    default: '',
+  },
+  liveDemoUrl: {
+    type: String,
+    default: '',
+  },
+  textAnswer: {
+    type: String,
+    default: '',
+  },
+  files: {
+    type: [fileSchema],
+    default: [],
   },
   score: {
     type: Number,
@@ -29,12 +52,16 @@ const submissionSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['submitted', 'graded', 'resubmission_requested'], // Added 'resubmission_requested' here
+    enum: ['submitted', 'graded', 'redo'],
     default: 'submitted',
   },
   gradedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
+    default: null,
+  },
+  gradedAt: {
+    type: Date,
     default: null,
   },
   submittedAt: {
