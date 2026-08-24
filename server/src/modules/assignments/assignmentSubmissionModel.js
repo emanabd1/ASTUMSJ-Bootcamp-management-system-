@@ -34,21 +34,25 @@ const submissionSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
-    method: { type: String, enum: ['github', 'files', 'text'], default: 'text' },
-  githubUrl: { type: String, default: '' },
-  liveDemoUrl: { type: String, default: '' },
-  textAnswer: { type: String, default: '' },
-  files: [{ originalName: String, path: String, size: Number, mimeType: String }],
-  resubmissionReason: { type: String, default: '' },
-  version: { type: Number, default: 1 },
-  fileUrl: { type: String, default: '' } // Fixed the broken brackets and types here
-
-    type: String,
-    default: '',
+  textAnswer: { 
+    type: String, 
+    default: '' 
   },
   files: {
     type: [fileSchema],
     default: [],
+  },
+  resubmissionReason: { 
+    type: String, 
+    default: '' 
+  },
+  version: { 
+    type: Number, 
+    default: 1 
+  },
+  fileUrl: { 
+    type: String, 
+    default: '' 
   },
   score: {
     type: Number,
