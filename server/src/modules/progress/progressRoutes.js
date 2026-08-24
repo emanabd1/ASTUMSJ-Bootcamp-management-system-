@@ -27,16 +27,54 @@ router.get("/", async (req, res, next) => {
     if (req.user.role === "student") {
       q.student = req.user._id;
     } else if (req.user.role === "mentor") {
+      // Mentor branch is handled separately below so we can merge in
+      // "virtual" placeholder rows for assigned students who don't have
+      // a real Progress record yet (previously these students silently
+      // disappeared from the list, and updating them 404'd because
+      // there was no Progress document for their id).
       const ss = await User.find({
         role: "student",
         mentor: req.user._id,
         status: "approved",
         isActive: true,
-      }).select("_id");
+      }).select("_id fullName email");
 
-      q.student = {
-        $in: ss.map((s) => s._id),
-      };
+      const studentIds = ss.map((s) => s._id);
+
+      const records = await Progress.find({
+        student: { $in: studentIds },
+      })
+        .populate("student", "fullName email")
+        .populate("mentor", "fullName")
+        .sort({ student: 1, topic: 1 });
+
+      const studentsWithProgress = new Set(
+        records.map((r) => String(r.student?._id || r.student))
+      );
+
+      const placeholders = ss
+        .filter((s) => !studentsWithProgress.has(String(s._id)))
+        .map((s) => ({
+          _id: null,
+          isVirtual: true,
+          student: {
+            _id: s._id,
+            fullName: s.fullName,
+            email: s.email,
+          },
+          mentor: null,
+          topic: "HTML / CSS",
+          percentage: 0,
+          status: "Not Started",
+          note: "",
+          updatedAt: null,
+        }));
+
+      return res.json({
+        success: true,
+        progress: [...records, ...placeholders],
+        summary: summarize(records),
+      });
     } else if (req.query.studentId) {
       q.student = req.query.studentId;
     }
