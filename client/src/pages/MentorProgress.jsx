@@ -95,26 +95,27 @@ export default function MentorProgress() {
         return;
       }
 
-      // Keep the existing mentor dashboard request.
-      const response = await axios.get(
-        `${API_URL}/mentors/dashboard`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      // FIX: The dashboard endpoint only returns aggregate stats
+      // (attendance %, counts) — it has no percentage/status/note fields,
+      // and its "_id" is the STUDENT id, not a Progress record id. That
+      // mismatch is why saving an update used to fail with
+      // "Progress record not found" (the PATCH was hitting /progress/<studentId>).
+      // We now fetch real progress records straight from /progress, which
+      // is properly scoped to this mentor's assigned students server-side,
+      // and includes a placeholder row (isVirtual: true, id: null) for any
+      // assigned student who doesn't have a record yet.
+      const response = await axios.get(`${API_URL}/progress`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       const rawData = response.data;
 
-      const studentsArray =
-        rawData?.dashboard?.assignedStudents ||
-        rawData?.assignedStudents ||
-        rawData?.progress ||
-        rawData?.data ||
-        [];
+      const progressArray =
+        rawData?.progress || rawData?.data || [];
 
-      setProgressData(studentsArray);
+      setProgressData(progressArray);
     } catch (err) {
       console.error("Failed to load progress:", err);
 
@@ -142,7 +143,12 @@ export default function MentorProgress() {
       const student = item.student || item;
 
       return {
-        id: item._id || item.id,
+        // A virtual placeholder (student with no saved progress yet) has
+        // no real Progress document, so id stays null. We rely on this
+        // downstream to decide POST (create) vs PATCH (update) on save,
+        // and to disable "Delete" (there's nothing to delete yet).
+        id: item.isVirtual ? null : item._id || item.id,
+        isVirtual: Boolean(item.isVirtual),
         studentId: student._id || student.id || item.studentId,
         name:
           student.name ||
@@ -247,30 +253,47 @@ export default function MentorProgress() {
   const handleSaveProgress = async (e) => {
     e.preventDefault();
 
-    if (!selectedStudent?.id) return;
+    // A student always has a studentId, even before any progress record
+    // exists — that's the field we should be gating on, not the (possibly
+    // null) progress record id.
+    if (!selectedStudent?.studentId) return;
 
     try {
       setSaving(true);
       setError("");
 
       const token = getToken();
+      const headers = { Authorization: `Bearer ${token}` };
 
-      // FIX: backend route is PATCH, not PUT
-      await axios.patch(
-        `${API_URL}/progress/${selectedStudent.id}`,
-        {
-          module: formData.module,
-          topic: formData.module,
-          percentage: Number(formData.percentage),
-          status: formData.status,
-          note: formData.note,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
+      if (selectedStudent.id) {
+        // Existing record — update it in place.
+        await axios.patch(
+          `${API_URL}/progress/${selectedStudent.id}`,
+          {
+            topic: formData.module,
+            percentage: Number(formData.percentage),
+            status: formData.status,
+            note: formData.note,
           },
-        }
-      );
+          { headers }
+        );
+      } else {
+        // FIX: This student has no Progress document yet (that's why the
+        // old PATCH call used their student id and got a 404 "Progress
+        // record not found"). Create it with the upsert-capable POST
+        // route instead.
+        await axios.post(
+          `${API_URL}/progress`,
+          {
+            studentId: selectedStudent.studentId,
+            topic: formData.module,
+            percentage: Number(formData.percentage),
+            status: formData.status,
+            note: formData.note,
+          },
+          { headers }
+        );
+      }
 
       closeModal();
       await fetchProgress();
@@ -287,6 +310,13 @@ export default function MentorProgress() {
   };
 
   const handleDeleteProgress = async (id) => {
+    // Virtual placeholder rows (id is null) have no Progress document in
+    // the database yet — nothing to delete.
+    if (!id) {
+      setError("This student doesn't have a saved progress record yet.");
+      return;
+    }
+
     const confirmed = window.confirm(
       "Are you sure you want to delete this progress record?"
     );
@@ -542,13 +572,21 @@ export default function MentorProgress() {
                     </td>
 
                     <td className="px-6 py-5">
-                      <span
-                        className={`rounded-md px-3 py-1.5 text-xs font-bold ${getStatusClass(
-                          student.status
-                        )}`}
-                      >
-                        {student.status}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`rounded-md px-3 py-1.5 text-xs font-bold ${getStatusClass(
+                            student.status
+                          )}`}
+                        >
+                          {student.status}
+                        </span>
+
+                        {student.isVirtual && (
+                          <span className="rounded-md border border-[#4a3528] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[#8f7664]">
+                            Not saved yet
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     <td className="px-6 py-5 text-sm text-[#a98a72]">
@@ -567,14 +605,20 @@ export default function MentorProgress() {
                           }
                           className="rounded-md bg-[#c99d78] px-3 py-2 text-xs font-bold text-[#21150f] hover:bg-[#d8ae8b]"
                         >
-                          Update
+                          {student.isVirtual ? "Start Tracking" : "Update"}
                         </button>
 
                         <button
                           onClick={() =>
                             handleDeleteProgress(student.id)
                           }
-                          className="rounded-md border border-red-800 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-900/30"
+                          disabled={student.isVirtual}
+                          title={
+                            student.isVirtual
+                              ? "Nothing to delete yet — save progress first"
+                              : "Delete this progress record"
+                          }
+                          className="rounded-md border border-red-800 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-900/30 disabled:cursor-not-allowed disabled:border-[#4a3528] disabled:text-[#5c4c3f] disabled:hover:bg-transparent"
                         >
                           Delete
                         </button>
@@ -593,7 +637,9 @@ export default function MentorProgress() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="w-full max-w-md rounded-xl border border-[#4a3528] bg-[#1d1511] p-6 text-white">
             <h2 className="mb-4 text-xl font-bold text-[#c99d78]">
-              Update Student Progress
+              {selectedStudent?.id
+                ? "Update Student Progress"
+                : "Start Tracking Progress"}
             </h2>
 
             <form
