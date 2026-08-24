@@ -6,6 +6,9 @@ const attendanceSchema = new mongoose.Schema({
   date: { type: Date, required: true },
   status: { type: String, enum: ["Present", "Absent", "Late", "Excused"], required: true },
   lateMinutes: { type: Number, min: 0, max: 15, default: 0 },
+  joinedAt: { type: Date, default: null },
+  lastSeenAt: { type: Date, default: null },
+  attendedSeconds: { type: Number, min: 0, default: 0 },
   note: { type: String, trim: true, default: "" },
 }, { timestamps: true });
 attendanceSchema.index({ student: 1, date: -1 });

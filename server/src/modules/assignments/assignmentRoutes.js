@@ -198,7 +198,7 @@ router.patch("/:assignmentId/submissions/:submissionId/grade", authorize("admin"
     const submission = await Submission.findById(req.params.submissionId).populate("assignment").populate("student", "fullName email mentor");
     if (!submission || String(submission.assignment?._id) !== String(req.params.assignmentId)) return res.status(404).json({ success: false, message: "Submission not found." });
     if (req.user.role === "mentor" && String(submission.student.mentor) !== String(req.user._id)) return res.status(403).json({ success: false, message: "You can only grade your assigned students." });
-    if (req.user.role === "mentor" && String(submission.assignment.creator) !== String(req.user._id)) return res.status(403).json({ success: false, message: "Mentors can only grade tasks they created." });
+    if (req.user.role === "mentor" && String(submission.assignment.creator?._id || submission.assignment.creator) !== String(req.user._id)) return res.status(403).json({ success: false, message: "Mentors can only grade tasks they created." });
 
     const { score, feedback = "", status = "graded" } = req.body;
     const normalizedStatus = status === "redo" ? "resubmission_requested" : status;

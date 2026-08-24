@@ -6,6 +6,7 @@ const Session = require("./sessionModel");
 const Batch = require("../batches/batchModel");
 const User = require("../users/userModel");
 const Assignment = require("../assignments/assignmentModel");
+const Submission = require("../assignments/assignmentSubmissionModel");
 const Attendance = require("../attendance/attendanceModel");
 const Notification = require("../notifications/notificationModel");
 const sendEmail = require("../../utils/sendEmail");
@@ -60,11 +61,52 @@ router.get("/:id", async (req, res, next) => {
     const session = await Session.findById(req.params.id).populate("batch", "name students mentors").populate("batch.students", "fullName email").populate("batch.mentors", "fullName email").populate("createdBy", "fullName role");
     if (!session) return res.status(404).json({ success: false, message: "Session not found." });
     if (!(await canAccess(req.user, session.batch))) return res.status(403).json({ success: false, message: "You cannot access this session." });
-    const taskQuery = req.user.role === "student" ? { session: session._id, $or: [{ targetStudents: req.user._id }, { targetStudents: { $size: 0 } }] } : { session: session._id };
-    const [tasks, attendance] = await Promise.all([Assignment.find(taskQuery).populate("creator", "fullName role").sort({ createdAt: -1 }), Attendance.find({ session: session._id }).populate("student", "fullName email").sort({ date: 1 })]);
+    const assignedStudents = req.user.role === "mentor"
+      ? await User.find({ _id: { $in: session.batch.students.map((student) => student._id || student) }, mentor: req.user._id, role: "student", status: "approved", isActive: true }).select("_id")
+      : session.batch.students;
+    const taskQuery = req.user.role === "student"
+      ? { session: session._id, $or: [{ targetStudents: req.user._id }, { targetStudents: { $size: 0 } }] }
+      : req.user.role === "mentor"
+        ? { session: session._id, creator: req.user._id }
+        : { session: session._id };
+    const attendanceQuery = req.user.role === "mentor"
+      ? { session: session._id, student: { $in: assignedStudents.map((student) => student._id) } }
+      : { session: session._id };
+    const [tasks, attendance] = await Promise.all([Assignment.find(taskQuery).populate("creator", "fullName role").sort({ createdAt: -1 }), Attendance.find(attendanceQuery).populate("student", "fullName email").sort({ date: 1 })]);
+    const submissions = await Submission.find({ assignment: { $in: tasks.map((task) => task._id) }, ...(req.user.role === "student" ? { student: req.user._id } : {}) }).populate("student", "fullName email").populate("gradedBy", "fullName role");
+    const tasksWithSubmissions = tasks.map((task) => ({ ...task.toObject(), submissions: submissions.filter((submission) => String(submission.assignment) === String(task._id)) }));
     const safeSession = session.toObject();
+    if (req.user.role === "mentor") safeSession.batch.students = safeSession.batch.students.filter((student) => assignedStudents.some((assigned) => String(assigned._id) === String(student._id)));
     safeSession.feedback = safeSession.feedback.map(({ student, ...item }) => item);
-    res.json({ success: true, session: safeSession, tasks, attendance: req.user.role === "student" ? attendance.filter((record) => String(record.student?._id) === String(req.user._id)) : attendance });
+    res.json({ success: true, session: safeSession, tasks: tasksWithSubmissions, attendance: req.user.role === "student" ? attendance.filter((record) => String(record.student?._id) === String(req.user._id)) : attendance });
+  } catch (error) { next(error); }
+});
+router.post("/:id/join", async (req, res, next) => {
+  try {
+    if (req.user.role !== "student") return res.status(403).json({ success: false, message: "Only students can join sessions." });
+    const session = await Session.findById(req.params.id).populate("batch", "students");
+    if (!session || !session.batch.students.some((student) => String(student) === String(req.user._id))) return res.status(403).json({ success: false, message: "You are not enrolled in this session." });
+    const now = new Date();
+    const record = await Attendance.findOneAndUpdate({ session: session._id, student: req.user._id }, { $set: { session: session._id, student: req.user._id, mentor: session.createdBy, date: session.startsAt, status: "Absent", lastSeenAt: now, note: "Attendance is being tracked." }, $setOnInsert: { joinedAt: now, attendedSeconds: 0 } }, { upsert: true, new: true, runValidators: true });
+    res.json({ success: true, attendance: record });
+  } catch (error) { next(error); }
+});
+
+router.post("/:id/presence", async (req, res, next) => {
+  try {
+    if (req.user.role !== "student") return res.status(403).json({ success: false, message: "Only students can report presence." });
+    const session = await Session.findById(req.params.id).populate("batch", "students");
+    if (!session || !session.batch.students.some((student) => String(student) === String(req.user._id))) return res.status(403).json({ success: false, message: "You are not enrolled in this session." });
+    const record = await Attendance.findOne({ session: session._id, student: req.user._id });
+    if (!record) return res.status(400).json({ success: false, message: "Join the session first." });
+    const now = new Date();
+    const elapsed = record.lastSeenAt ? Math.max(0, Math.min(60, (now - record.lastSeenAt) / 1000)) : 0;
+    record.attendedSeconds += elapsed;
+    record.lastSeenAt = now;
+    const duration = Math.max(1, (session.endsAt - session.startsAt) / 1000);
+    if (now >= session.endsAt && record.attendedSeconds >= duration * 0.8) record.status = "Present";
+    await record.save();
+    res.json({ success: true, attendance: record, completed: record.status === "Present" });
   } catch (error) { next(error); }
 });
 
