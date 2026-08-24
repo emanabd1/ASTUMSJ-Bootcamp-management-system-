@@ -110,6 +110,24 @@ export default function LoginPage() {
   };
 
   // =========================
+  // GOOGLE LOGIN
+  // =========================
+  const handleGoogleLogin = () => {
+    setMessage("");
+
+    window.location.href = `${API_URL}/auth/google`;
+  };
+
+  // =========================
+  // GITHUB LOGIN
+  // =========================
+  const handleGithubLogin = () => {
+    setMessage("");
+
+    window.location.href = `${API_URL}/auth/github`;
+  };
+
+  // =========================
   // SIGNUP
   // =========================
   const handleFinalSignup = async (e) => {
@@ -156,6 +174,7 @@ export default function LoginPage() {
         {/* =====================================================
             STATIC BACKGROUND LOGO PANELS
         ====================================================== */}
+
         <div className="absolute inset-0 flex">
 
           {/* LEFT BACKGROUND */}
@@ -212,6 +231,7 @@ export default function LoginPage() {
         {/* =====================================================
             SLIDING FORM OVERLAY
         ====================================================== */}
+
         <div
           className={`absolute top-0 z-20 flex h-full w-1/2 flex-col justify-center overflow-y-auto bg-[#1e1713] px-10 text-[#f5efe6] shadow-2xl transition-transform duration-700 ease-in-out ${
             isSignup
@@ -223,6 +243,7 @@ export default function LoginPage() {
           {/* ===================================================
               LOGIN
           ==================================================== */}
+
           {!isSignup ? (
             <div>
 
@@ -243,6 +264,7 @@ export default function LoginPage() {
               >
 
                 {/* ================= EMAIL ================= */}
+
                 <div>
                   <label className="text-xs text-[#a39081]">
                     Email
@@ -261,13 +283,13 @@ export default function LoginPage() {
                 </div>
 
                 {/* ================= PASSWORD ================= */}
+
                 <div>
                   <label className="text-xs text-[#a39081]">
                     Password
                   </label>
 
                   <div className="relative mt-1">
-
                     <input
                       type={
                         showPassword
@@ -284,6 +306,7 @@ export default function LoginPage() {
                     />
 
                     {/* EYE BUTTON */}
+
                     <button
                       type="button"
                       onClick={() =>
@@ -304,7 +327,6 @@ export default function LoginPage() {
                       }
                     >
                       {showPassword ? (
-                        /* ================= OPEN EYE ================= */
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
                           width="20"
@@ -324,7 +346,6 @@ export default function LoginPage() {
                           />
                         </svg>
                       ) : (
-                        /* ================= CLOSED EYE ================= */
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
                           width="20"
@@ -337,19 +358,16 @@ export default function LoginPage() {
                           strokeLinejoin="round"
                         >
                           <path d="M3 3l18 18" />
-
                           <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
-
                           <path d="M9.9 4.2A10.8 10.8 0 0 1 12 4c6.5 0 10 8 10 8a17.3 17.3 0 0 1-3.1 4.2" />
-
                           <path d="M6.6 6.6C3.6 8.5 2 12 2 12s3.5 8 10 8a10.5 10.5 0 0 0 4.1-.8" />
                         </svg>
                       )}
                     </button>
-
                   </div>
 
                   {/* FORGOT PASSWORD */}
+
                   <div className="mt-2 text-right">
                     <a
                       href="/forgot-password"
@@ -361,6 +379,7 @@ export default function LoginPage() {
                 </div>
 
                 {/* ================= LOGIN BUTTON ================= */}
+
                 <button
                   type="submit"
                   disabled={loading}
@@ -370,16 +389,90 @@ export default function LoginPage() {
                     ? "Logging in..."
                     : "Login"}
                 </button>
-
               </form>
 
-              {/* ================= SIGNUP LINK ================= */}
-              <div className="mt-6 text-center text-xs text-[#a39081]">
+              {/* =================================================
+                  OAUTH
+              ================================================== */}
 
+              <div className="my-5 flex items-center gap-3">
+                <div className="h-px flex-1 bg-[#4a3b32]" />
+
+                <span className="text-xs font-semibold tracking-widest text-[#a39081]">
+                  OR CONTINUE WITH
+                </span>
+
+                <div className="h-px flex-1 bg-[#4a3b32]" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+
+                {/* ================= GOOGLE ================= */}
+
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  className="flex items-center justify-center gap-3 rounded-xl border border-[#4a3b32] bg-[#1e1713] py-3 text-sm font-semibold text-[#f5efe6] transition hover:border-[#c89b7b] hover:bg-[#2d231d]"
+                >
+                  {/* Google G */}
+
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      fill="#4285F4"
+                      d="M21.35 12.23c0-.78-.07-1.54-.2-2.27H12v4.3h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.15c1.85-1.7 2.9-4.2 2.9-7.42Z"
+                    />
+
+                    <path
+                      fill="#34A853"
+                      d="M12 22c2.65 0 4.87-.88 6.5-2.35l-3.15-2.45c-.88.59-2 .94-3.35.94-2.57 0-4.75-1.73-5.53-4.06H3.21v2.53A9.82 9.82 0 0 0 12 22Z"
+                    />
+
+                    <path
+                      fill="#FBBC05"
+                      d="M6.47 14.08A5.9 5.9 0 0 1 6.15 12c0-.72.12-1.42.32-2.08V7.39H3.21A9.99 9.99 0 0 0 2.15 12c0 1.61.39 3.12 1.06 4.61l3.26-2.53Z"
+                    />
+
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.86c1.53 0 2.9.53 3.98 1.57l2.98-2.98C16.87 2.79 14.65 2 12 2a9.82 9.82 0 0 0-8.79 5.39l3.26 2.53C7.25 7.59 9.43 5.86 12 5.86Z"
+                    />
+                  </svg>
+
+                  Google
+                </button>
+
+                {/* ================= GITHUB ================= */}
+
+                <button
+                  type="button"
+                  onClick={handleGithubLogin}
+                  className="flex items-center justify-center gap-3 rounded-xl border border-[#4a3b32] bg-[#1e1713] py-3 text-sm font-semibold text-[#f5efe6] transition hover:border-[#c89b7b] hover:bg-[#2d231d]"
+                >
+                  {/* GitHub Icon */}
+
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                  >
+                    <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2.17c-3.2.7-3.87-1.36-3.87-1.36-.53-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.03 1.76 2.7 1.25 3.36.95.1-.74.4-1.25.73-1.54-2.55-.29-5.23-1.28-5.23-5.69 0-1.26.45-2.28 1.18-3.08-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.15 1.17A10.9 10.9 0 0 1 12 8.04c.97 0 1.94.13 2.85.39 2.18-1.48 3.14-1.17 3.14-1.17.62 1.58.23 2.75.12 3.04.73.8 1.17 1.82 1.17 3.08 0 4.42-2.69 5.4-5.25 5.68.41.36.78 1.07.78 2.16v3.2c0 .31.21.67.8.56A10.99 10.99 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z" />
+                  </svg>
+
+                  GitHub
+                </button>
+              </div>
+
+              {/* ================= SIGNUP LINK ================= */}
+
+              <div className="mt-6 text-center text-xs text-[#a39081]">
                 {isRegistrationOpen ? (
                   <p>
                     Don't have an account?{" "}
-
                     <button
                       type="button"
                       onClick={() => {
@@ -397,20 +490,19 @@ export default function LoginPage() {
                     Registration is currently closed by the admin.
                   </p>
                 )}
-
               </div>
-
             </div>
           ) : (
 
             /* =================================================
                SIGNUP
             ================================================== */
+
             <div>
 
               {/* HEADER */}
-              <div className="mb-3 flex items-center justify-between">
 
+              <div className="mb-3 flex items-center justify-between">
                 <h2 className="text-xl font-bold tracking-wide">
                   Create Account
                 </h2>
@@ -418,10 +510,10 @@ export default function LoginPage() {
                 <span className="text-xs text-[#a39081]">
                   Step {signupStep} of 2
                 </span>
-
               </div>
 
               {/* MESSAGE */}
+
               {message && (
                 <p className="mb-2 text-xs text-amber-400">
                   {message}
@@ -431,11 +523,12 @@ export default function LoginPage() {
               {/* =================================================
                   SIGNUP STEP 1
               ================================================== */}
-              {signupStep === 1 ? (
 
+              {signupStep === 1 ? (
                 <div className="space-y-2.5">
 
                   {/* FULL NAME */}
+
                   <div>
                     <label className="text-xs text-[#a39081]">
                       Full Name
@@ -454,6 +547,7 @@ export default function LoginPage() {
                   </div>
 
                   {/* EMAIL */}
+
                   <div>
                     <label className="text-xs text-[#a39081]">
                       Email
@@ -472,6 +566,7 @@ export default function LoginPage() {
                   </div>
 
                   {/* PASSWORD */}
+
                   <div>
                     <label className="text-xs text-[#a39081]">
                       Password
@@ -491,6 +586,7 @@ export default function LoginPage() {
                   </div>
 
                   {/* CONFIRM PASSWORD */}
+
                   <div>
                     <label className="text-xs text-[#a39081]">
                       Confirm Password
@@ -512,9 +608,11 @@ export default function LoginPage() {
                   </div>
 
                   {/* GENDER + YEAR */}
+
                   <div className="grid grid-cols-2 gap-2">
 
                     {/* GENDER */}
+
                     <div>
                       <label className="text-xs text-[#a39081]">
                         Gender
@@ -538,6 +636,7 @@ export default function LoginPage() {
                     </div>
 
                     {/* YEAR */}
+
                     <div>
                       <label className="text-xs text-[#a39081]">
                         Year of Study
@@ -573,10 +672,10 @@ export default function LoginPage() {
                         </option>
                       </select>
                     </div>
-
                   </div>
 
                   {/* DEPARTMENT */}
+
                   <div>
                     <label className="text-xs text-[#a39081]">
                       Department
@@ -597,10 +696,10 @@ export default function LoginPage() {
                   </div>
 
                   {/* NEXT BUTTON */}
+
                   <button
                     type="button"
                     onClick={() => {
-
                       if (
                         fullName.trim() &&
                         email.trim() &&
@@ -608,7 +707,6 @@ export default function LoginPage() {
                         confirmPassword &&
                         department.trim()
                       ) {
-
                         if (
                           password !==
                           confirmPassword
@@ -616,39 +714,36 @@ export default function LoginPage() {
                           setMessage(
                             "Passwords do not match."
                           );
+
                           return;
                         }
 
                         setMessage("");
                         setSignupStep(2);
-
                       } else {
-
                         setMessage(
                           "Please fill out all required fields on Step 1."
                         );
-
                       }
-
                     }}
                     className="mt-1 w-full rounded-xl bg-[#c89b7b] py-2.5 text-sm font-semibold text-[#1e1713] transition hover:bg-[#b08567]"
                   >
                     Next: Coding Profiles & Motivation →
                   </button>
-
                 </div>
-
               ) : (
 
                 /* =================================================
                    SIGNUP STEP 2
                 ================================================== */
+
                 <form
                   onSubmit={handleFinalSignup}
                   className="space-y-2.5"
                 >
 
                   {/* LEETCODE */}
+
                   <div>
                     <label className="text-xs text-[#a39081]">
                       LeetCode Profile URL
@@ -668,6 +763,7 @@ export default function LoginPage() {
                   </div>
 
                   {/* CODEFORCES */}
+
                   <div>
                     <label className="text-xs text-[#a39081]">
                       Codeforces Profile URL
@@ -686,7 +782,8 @@ export default function LoginPage() {
                     />
                   </div>
 
-                  {/* GITHUB */}
+                  {/* GITHUB PROFILE */}
+
                   <div>
                     <label className="text-xs text-[#a39081]">
                       GitHub Profile URL
@@ -706,6 +803,7 @@ export default function LoginPage() {
                   </div>
 
                   {/* BOOTCAMP REASON */}
+
                   <div>
                     <label className="text-xs text-[#a39081]">
                       Why do you want to join this bootcamp? *
@@ -726,6 +824,7 @@ export default function LoginPage() {
                   </div>
 
                   {/* BACK + SUBMIT */}
+
                   <div className="flex gap-2 pt-1">
 
                     <button
@@ -749,13 +848,12 @@ export default function LoginPage() {
                     </button>
 
                   </div>
-
                 </form>
               )}
 
               {/* ================= LOGIN LINK ================= */}
-              <div className="mt-3 text-center text-xs text-[#a39081]">
 
+              <div className="mt-3 text-center text-xs text-[#a39081]">
                 Already have an account?{" "}
 
                 <button
@@ -769,12 +867,10 @@ export default function LoginPage() {
                 >
                   Login
                 </button>
-
               </div>
 
             </div>
           )}
-
         </div>
       </div>
     </div>
