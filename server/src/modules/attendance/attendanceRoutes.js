@@ -14,7 +14,7 @@ const statuses = ["Present", "Absent", "Late", "Excused"];
 
 router.get("/", async (req, res, next) => {
   try {
-    let q = {};
+    let q = { session: { $ne: null } };
 
     if (req.user.role === 'student') {
       q.student = req.user._id;
@@ -78,6 +78,9 @@ router.post(
   }),
   async (req, res, next) => {
     try {
+      if (!req.body.sessionId) {
+        return res.status(400).json({ success: false, message: 'Attendance must be recorded from a session.' });
+      }
       if (!(await canManage(req.user, req.body.studentId))) {
         return res.status(403).json({ success: false, message: 'You can only manage assigned students.' });
       }
@@ -88,9 +91,10 @@ router.post(
       }
 
       const r = await Attendance.findOneAndUpdate(
-        { student: req.body.studentId, date: d },
+        { student: req.body.studentId, ...(req.body.sessionId ? { session: req.body.sessionId } : { date: d }) },
         {
           student: req.body.studentId,
+          session: req.body.sessionId || null,
           mentor: req.user._id,
           date: d,
           status: req.body.status,

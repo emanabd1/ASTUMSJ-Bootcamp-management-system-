@@ -22,7 +22,7 @@ router.get('/dashboard', async (req, res, next) => {
       .populate('batch', 'name startDate endDate');
 
     const [attendance, progress, assignments, submissions, announcements] = await Promise.all([
-      Attendance.find({ student: student._id }).sort({ date: -1 }),
+      Attendance.find({ student: student._id, session: { $ne: null } }).sort({ date: -1 }),
       Progress.find({ student: student._id }).sort({ topic: 1 }),
       Assignment.find({
         $or: [{ targetStudents: student._id }, { targetStudents: { $size: 0 } }]

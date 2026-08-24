@@ -17,6 +17,7 @@ const announcementRoutes = require("./modules/announcements/announcementRoutes")
 const attendanceRoutes = require("./modules/attendance/attendanceRoutes");
 const progressRoutes = require("./modules/progress/progressRoutes");
 const submissionRoutes = require("./modules/submissions/submissionRoutes");
+const sessionRoutes = require("./modules/sessions/sessionRoutes");
 const errorHandler = require("./middleware/errorHandler");
 const { startNotificationScheduler } = require("./utils/notificationScheduler");
 
@@ -55,6 +56,7 @@ app.use("/api/announcements", announcementRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/progress", progressRoutes);
 app.use("/api/submissions", submissionRoutes);
+app.use("/api/sessions", sessionRoutes);
 
 app.use("/uploads", express.static(require("path").join(__dirname, "../uploads")));
 

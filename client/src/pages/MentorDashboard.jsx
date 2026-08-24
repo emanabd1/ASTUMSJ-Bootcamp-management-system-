@@ -14,6 +14,7 @@ import {
 
 export default function MentorDashboard() {
   const [assignedStudents, setAssignedStudents] = useState([]);
+  const [dashboardMetrics, setDashboardMetrics] = useState({ pendingGrading: [], atRiskStudents: [], assignments: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -35,6 +36,11 @@ export default function MentorDashboard() {
         );
 
         const rawData = response.data;
+        setDashboardMetrics({
+          pendingGrading: rawData?.dashboard?.pendingGrading || [],
+          atRiskStudents: rawData?.dashboard?.atRiskStudents || [],
+          assignments: rawData?.dashboard?.assignments || [],
+        });
 
         const students =
           rawData?.dashboard?.assignedStudents ||
@@ -330,6 +336,40 @@ export default function MentorDashboard() {
           </span>
         </div>
       </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5">
+          <h2 className="font-bold text-[#c89b7b]">Pending Grading</h2>
+          <p className="mt-3 text-3xl font-extrabold">{dashboardMetrics.pendingGrading.length}</p>
+          <p className="mt-1 text-xs text-[#a39081]">Submitted tasks awaiting review</p>
+        </section>
+        <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5">
+          <h2 className="font-bold text-[#c89b7b]">At-Risk Students</h2>
+          <p className="mt-3 text-3xl font-extrabold">{dashboardMetrics.atRiskStudents.length}</p>
+          <p className="mt-1 text-xs text-[#a39081]">Students needing support</p>
+          <div className="mt-3 space-y-1 text-xs text-[#d8c5b7]">{dashboardMetrics.atRiskStudents.slice(0, 4).map((student) => <p key={student._id}>{student.fullName}</p>)}</div>
+        </section>
+        <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5">
+          <h2 className="font-bold text-[#c89b7b]">My Assignments</h2>
+          <p className="mt-3 text-3xl font-extrabold">{dashboardMetrics.assignments.length}</p>
+          <p className="mt-1 text-xs text-[#a39081]">Assignments created by you</p>
+        </section>
+      </div>
+
+      {dashboardMetrics.pendingGrading.length > 0 && (
+        <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5">
+          <h2 className="font-bold text-[#c89b7b]">Submissions Awaiting Grade</h2>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {dashboardMetrics.pendingGrading.slice(0, 8).map((submission) => (
+              <div key={submission._id} className="rounded border border-[#4a3b32] p-3 text-sm">
+                <p className="font-semibold">{submission.student?.fullName || "Student"}</p>
+                <p className="text-xs text-[#a39081]">{submission.assignment?.title || "Assignment"}</p>
+                <span className="text-xs text-amber-300">Awaiting review</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

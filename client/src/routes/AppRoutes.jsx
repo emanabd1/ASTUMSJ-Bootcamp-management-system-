@@ -35,6 +35,8 @@ import StudentDashboard from "../pages/StudentDashboard";
 import StudentAttendancePage from "../pages/StudentAttendancePage";
 import StudentProfilePage from "../pages/StudentProfilePage";
 import ResourcesPage from "../pages/ResourcesPage";
+import SessionsPage from "../pages/SessionsPage";
+import SessionDetailPage from "../pages/SessionDetailPage";
 
 export default function AppRoutes() {
   return (
@@ -85,6 +87,10 @@ export default function AppRoutes() {
             path="/notifications"
             element={<NotificationsPage />}
           />
+
+          <Route path="/sessions" element={<SessionsPage />} />
+          <Route path="/sessions/:id" element={<SessionDetailPage />} />
+          <Route path="/assignments/:id" element={<AssignmentsPage />} />
         </Route>
 
         {/* =========================
