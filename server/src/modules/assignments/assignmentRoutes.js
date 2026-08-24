@@ -7,6 +7,7 @@ const Submission = require("./assignmentSubmissionModel");
 const User = require("../users/userModel");
 const Batch = require("../batches/batchModel");
 const Notification = require("../notifications/notificationModel");
+const sendEmail = require("../../utils/sendEmail");
 const protect = require("../../middleware/authMiddleware");
 const authorize = require("../../middleware/roleMiddleware");
 const { body } = require("../../validation");
@@ -110,6 +111,12 @@ router.post("/", authorize("admin", "mentor"), upload.array("resourceFiles", 50)
       link: "/student/assignments",
       meta: { assignmentId: String(assignment._id) },
     })));
+    const assignmentRecipients = await User.find({ _id: { $in: students } }).select("email");
+    await Promise.allSettled(assignmentRecipients.filter((recipient) => recipient.email).map((recipient) => sendEmail({
+      email: recipient.email,
+      subject: `New assignment: ${assignment.title}`,
+      message: `A new assignment, ${assignment.title}, has been assigned to you. Deadline: ${assignment.deadline.toLocaleString()}.`,
+    })));
 
     const populated = await Assignment.findById(assignment._id).populate("creator", "fullName role").populate("batch", "name");
     res.status(201).json({ success: true, assignment: populated });
@@ -186,8 +193,13 @@ router.post("/:id/submit", authorize("student"), upload.array("files", 10), asyn
     else { Object.assign(submission, data); await submission.save(); }
 
     const student = await User.findById(req.user._id).select("fullName mentor");
-    const recipients = await User.find({ $or: [{ role: "admin", status: "approved", isActive: true }, { _id: student.mentor, role: "mentor", status: "approved", isActive: true }] }).select("_id");
+    const recipients = await User.find({ $or: [{ role: "admin", status: "approved", isActive: true }, { _id: student.mentor, role: "mentor", status: "approved", isActive: true }] }).select("_id email");
     await Notification.insertMany(recipients.map((m) => ({ user: m._id, title: isResubmission ? "Resubmission received" : "Assignment submitted", message: isResubmission ? `${student.fullName} resubmitted ${assignment.title}.` : `${student.fullName} submitted ${assignment.title}.`, type: "submission", link: "/mentor/assignments", meta: { assignmentId: String(assignment._id), studentId: String(req.user._id) } })));
+    await Promise.allSettled(recipients.filter((recipient) => recipient.email).map((recipient) => sendEmail({
+      email: recipient.email,
+      subject: isResubmission ? `Resubmission received: ${assignment.title}` : `Assignment submitted: ${assignment.title}`,
+      message: `${student.fullName} ${isResubmission ? "resubmitted" : "submitted"} ${assignment.title}.`,
+    })));
 
     res.json({ success: true, message: "Assignment submitted successfully.", submission });
   } catch (e) { next(e); }
@@ -221,6 +233,11 @@ router.patch("/:assignmentId/submissions/:submissionId/grade", authorize("admin"
       link: "/student/assignments",
       meta: { assignmentId: String(submission.assignment._id), submissionId: String(submission._id) },
     });
+    await sendEmail({
+      email: submission.student.email,
+      subject: normalizedStatus === "resubmission_requested" ? `Resubmission requested: ${submission.assignment.title}` : `Assignment graded: ${submission.assignment.title}`,
+      message: normalizedStatus === "resubmission_requested" ? `Please resubmit ${submission.assignment.title}. Feedback: ${submission.feedback}` : `${submission.assignment.title} was graded. Score: ${submission.score}/${submission.assignment.maximumScore}. ${submission.feedback}`,
+    }).catch(() => {});
     res.json({ success: true, submission });
   } catch (e) { next(e); }
 });

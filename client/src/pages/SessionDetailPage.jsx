@@ -29,8 +29,13 @@ export default function SessionDetailPage() {
     reason: "",
   });
   const [grades, setGrades] = useState({});
+  const [batches, setBatches] = useState([]);
+  const [resourceForm, setResourceForm] = useState({ title: "", resourceLink: "", file: null });
+  const [editingResource, setEditingResource] = useState(null);
+  const [editForm, setEditForm] = useState(null);
   const manager = user?.role === "admin" || user?.role === "mentor";
   const admin = user?.role === "admin";
+  const canManageResource = (resource) => admin || (user?.role === "mentor" && String(resource.uploadedBy?._id || resource.uploadedBy) === String(user._id));
   const load = async () => {
     try {
       setData((await axiosInstance.get(`/sessions/${id}`)).data);
@@ -41,6 +46,9 @@ export default function SessionDetailPage() {
   useEffect(() => {
     load();
   }, [id]);
+  useEffect(() => {
+    if (admin) axiosInstance.get("/batches").then((response) => setBatches(response.data.batches || [])).catch(() => {});
+  }, [admin]);
   const createTask = async (event) => {
     event.preventDefault();
     if (busy) return;
@@ -128,6 +136,10 @@ export default function SessionDetailPage() {
       setMessage(error.response?.data?.message || "Unable to delete task.");
     }
   };
+  const uploadResource = async (event) => { event.preventDefault(); if (busy) return; setBusy(true); const body = new FormData(); body.append("title", resourceForm.title || "Session resource"); body.append("resourceLink", resourceForm.resourceLink); if (resourceForm.file) body.append("file", resourceForm.file); try { await axiosInstance.post(`/sessions/${id}/resources`, body); setResourceForm({ title: "", resourceLink: "", file: null }); setMessage("Resource added."); await load(); } catch (error) { setMessage(error.response?.data?.message || "Unable to add resource."); } finally { setBusy(false); } };
+  const updateResource = async (event) => { event.preventDefault(); if (busy || !editingResource) return; setBusy(true); try { await axiosInstance.patch(`/sessions/${id}/resources/${editingResource._id}`, editingResource); setEditingResource(null); setMessage("Resource updated."); await load(); } catch (error) { setMessage(error.response?.data?.message || "Unable to update resource."); } finally { setBusy(false); } };
+  const deleteResource = async (item) => { if (busy || !window.confirm(`Delete resource "${item.title}"?`)) return; setBusy(true); try { await axiosInstance.delete(`/sessions/${id}/resources/${item._id}`); setMessage("Resource deleted."); await load(); } catch (error) { setMessage(error.response?.data?.message || "Unable to delete resource."); } finally { setBusy(false); } };
+  const saveSession = async (event) => { event.preventDefault(); if (busy || !editForm) return; setBusy(true); try { await axiosInstance.patch(`/sessions/${id}`, { ...editForm, startsAt: new Date(editForm.startsAt).toISOString(), endsAt: new Date(editForm.endsAt).toISOString() }); setEditForm(null); setMessage("Session updated."); await load(); } catch (error) { setMessage(error.response?.data?.message || "Unable to update session."); } finally { setBusy(false); } };
   if (!data)
     return (
       <p className="rounded border border-[#4a3b32] p-6">
@@ -148,6 +160,7 @@ export default function SessionDetailPage() {
           {new Date(session.startsAt).toLocaleString()} -{" "}
           {new Date(session.endsAt).toLocaleString()}
         </p>
+        {admin && <button type="button" onClick={openEdit} className="mt-4 mr-2 rounded border border-[#c89b7b] px-3 py-2 text-sm">Edit session</button>}
         <a
           className="mt-4 inline-block rounded bg-[#c89b7b] px-3 py-2 text-sm font-bold text-[#1e1713]"
           href={session.meetLink}
@@ -179,9 +192,10 @@ export default function SessionDetailPage() {
           {session.resources?.map((item) => (
             <div
               key={item._id}
-              className="flex justify-between border-b border-[#4a3b32] p-2 text-sm"
+              className="flex flex-wrap items-center justify-between gap-2 border-b border-[#4a3b32] p-2 text-sm"
             >
               <span>{item.title}</span>
+              {canManageResource(item) && <span className="ml-auto mr-3 flex gap-2"><button type="button" onClick={() => setEditingResource({ _id: item._id, title: item.title, resourceLink: item.resourceLink || "" })} className="text-xs text-[#c89b7b]">Edit</button><button type="button" onClick={() => deleteResource(item)} className="text-xs text-red-300">Delete</button></span>}
               {item.path ? (
                 <a
                   href={fileUrl(item.path)}
@@ -202,6 +216,7 @@ export default function SessionDetailPage() {
               )}
             </div>
           ))}
+          {manager && <form onSubmit={uploadResource} className="space-y-2 border-t border-[#4a3b32] pt-4"><input className={field} placeholder="Resource title" value={resourceForm.title} onChange={(event) => setResourceForm({ ...resourceForm, title: event.target.value })}/><input className={field} type="url" placeholder="Resource link (optional)" value={resourceForm.resourceLink} onChange={(event) => setResourceForm({ ...resourceForm, resourceLink: event.target.value })}/><input className={field} type="file" onChange={(event) => setResourceForm({ ...resourceForm, file: event.target.files[0] })}/><button disabled={busy} className="rounded bg-[#c89b7b] px-3 py-2 text-sm text-[#1e1713]">{busy ? "Working..." : "Add resource"}</button></form>}
         </section>
       )}
       {tab === "feedback" && (
@@ -212,6 +227,7 @@ export default function SessionDetailPage() {
               {item.message}
             </p>
           ))}
+          {manager && <p className="text-xs text-[#a39081]">Use the resource controls in this session to upload additional files or links.</p>}
         </section>
       )}
       {tab === "attendance" && (
@@ -289,8 +305,8 @@ export default function SessionDetailPage() {
                   setTask({ ...task, maximumScore: event.target.value })
                 }
               />
-              <button className="rounded bg-[#c89b7b] px-3 py-2 text-sm text-[#1e1713]">
-                Create task
+              <button disabled={busy} className="rounded bg-[#c89b7b] px-3 py-2 text-sm text-[#1e1713] disabled:opacity-60">
+                {busy ? "Creating..." : "Create task"}
               </button>
             </form>
           )}
@@ -304,6 +320,7 @@ export default function SessionDetailPage() {
                 <span>{item.maximumScore} points</span>
               </div>
               <p className="mt-2 text-sm text-[#a39081]">{item.description}</p>
+              <Link to={`/assignments/${item._id}`} className="mt-2 inline-block text-xs text-[#c89b7b] underline">Open task workspace</Link>
               {user?.role === "student" && (
                 <form
                   onSubmit={(event) => submitTask(event, item._id)}
@@ -360,8 +377,8 @@ export default function SessionDetailPage() {
                       setAnswer({ ...answer, reason: event.target.value })
                     }
                   />
-                  <button className="rounded bg-[#c89b7b] px-3 py-2 text-sm text-[#1e1713]">
-                    Submit solution
+                  <button disabled={busy} className="rounded bg-[#c89b7b] px-3 py-2 text-sm text-[#1e1713] disabled:opacity-60">
+                    {busy ? "Submitting..." : "Submit solution"}
                   </button>
                 </form>
               )}
@@ -436,14 +453,14 @@ export default function SessionDetailPage() {
                           })
                         }
                       />
-                      <button
+                      <button disabled={busy}
                         onClick={() =>
                           gradeTask(item._id, submission._id, "graded")
                         }
                       >
                         Save grade
                       </button>
-                      <button
+                      <button disabled={busy}
                         onClick={() =>
                           gradeTask(item._id, submission._id, "redo")
                         }
@@ -464,6 +481,8 @@ export default function SessionDetailPage() {
           ))}
         </section>
       )}
+      {editForm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"><form onSubmit={saveSession} className="w-full max-w-xl space-y-3 rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6"><div className="flex justify-between"><h2 className="text-xl font-bold">Edit session</h2><button type="button" onClick={() => setEditForm(null)}>Close</button></div><input className={field} required placeholder="Title" value={editForm.title} onChange={(event) => setEditForm({ ...editForm, title: event.target.value })}/><textarea className={field} placeholder="Description" value={editForm.description} onChange={(event) => setEditForm({ ...editForm, description: event.target.value })}/><input className={field} required type="url" pattern="https://meet.google.com/.*" placeholder="Google Meet link" value={editForm.meetLink} onChange={(event) => setEditForm({ ...editForm, meetLink: event.target.value })}/><select className={field} required value={editForm.batchId} onChange={(event) => setEditForm({ ...editForm, batchId: event.target.value })}>{batches.map((batch) => <option key={batch._id} value={batch._id}>{batch.name}</option>)}</select><div className="grid grid-cols-2 gap-2"><input className={field} required type="datetime-local" value={editForm.startsAt} onChange={(event) => setEditForm({ ...editForm, startsAt: event.target.value })}/><input className={field} required type="datetime-local" value={editForm.endsAt} onChange={(event) => setEditForm({ ...editForm, endsAt: event.target.value })}/></div><button disabled={busy} className="rounded bg-[#c89b7b] px-3 py-2 font-bold text-[#1e1713]">{busy ? "Saving..." : "Save changes"}</button></form></div>}
+      {editingResource && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"><form onSubmit={updateResource} className="w-full max-w-md space-y-3 rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6"><div className="flex justify-between"><h2 className="text-xl font-bold">Edit resource</h2><button type="button" onClick={() => setEditingResource(null)}>Close</button></div><input className={field} required placeholder="Resource title" value={editingResource.title} onChange={(event) => setEditingResource({ ...editingResource, title: event.target.value })}/><input className={field} type="url" placeholder="Resource link" value={editingResource.resourceLink} onChange={(event) => setEditingResource({ ...editingResource, resourceLink: event.target.value })}/><button disabled={busy} className="rounded bg-[#c89b7b] px-3 py-2 font-bold text-[#1e1713]">{busy ? "Saving..." : "Save resource"}</button></form></div>}
     </div>
   );
 }

@@ -1,13 +1,15 @@
 import React,{useEffect,useState} from 'react';
+import {useParams} from 'react-router-dom';
 import axiosInstance from '../api/axiosInstance';
 import {useAuth} from '../hooks/useAuth';
 const field='w-full rounded-xl border border-[#4a3b32] bg-[#16110e] px-3 py-2 text-sm text-[#f5efe6] focus:border-[#c89b7b] focus:outline-none';
 export default function AssignmentsPage(){
- const {user}=useAuth(); const [items,setItems]=useState([]),[selected,setSelected]=useState(null),[detail,setDetail]=useState(null),[showCreate,setShowCreate]=useState(false),[message,setMessage]=useState('');
+ const {user}=useAuth(); const {id:assignmentRouteId}=useParams(); const [items,setItems]=useState([]),[selected,setSelected]=useState(null),[detail,setDetail]=useState(null),[showCreate,setShowCreate]=useState(false),[message,setMessage]=useState('');
  const [form,setForm]=useState({title:'',description:'',instructions:'',batch:'',deadline:'',maximumScore:100,resourceLink:''});
  const [submit,setSubmit]=useState({method:'github',githubUrl:'',liveDemoUrl:'',textAnswer:'',resubmissionReason:'',files:[]}); const [grade,setGrade]=useState({score:'',feedback:'',status:'graded'});
  const load=async()=>{try{const r=await axiosInstance.get('/assignments');setItems(r.data.assignments||[])}catch(e){setMessage(e.response?.data?.message||'Could not load assignments.')}}; useEffect(()=>{load()},[]);
  const open=async id=>{try{const r=await axiosInstance.get(`/assignments/${id}`);setSelected(id);setDetail(r.data)}catch(e){setMessage(e.response?.data?.message||'Could not load assignment.')}};
+ useEffect(()=>{if(assignmentRouteId)open(assignmentRouteId)},[assignmentRouteId]);
  const create=async e=>{e.preventDefault();try{const fd=new FormData();Object.entries(form).forEach(([k,v])=>fd.append(k,v));[...e.target.resourceFiles.files].forEach(file=>fd.append('resourceFiles',file));await axiosInstance.post('/assignments',fd,{headers:{'Content-Type':'multipart/form-data'}});setShowCreate(false);setForm({title:'',description:'',instructions:'',batch:'',deadline:'',maximumScore:100,resourceLink:''});setMessage('Assignment created and students notified.');load()}catch(e){setMessage(e.response?.data?.message||'Could not create assignment.')}};
  const submitAssignment=async e=>{e.preventDefault();try{const fd=new FormData();fd.append('method',submit.method);fd.append('githubUrl',submit.githubUrl);fd.append('liveDemoUrl',submit.liveDemoUrl);fd.append('textAnswer',submit.textAnswer);fd.append('resubmissionReason',submit.resubmissionReason);[...submit.files].forEach(f=>fd.append('files',f));await axiosInstance.post(`/assignments/${selected}/submit`,fd,{headers:{'Content-Type':'multipart/form-data'}});setMessage('Assignment submitted.');open(selected)}catch(e){setMessage(e.response?.data?.message||'Could not submit.')}};
  const saveGrade=async id=>{try{await axiosInstance.patch(`/assignments/${selected}/submissions/${id}/grade`,grade);setMessage(grade.status==='redo'?'Resubmission requested.':'Grade saved and student notified.');open(selected)}catch(e){setMessage(e.response?.data?.message||'Could not grade.')}};

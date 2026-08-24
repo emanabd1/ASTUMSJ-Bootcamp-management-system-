@@ -90,6 +90,7 @@ export default function AppRoutes() {
 
           <Route path="/sessions" element={<SessionsPage />} />
           <Route path="/sessions/:id" element={<SessionDetailPage />} />
+          <Route path="/assignments/:id" element={<AssignmentsPage />} />
         </Route>
 
         {/* =========================

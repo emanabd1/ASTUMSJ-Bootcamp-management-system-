@@ -34,7 +34,7 @@ router.get("/dashboard", async (req, res, next) => {
     const ids = students.map((s) => s._id);
 
     const [attendance, progress, pendingSubmissions, assignments, announcements] = await Promise.all([
-      Attendance.find({ student: { $in: ids } }),
+      Attendance.find({ student: { $in: ids }, session: { $ne: null } }),
       Progress.find({ student: { $in: ids } }),
       Submission.find({ student: { $in: ids }, status: "submitted" })
         .populate("student", "fullName")
@@ -92,7 +92,7 @@ router.get("/students", async (req, res, next) => {
     const enriched = await Promise.all(
       students.map(async (student) => {
         const [attendance, progress] = await Promise.all([
-          Attendance.find({ student: student._id }).sort({ date: -1 }),
+          Attendance.find({ student: student._id, session: { $ne: null } }).sort({ date: -1 }),
           Progress.find({ student: student._id }).sort({ topic: 1 })
         ]);
 

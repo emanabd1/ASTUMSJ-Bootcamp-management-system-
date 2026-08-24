@@ -125,17 +125,51 @@ router.post("/:id/resources", upload.single("file"), async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+router.patch("/:id/resources/:resourceId", async (req, res, next) => {
+  try {
+    if (!["admin", "mentor"].includes(req.user.role)) return res.status(403).json({ success: false, message: "Only admins and mentors can edit resources." });
+    const session = await Session.findById(req.params.id).populate("batch", "students mentors");
+    if (!session || !(await canAccess(req.user, session.batch))) return res.status(403).json({ success: false, message: "You cannot edit this session resource." });
+    const resource = session.resources.id(req.params.resourceId);
+    if (!resource) return res.status(404).json({ success: false, message: "Resource not found." });
+    if (req.user.role === "mentor" && String(resource.uploadedBy) !== String(req.user._id)) return res.status(403).json({ success: false, message: "You can only edit resources you uploaded." });
+    if (req.body.title !== undefined) resource.title = String(req.body.title).trim();
+    if (req.body.resourceLink !== undefined) resource.resourceLink = String(req.body.resourceLink).trim();
+    await session.save();
+    res.json({ success: true, resources: session.resources });
+  } catch (error) { next(error); }
+});
+
+router.delete("/:id/resources/:resourceId", async (req, res, next) => {
+  try {
+    if (!["admin", "mentor"].includes(req.user.role)) return res.status(403).json({ success: false, message: "Only admins and mentors can delete resources." });
+    const session = await Session.findById(req.params.id).populate("batch", "students mentors");
+    if (!session || !(await canAccess(req.user, session.batch))) return res.status(403).json({ success: false, message: "You cannot delete this session resource." });
+    const resource = session.resources.id(req.params.resourceId);
+    if (!resource) return res.status(404).json({ success: false, message: "Resource not found." });
+    if (req.user.role === "mentor" && String(resource.uploadedBy) !== String(req.user._id)) return res.status(403).json({ success: false, message: "You can only delete resources you uploaded." });
+    resource.deleteOne();
+    await session.save();
+    res.json({ success: true, resources: session.resources });
+  } catch (error) { next(error); }
+});
+
 router.patch("/:id", async (req, res, next) => {
   try {
     if (req.user.role !== "admin") return res.status(403).json({ success: false, message: "Only admins can edit sessions." });
     const session = await Session.findById(req.params.id).populate("batch", "students mentors");
     if (!session || !(await canAccess(req.user, session.batch))) return res.status(403).json({ success: false, message: "You cannot edit this session." });
-    const { title, description, meetLink, startsAt, endsAt } = req.body;
+    const { title, description, meetLink, startsAt, endsAt, batchId } = req.body;
     if (title !== undefined) session.title = String(title).trim();
     if (description !== undefined) session.description = String(description).trim();
     if (meetLink !== undefined) { if (meetLink && !/^https:\/\/meet\.google\.com\//i.test(meetLink)) return res.status(400).json({ success: false, message: "Use a valid Google Meet link." }); session.meetLink = String(meetLink).trim(); }
     if (startsAt !== undefined) session.startsAt = new Date(startsAt);
     if (endsAt !== undefined) session.endsAt = new Date(endsAt);
+    if (batchId !== undefined) {
+      const batch = await Batch.findById(batchId);
+      if (!batch) return res.status(404).json({ success: false, message: "Batch not found." });
+      session.batch = batch._id;
+    }
     if (Number.isNaN(session.startsAt.getTime()) || Number.isNaN(session.endsAt.getTime()) || session.endsAt <= session.startsAt) return res.status(400).json({ success: false, message: "Session times are invalid." });
     await session.save(); res.json({ success: true, session });
   } catch (error) { next(error); }
