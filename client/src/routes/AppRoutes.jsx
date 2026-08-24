@@ -1,20 +1,18 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
-// Auth pages
-import LandingPage from '../pages/LandingPage';
+import LandingPage from "../pages/LandingPage";
 import LoginPage from "../pages/LoginPage";
 import SignupPage from "../pages/SignupPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage";
+import OAuthSuccessPage from "../pages/OAuthSuccessPage";
 
-// Shared pages/layout
 import SettingsPage from "../pages/SettingsPage";
 import NotificationsPage from "../pages/NotificationsPage";
 import DashboardLayout from "../components/layout/DashboardLayout";
 import ProtectedRoute from "./ProtectedRoute";
 
-// Admin pages
 import AdminDashboard from "../pages/AdminDashboard";
 import AdminUserManagement from "../pages/AdminUserManagement";
 import BatchesPage from "../pages/BatchesPage";
@@ -23,14 +21,12 @@ import CodingPage from "../pages/CodingPage";
 import AnnouncementsPage from "../pages/AnnouncementsPage";
 import AdminAttendance from "../AdminAttendance";
 
-// Mentor pages
 import MentorDashboard from "../pages/MentorDashboard";
 import MentorAnnouncements from "../pages/MentorAnnouncements";
 import MentorAssignments from "../pages/MentorAssignments";
 import MentorAttendance from "../pages/MentorAttendance";
 import MentorProgress from "../pages/MentorProgress";
 
-// Student pages
 import StudentDashboard from "../pages/StudentDashboard";
 import StudentAttendancePage from "../pages/StudentAttendancePage";
 import StudentProfilePage from "../pages/StudentProfilePage";
@@ -41,16 +37,15 @@ import SessionDetailPage from "../pages/SessionDetailPage";
 export default function AppRoutes() {
   return (
     <Routes>
-      {/* =========================
-          PUBLIC / AUTH ROUTES
-      ========================== */}
       <Route path="/" element={<LandingPage />} />
-
       <Route path="/login" element={<LoginPage />} />
-
       <Route path="/signup" element={<SignupPage />} />
-
       <Route path="/register" element={<SignupPage />} />
+
+      <Route
+        path="/oauth-success"
+        element={<OAuthSuccessPage />}
+      />
 
       <Route
         path="/forgot-password"
@@ -62,15 +57,7 @@ export default function AppRoutes() {
         element={<ResetPasswordPage />}
       />
 
-      {/* =========================
-          PROTECTED APPLICATION
-      ========================== */}
-
       <Route element={<DashboardLayout />}>
-        {/* =========================
-            SHARED ROUTES
-        ========================== */}
-
         <Route
           element={
             <ProtectedRoute
@@ -88,14 +75,21 @@ export default function AppRoutes() {
             element={<NotificationsPage />}
           />
 
-          <Route path="/sessions" element={<SessionsPage />} />
-          <Route path="/sessions/:id" element={<SessionDetailPage />} />
-          <Route path="/assignments/:id" element={<AssignmentsPage />} />
-        </Route>
+          <Route
+            path="/sessions"
+            element={<SessionsPage />}
+          />
 
-        {/* =========================
-            ADMIN ROUTES
-        ========================== */}
+          <Route
+            path="/sessions/:id"
+            element={<SessionDetailPage />}
+          />
+
+          <Route
+            path="/assignments/:id"
+            element={<AssignmentsPage />}
+          />
+        </Route>
 
         <Route
           element={
@@ -138,10 +132,6 @@ export default function AppRoutes() {
           />
         </Route>
 
-        {/* =========================
-            MENTOR ROUTES
-        ========================== */}
-
         <Route
           element={
             <ProtectedRoute allowedRoles={["mentor"]} />
@@ -177,10 +167,6 @@ export default function AppRoutes() {
             element={<MentorAnnouncements />}
           />
         </Route>
-
-        {/* =========================
-            STUDENT ROUTES
-        ========================== */}
 
         <Route
           element={
@@ -223,15 +209,6 @@ export default function AppRoutes() {
           />
         </Route>
       </Route>
-
-      {/* =========================
-          DEFAULT ROUTES
-      ========================== */}
-
-      <Route
-        path="/"
-        element={<Navigate to="/login" replace />}
-      />
 
       <Route
         path="*"
