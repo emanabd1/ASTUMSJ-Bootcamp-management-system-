@@ -6,6 +6,7 @@ import AttendanceStrip from "../components/dashboard/AttendanceStrip";
 import ProgressChecklist from "../components/dashboard/ProgressChecklist";
 import DeadlineList from "../components/dashboard/DeadlineList";
 import AnnouncementFeed from "../components/dashboard/AnnouncementFeed";
+import { Link } from "react-router-dom";
 
 export default function StudentDashboard() {
   const [data, setData] = useState(null);
@@ -138,14 +139,25 @@ export default function StudentDashboard() {
       </div>
 
       <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6">
-        <h2 className="font-serif text-lg font-bold text-[#f5efe6]">
-          Progress Tracker
-        </h2>
-        <p className="mb-5 text-xs text-[#a39081]">
-          Topic-by-topic status from your mentor.
-        </p>
-        <ProgressChecklist items={d.progress} />
-      </section>
+  <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h2 className="font-serif text-lg font-bold text-[#f5efe6]">
+        Progress Tracker
+      </h2>
+      <p className="text-xs text-[#a39081]">
+        Topic-by-topic status from your mentor. Tap any topic for the
+        full detail.
+      </p>
+    </div>
+    <Link
+      to="/student/progress"
+      className="shrink-0 rounded-lg border border-[#4a3b32] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#c89b7b] transition hover:border-[#c89b7b] hover:text-[#f5efe6]"
+    >
+      View Full Progress →
+    </Link>
+  </div>
+  <ProgressChecklist items={d.progress} />
+</section>
     </div>
   );
 }
