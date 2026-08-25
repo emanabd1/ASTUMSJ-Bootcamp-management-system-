@@ -143,6 +143,33 @@ function localizeDocument(language) {
   });
 }
 
+function setTranslationCookie(language) {
+  document.cookie = `googtrans=/en/${language}; path=/`;
+  document.cookie = `googtrans=/en/${language}; path=/; SameSite=Lax`;
+}
+
+function getTranslationCookie() {
+  return document.cookie.split("; ").find((cookie) => cookie.startsWith("googtrans="))?.split("=")[1] || "";
+}
+
+function clearTranslationCookie() {
+  document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+}
+
+function loadFullPageTranslation() {
+  if (document.getElementById("google-translate-script")) return;
+  window.googleTranslateElementInit = () => {
+    if (window.google?.translate?.TranslateElement) {
+      new window.google.translate.TranslateElement({ pageLanguage: "en", includedLanguages: "en,am,om,so,ar", autoDisplay: false }, "google_translate_element");
+    }
+  };
+  const script = document.createElement("script");
+  script.id = "google-translate-script";
+  script.src = "https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
+  script.async = true;
+  document.head.appendChild(script);
+}
+
 export function PreferencesProvider({ children }) {
   const [preferences, setPreferences] = useState(readPreferences);
   useEffect(() => {
@@ -154,6 +181,20 @@ export function PreferencesProvider({ children }) {
     document.documentElement.lang = preferences.language;
     document.documentElement.dir = preferences.language === "ar" ? "rtl" : "ltr";
     localizeDocument(preferences.language);
+    const activeTranslation = getTranslationCookie();
+    if (preferences.language === "en") {
+      if (activeTranslation) {
+        clearTranslationCookie();
+        window.location.reload();
+      }
+    } else {
+      if (activeTranslation !== `/en/${preferences.language}`) {
+        setTranslationCookie(preferences.language);
+        window.location.reload();
+      } else {
+        loadFullPageTranslation();
+      }
+    }
     const observer = new MutationObserver(() => localizeDocument(preferences.language));
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();

@@ -9,6 +9,7 @@ export default function App() {
     <BrowserRouter>
       <PreferencesProvider>
         <AuthProvider>
+          <div id="google_translate_element" className="pointer-events-none fixed -left-[9999px] top-0 h-0 w-0 overflow-hidden" aria-hidden="true" />
           <AppRoutes />
           <ChatbotWidget />
         </AuthProvider>
