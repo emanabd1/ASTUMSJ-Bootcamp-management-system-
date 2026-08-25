@@ -74,6 +74,30 @@ router.get('/stats', async (req, res, next) => {
     next(e); 
   } 
 }); 
+
+router.get('/leaderboard', async (req, res, next) => {
+  try {
+    let studentQuery = { role: 'student', status: 'approved', isActive: true };
+    if (req.user.role === 'mentor') studentQuery.mentor = req.user._id;
+    if (req.user.role === 'student') studentQuery._id = req.user._id;
+
+    const students = await User.find(studentQuery).select('_id fullName').lean();
+    const activities = await CodingActivity.find({ student: { $in: students.map((student) => student._id) } }).select('student platform').lean();
+    const leaderboard = students.map((student) => {
+      const ownActivities = activities.filter((activity) => String(activity.student) === String(student._id));
+      return {
+        _id: student._id,
+        fullName: student.fullName,
+        activities: ownActivities.length,
+        platforms: new Set(ownActivities.map((activity) => activity.platform)).size,
+      };
+    }).sort((a, b) => b.activities - a.activities || a.fullName.localeCompare(b.fullName));
+
+    res.json({ success: true, leaderboard });
+  } catch (e) {
+    next(e);
+  }
+});
  
 router.get('/challenges', async (req, res, next) => { 
   try { 

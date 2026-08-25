@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import axiosInstance from "../../api/axiosInstance";
+import { usePreferences } from "../../hooks/usePreferences";
 
 function BellIcon() {
   return (
@@ -56,6 +57,7 @@ function MenuIcon() {
 
 export default function Navbar({ setSidebarOpen }) {
   const { user, logout } = useAuth();
+  const { preferences, updatePreferences, t } = usePreferences();
   const navigate = useNavigate();
   const [unread, setUnread] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -116,9 +118,17 @@ export default function Navbar({ setSidebarOpen }) {
       </div>
 
       <div className="flex items-center space-x-2">
+        <label className="sr-only" htmlFor="dashboard-language">{t("language")}</label>
+        <select id="dashboard-language" value={preferences.language} onChange={(event) => updatePreferences({ language: event.target.value })} className="max-w-24 rounded-lg border border-[#4a3b32] bg-[#16110e] px-2 py-2 text-[11px] text-[#c89b7b] outline-none focus:border-[#c89b7b]">
+          <option value="en">English</option>
+          <option value="am">አማርኛ</option>
+          <option value="om">Oromiffa</option>
+          <option value="so">Af-Soomaali</option>
+          <option value="ar">العربية</option>
+        </select>
         <Link
           to="/notifications"
-          title="Notifications"
+          title={t("notifications")}
           className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#a39081] transition hover:bg-[#2d231d] hover:text-[#f5efe6]"
         >
           <BellIcon />
@@ -131,7 +141,7 @@ export default function Navbar({ setSidebarOpen }) {
 
         <Link
           to="/settings"
-          title="Settings"
+          title={t("settings")}
           className="flex h-9 w-9 items-center justify-center rounded-full text-[#a39081] transition hover:bg-[#2d231d] hover:text-[#f5efe6]"
         >
           <GearIcon />
@@ -162,14 +172,22 @@ export default function Navbar({ setSidebarOpen }) {
                 onClick={() => setMenuOpen(false)}
                 className="block px-4 py-2.5 text-xs font-semibold text-[#a39081] transition hover:bg-[#2d231d] hover:text-[#f5efe6]"
               >
-                Account Settings
+                {t("accountSettings")}
+              </Link>
+
+              <Link
+                to="/settings/general"
+                onClick={() => setMenuOpen(false)}
+                className="block px-4 py-2.5 text-xs font-semibold text-[#a39081] transition hover:bg-[#2d231d] hover:text-[#f5efe6]"
+              >
+                General Settings
               </Link>
 
               <button
                 onClick={handleLogout}
                 className="block w-full px-4 py-2.5 text-left text-xs font-semibold text-rose-400 transition hover:bg-[#2d231d] hover:text-rose-300"
               >
-                Logout
+                {t("logout")}
               </button>
             </div>
           )}

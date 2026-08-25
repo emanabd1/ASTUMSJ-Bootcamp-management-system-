@@ -1,1 +1,36 @@
 @import "tailwindcss";
+
+:root {
+	--app-font: Georgia, "Times New Roman", serif;
+}
+
+body {
+	font-family: var(--app-font);
+	transition: background-color 180ms ease, color 180ms ease;
+}
+
+body[data-theme="light"] {
+	background: #fdf6e3;
+	color: #2c1a11;
+}
+
+body[data-theme="dark"] {
+	background: #16110e;
+	color: #f5efe6;
+}
+
+body[data-theme="light"] .bg-\[\#16110e\] {
+	background-color: #fdf6e3;
+}
+
+body[data-theme="light"] .bg-\[\#1e1713\] {
+	background-color: #fffaf0;
+}
+
+body[data-theme="light"] .text-\[\#f5efe6\] {
+	color: #2c1a11;
+}
+
+body[data-theme="light"] .text-\[\#a39081\] {
+	color: #705747;
+}

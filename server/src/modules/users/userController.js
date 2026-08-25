@@ -60,9 +60,10 @@ const getUser = async (req, res, next) => {
 
 const createUser = async (req, res, next) => {
   try {
-    const { fullName, email, role, department, gender, yearOfStudy, githubUrl, leetcodeUrl, codeforcesUrl } = req.body;
+    const { fullName, email, role, department, gender, yearOfStudy, githubUrl, leetcodeUrl, codeforcesUrl, batchId } = req.body;
     if (!fullName || !email || !role) return res.status(400).json({ success: false, message: "Name, email and role are required." });
     if (!["student", "mentor", "admin"].includes(role)) return res.status(400).json({ success: false, message: "Invalid role." });
+    if (batchId && !await Batch.exists({ _id: batchId })) return res.status(404).json({ success: false, message: "Selected batch not found." });
     const normalizedEmail = email.trim().toLowerCase();
     if (await User.findOne({ email: normalizedEmail })) return res.status(409).json({ success: false, message: "A user with this email already exists." });
 
@@ -74,6 +75,17 @@ const createUser = async (req, res, next) => {
       department, gender, yearOfStudy, githubUrl, leetcodeUrl, codeforcesUrl,
       bootcampReason: "Account created directly by administrator.",
     });
+    if (batchId) {
+      const batch = await Batch.findById(batchId);
+      if (!batch) return res.status(404).json({ success: false, message: "Selected batch not found." });
+      if (role === "student") {
+        user.batch = batch._id;
+        await user.save();
+        await Batch.updateOne({ _id: batch._id }, { $addToSet: { students: user._id } });
+      } else if (role === "mentor") {
+        await Batch.updateOne({ _id: batch._id }, { $addToSet: { mentors: user._id } });
+      }
+    }
 
     try {
       await sendEmail({
@@ -99,7 +111,7 @@ const updateUser = async (req, res, next) => {
     }
 
     const previousStatus = user.status || (user.isApproved === false ? "pending" : "approved");
-    const { fullName, email, role, department, gender, yearOfStudy, githubUrl, leetcodeUrl, codeforcesUrl, status, isActive } = req.body;
+    const { fullName, email, role, department, gender, yearOfStudy, githubUrl, leetcodeUrl, codeforcesUrl, status, isActive, batchId } = req.body;
 
     if (fullName !== undefined) user.fullName = String(fullName).trim();
     if (email !== undefined) {
@@ -124,6 +136,14 @@ const updateUser = async (req, res, next) => {
       user.status = status;
     }
     if (isActive !== undefined) user.isActive = Boolean(isActive);
+
+    if (batchId !== undefined) {
+      if (batchId && !await Batch.exists({ _id: batchId })) return res.status(404).json({ success: false, message: "Selected batch not found." });
+      await Batch.updateMany({}, { $pull: { students: user._id, mentors: user._id } });
+      if (user.role === "student") user.batch = batchId || null;
+      if (user.role !== "student") user.batch = null;
+      if (batchId) await Batch.updateOne({ _id: batchId }, { $addToSet: { [user.role === "mentor" ? "mentors" : "students"]: user._id } });
+    }
 
     if (user.status === "rejected" || user.status === "pending") user.isActive = false;
     if (status === "approved" && isActive === undefined) user.isActive = true;

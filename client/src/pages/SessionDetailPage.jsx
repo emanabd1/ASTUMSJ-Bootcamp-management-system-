@@ -257,7 +257,7 @@ export default function SessionDetailPage() {
     setBusy(true);
 
     setMessage(
-      status === "redo"
+      status === "resubmission_requested"
         ? "Requesting resubmission..."
         : "Saving grade..."
     );
@@ -275,7 +275,7 @@ export default function SessionDetailPage() {
       );
 
       setMessage(
-        status === "redo"
+        status === "resubmission_requested"
           ? "Resubmission requested."
           : "Grade saved."
       );
@@ -1590,7 +1590,7 @@ export default function SessionDetailPage() {
                               gradeTask(
                                 item._id,
                                 submission._id,
-                                "redo"
+                                "resubmission_requested"
                               )
                             }
                             className="rounded border border-amber-700 px-3 py-2 text-xs text-amber-300"

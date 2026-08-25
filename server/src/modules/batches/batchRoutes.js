@@ -26,10 +26,10 @@ const validDates = (startDate, endDate) => {
 const ids = (value) =>
   Array.isArray(value) ? value.filter((id) => mongoose.isValidObjectId(id)) : [];
 
-// Allow both admin and mentor roles to view the batch list
 router.get("/", authorize("admin", "mentor"), async (req, res, next) => {
   try {
-    const batches = await Batch.find()
+    const query = req.user.role === "mentor" ? { mentors: req.user._id } : {};
+    const batches = await Batch.find(query)
       .populate("mentors", "fullName email")
       .populate("students", "fullName email department yearOfStudy")
       .sort({ startDate: -1 });
@@ -40,7 +40,6 @@ router.get("/", authorize("admin", "mentor"), async (req, res, next) => {
   }
 });
 
-// Allow both admin and mentor roles to view a specific batch
 router.get("/:id", authorize("admin", "mentor"), async (req, res, next) => {
   try {
     const batch = await Batch.findById(req.params.id)
@@ -49,6 +48,9 @@ router.get("/:id", authorize("admin", "mentor"), async (req, res, next) => {
 
     if (!batch) {
       return res.status(404).json({ success: false, message: "Batch not found." });
+    }
+    if (req.user.role === "mentor" && !batch.mentors.some((mentor) => String(mentor._id) === String(req.user._id))) {
+      return res.status(403).json({ success: false, message: "You can only view assigned batches." });
     }
 
     res.json({ success: true, batch });

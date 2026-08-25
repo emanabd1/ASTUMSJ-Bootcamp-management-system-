@@ -29,7 +29,7 @@ export default function DeadlineList({ items }) {
               </p>
               <p className="mt-0.5 text-xs text-[#a39081]">
                 Due {new Date(x.assignment.deadline).toLocaleString()} ·{" "}
-                {x.submission?.status === "redo"
+                {x.submission?.status === "resubmission_requested"
                   ? "Resubmission requested"
                   : "Not submitted"}
               </p>

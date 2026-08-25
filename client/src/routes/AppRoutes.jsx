@@ -1,4 +1,3 @@
-import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import LandingPage from "../pages/LandingPage";
@@ -9,6 +8,7 @@ import ResetPasswordPage from "../pages/ResetPasswordPage";
 import OAuthSuccessPage from "../pages/OAuthSuccessPage";
 
 import SettingsPage from "../pages/SettingsPage";
+import GeneralSettingsPage from "../pages/GeneralSettingsPage";
 import NotificationsPage from "../pages/NotificationsPage";
 import DashboardLayout from "../components/layout/DashboardLayout";
 import ProtectedRoute from "./ProtectedRoute";
@@ -34,6 +34,9 @@ import StudentProfilePage from "../pages/StudentProfilePage";
 import ResourcesPage from "../pages/ResourcesPage";
 import SessionsPage from "../pages/SessionsPage";
 import SessionDetailPage from "../pages/SessionDetailPage";
+import InsightsPage from "../pages/InsightsPage";
+import AlumniPage from "../pages/AlumniPage";
+import AdminCommunityPage from "../pages/AdminCommunityPage";
 
 export default function AppRoutes() {
   return (
@@ -42,6 +45,7 @@ export default function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
       <Route path="/register" element={<SignupPage />} />
+      <Route path="/alumni" element={<AlumniPage />} />
 
       <Route
         path="/oauth-success"
@@ -72,6 +76,11 @@ export default function AppRoutes() {
           />
 
           <Route
+            path="/settings/general"
+            element={<GeneralSettingsPage />}
+          />
+
+          <Route
             path="/notifications"
             element={<NotificationsPage />}
           />
@@ -89,6 +98,11 @@ export default function AppRoutes() {
           <Route
             path="/assignments/:id"
             element={<AssignmentsPage />}
+          />
+
+          <Route
+            path="/insights"
+            element={<InsightsPage />}
           />
         </Route>
 
@@ -130,6 +144,11 @@ export default function AppRoutes() {
           <Route
             path="/admin/coding"
             element={<CodingPage />}
+          />
+
+          <Route
+            path="/admin/community"
+            element={<AdminCommunityPage />}
           />
         </Route>
 

@@ -48,9 +48,7 @@ router.get("/", async (req, res, next) => {
       query.student = req.user._id;
     } else if (req.user.role === "mentor") {
       const students = await User.find({ role: "student", mentor: req.user._id }).select("_id");
-      if (students.length > 0) {
-        query.student = { $in: students.map((s) => s._id) };
-      }
+      query.student = { $in: students.map((s) => s._id) };
     } else if (req.query.studentId) {
       query.student = req.query.studentId;
     }
@@ -83,7 +81,7 @@ router.get("/:id", async (req, res, next) => {
     if (req.user.role === "student" && String(submission.student._id) !== String(req.user._id)) {
       return res.status(403).json({ success: false, message: "You can only view your own submission." });
     }
-    if (req.user.role === "mentor" && submission.student.mentor && !(await canManageSubmission(req.user, submission))) {
+    if (req.user.role === "mentor" && !(await canManageSubmission(req.user, submission))) {
       return res.status(403).json({ success: false, message: "You can only view submissions from assigned students." });
     }
 
@@ -198,10 +196,7 @@ router.patch("/:id/grade", authorize("admin", "mentor"), async (req, res, next) 
     let status = "graded";
 
     if (
-      requestedStatus === "resubmission_requested" || 
-      requestedStatus === "redo" || 
-      requestedStatus === "request_resubmission" ||
-      req.url.includes("redo")
+      requestedStatus === "resubmission_requested"
     ) {
       status = "resubmission_requested";
     } else if (requestedStatus === "graded") {

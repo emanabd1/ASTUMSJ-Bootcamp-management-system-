@@ -42,7 +42,8 @@ router.get("/", async (req, res, next) => {
       }).populate("creator", "fullName role").populate("batch", "name startDate endDate").sort({ deadline: 1 });
     } else if (req.user.role === "mentor") {
       const students = await User.find({ mentor: req.user._id, role: "student", status: "approved", isActive: true }).select("_id");
-      assignments = await Assignment.find({ $or: [{ creator: req.user._id }, { targetStudents: { $in: students.map((student) => student._id) } }, { targetStudents: { $size: 0 } }] }).populate("creator", "fullName role").populate("batch", "name").sort({ createdAt: -1 });
+      const mentorBatches = await Batch.find({ mentors: req.user._id }).select("_id");
+      assignments = await Assignment.find({ batch: { $in: mentorBatches.map((batch) => batch._id) }, $or: [{ creator: req.user._id }, { targetStudents: { $in: students.map((student) => student._id) } }, { targetStudents: { $size: 0 } }] }).populate("creator", "fullName role").populate("batch", "name").sort({ createdAt: -1 });
     } else {
       assignments = await Assignment.find({}).populate("creator", "fullName role").populate("batch", "name").sort({ createdAt: -1 });
     }
@@ -213,7 +214,7 @@ router.patch("/:assignmentId/submissions/:submissionId/grade", authorize("admin"
     if (req.user.role === "mentor" && String(submission.assignment.creator?._id || submission.assignment.creator) !== String(req.user._id)) return res.status(403).json({ success: false, message: "Mentors can only grade tasks they created." });
 
     const { score, feedback = "", status = "graded" } = req.body;
-    const normalizedStatus = status === "redo" ? "resubmission_requested" : status;
+    const normalizedStatus = status;
     if (!String(feedback).trim() && normalizedStatus === "resubmission_requested") return res.status(400).json({ success: false, message: "Feedback is required when requesting a resubmission." });
     if (score !== undefined && score !== null && (!Number.isFinite(Number(score)) || Number(score) < 0 || Number(score) > submission.assignment.maximumScore)) return res.status(400).json({ success: false, message: "Score must be between 0 and the maximum score." });
     if (!["graded", "resubmission_requested"].includes(normalizedStatus)) return res.status(400).json({ success: false, message: "Invalid grading status." });
