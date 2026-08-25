@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 
 const STATUS_COLOR = {
@@ -26,6 +26,7 @@ const FILTERS = [
 
 export default function StudentProgressPage() {
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [records, setRecords] = useState(null);
   const [error, setError] = useState("");
@@ -33,6 +34,7 @@ export default function StudentProgressPage() {
   const [selected, setSelected] = useState(null);
   const [commentText, setCommentText] = useState("");
   const [postingComment, setPostingComment] = useState(false);
+  const threadEndRef = useRef(null);
 
   useEffect(() => {
     axiosInstance
@@ -51,9 +53,42 @@ export default function StudentProgressPage() {
     if (match) setSelected(match);
   }, [records, location.state]);
 
+  // Deep link from a notification: /student/progress?progressId=...&openComments=1
+  // Jump straight to the topic the notification was about.
+  useEffect(() => {
+    const progressId = searchParams.get("progressId");
+    if (!progressId || !records) return;
+
+    const match = records.find((r) => r._id === progressId);
+    if (match) setSelected(match);
+
+    setSearchParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [records, searchParams]);
+
   useEffect(() => {
     setCommentText("");
   }, [selected?._id]);
+
+  // If the modal opened because of a "new reply" notification, scroll
+  // straight to the newest message in the thread.
+  useEffect(() => {
+    if (selected) {
+      threadEndRef.current?.scrollIntoView({ block: "end" });
+    }
+  }, [selected?._id, selected?.comments?.length]);
+
+  // Escape closes the modal too, not just the X button / backdrop click.
+  useEffect(() => {
+    if (!selected) return;
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") setSelected(null);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selected]);
 
   const summary = useMemo(() => {
     if (!records) return null;
@@ -276,14 +311,14 @@ export default function StudentProgressPage() {
       {/* Detail modal */}
       {selected && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 py-10"
           onClick={() => setSelected(null)}
         >
           <div
-            className="w-full max-w-lg rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6 text-[#f5efe6]"
+            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6 text-[#f5efe6]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="mb-5 flex items-start justify-between gap-3">
+            <div className="sticky top-0 z-10 mb-5 flex items-start justify-between gap-3 bg-[#1e1713] pb-2">
               <div>
                 <p className="text-[10px] uppercase tracking-wide text-[#a39081]">
                   Topic
@@ -294,7 +329,8 @@ export default function StudentProgressPage() {
               </div>
               <button
                 onClick={() => setSelected(null)}
-                className="rounded-full border border-[#4a3b32] px-2.5 py-1 text-xs text-[#a39081] hover:text-[#f5efe6]"
+                aria-label="Close"
+                className="shrink-0 rounded-full border border-[#4a3b32] px-2.5 py-1 text-xs text-[#a39081] transition hover:border-[#c89b7b] hover:text-[#f5efe6]"
               >
                 ✕
               </button>
@@ -396,6 +432,7 @@ export default function StudentProgressPage() {
                     topic.
                   </p>
                 )}
+                <div ref={threadEndRef} />
               </div>
 
               <div className="mt-2 flex gap-2">

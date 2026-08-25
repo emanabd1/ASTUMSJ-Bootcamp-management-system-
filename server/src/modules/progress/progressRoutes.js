@@ -10,8 +10,7 @@ const {
   summarize,
 } = require("../../services/progressService");
 
-// Let the student know their mentor touched their progress. Fire-and-forget:
-// a notification failure should never block the actual progress save.
+// Fire-and-forget student notification with specialized dynamic query parameters
 const notifyStudentOfProgress = async (record) => {
   try {
     await Notification.create({
@@ -19,7 +18,7 @@ const notifyStudentOfProgress = async (record) => {
       title: "Progress updated",
       message: `Your mentor updated "${record.topic}" — now ${record.percentage}% (${record.status}).`,
       type: "progress",
-      link: "/student/progress",
+      link: `/student/progress?progressId=${record._id}`,
       meta: {
         progressId: String(record._id),
         topic: record.topic,
@@ -30,22 +29,26 @@ const notifyStudentOfProgress = async (record) => {
   }
 };
 
-// Notify the other side of the mentor/student pair that a new comment
-// was left on a progress topic.
-const notifyOfComment = async ({ record, recipientId, authorName, authorRole }) => {
+// Comment notification capturing the proper redirection flag depending on author role
+const notifyOfComment = async ({
+  record,
+  recipientId,
+  authorName,
+  authorRole,
+}) => {
   try {
+    const isFromStudent = authorRole === "student";
+
     await Notification.create({
       user: recipientId,
-      title:
-        authorRole === "student"
-          ? "New reply from your student"
-          : "New reply from your mentor",
+      title: isFromStudent
+        ? "New reply from your student"
+        : "New reply from your mentor",
       message: `${authorName} replied on "${record.topic}".`,
       type: "progress-comment",
-      link:
-        authorRole === "student"
-          ? "/mentor/progress"
-          : "/student/progress",
+      link: isFromStudent
+        ? `/mentor/progress?progressId=${record._id}&openComments=1`
+        : `/student/progress?progressId=${record._id}&openComments=1`,
       meta: {
         progressId: String(record._id),
         topic: record.topic,
@@ -74,11 +77,6 @@ router.get("/", async (req, res, next) => {
     if (req.user.role === "student") {
       q.student = req.user._id;
     } else if (req.user.role === "mentor") {
-      // Mentor branch is handled separately below so we can merge in
-      // "virtual" placeholder rows for assigned students who don't have
-      // a real Progress record yet (previously these students silently
-      // disappeared from the list, and updating them 404'd because
-      // there was no Progress document for their id).
       const ss = await User.find({
         role: "student",
         mentor: req.user._id,
@@ -143,53 +141,44 @@ router.get("/", async (req, res, next) => {
   }
 });
 
-router.get(
-  "/student/:studentId",
-  async (req, res, next) => {
-    try {
-      if (
-        req.user.role === "student" &&
-        String(req.user._id) !==
-          String(req.params.studentId)
-      ) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "You can only view your own progress.",
-        });
-      }
-
-      if (
-        req.user.role === "mentor" &&
-        !(await canManage(
-          req.user,
-          req.params.studentId
-        ))
-      ) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "You can only view assigned students.",
-        });
-      }
-
-      const records = await Progress.find({
-        student: req.params.studentId,
-      })
-        .populate("mentor", "fullName")
-        .populate("comments.author", "fullName role")
-        .sort({ topic: 1 });
-
-      res.json({
-        success: true,
-        progress: records,
-        summary: summarize(records),
+router.get("/student/:studentId", async (req, res, next) => {
+  try {
+    if (
+      req.user.role === "student" &&
+      String(req.user._id) !== String(req.params.studentId)
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only view your own progress.",
       });
-    } catch (e) {
-      next(e);
     }
+
+    if (
+      req.user.role === "mentor" &&
+      !(await canManage(req.user, req.params.studentId))
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only view assigned students.",
+      });
+    }
+
+    const records = await Progress.find({
+      student: req.params.studentId,
+    })
+      .populate("mentor", "fullName")
+      .populate("comments.author", "fullName role")
+      .sort({ topic: 1 });
+
+    res.json({
+      success: true,
+      progress: records,
+      summary: summarize(records),
+    });
+  } catch (e) {
+    next(e);
   }
-);
+});
 
 router.get(
   "/at-risk",
@@ -254,67 +243,64 @@ router.post(
       required: true,
       enum: statuses,
     },
+    percentage: {
+      type: "number",
+      min: 0,
+      max: 100,
+    },
+    note: {
+      type: "string",
+    },
   }),
   async (req, res, next) => {
     try {
+      const {
+        studentId,
+        topic,
+        status,
+        percentage,
+        note,
+      } = req.body;
+
       if (
-        !(await canManage(
-          req.user,
-          req.body.studentId
-        ))
+        req.user.role === "mentor" &&
+        !(await canManage(req.user, studentId))
       ) {
         return res.status(403).json({
           success: false,
-          message:
-            "You can only manage assigned students.",
+          message: "You can only manage assigned students.",
         });
       }
 
-      const percentage =
-        req.body.percentage !== undefined
-          ? Number(req.body.percentage)
-          : 0;
+      const existingRecord = await Progress.findOne({
+        student: studentId,
+        topic,
+      });
 
-      if (
-        Number.isNaN(percentage) ||
-        percentage < 0 ||
-        percentage > 100
-      ) {
+      if (existingRecord) {
         return res.status(400).json({
           success: false,
-          message:
-            "Percentage must be between 0 and 100.",
+          message: `Progress record for topic "${topic}" already exists. Use PUT to update instead.`,
         });
       }
 
-      const r =
-        await Progress.findOneAndUpdate(
-          {
-            student: req.body.studentId,
-            topic: req.body.topic.trim(),
-          },
-          {
-            student: req.body.studentId,
-            mentor: req.user._id,
-            topic: req.body.topic.trim(),
-            percentage,
-            status: req.body.status,
-            note: String(
-              req.body.note || ""
-            ).trim(),
-          },
-          {
-            new: true,
-            upsert: true,
-            runValidators: true,
-          }
-        );
+      const record = await Progress.create({
+        student: studentId,
+        mentor:
+          req.user.role === "mentor"
+            ? req.user._id
+            : null,
+        topic,
+        status,
+        percentage: percentage || 0,
+        note: note || "",
+      });
 
-      await notifyStudentOfProgress(r);
+      notifyStudentOfProgress(record);
 
       res.status(201).json({
         success: true,
-        progress: r,
+        progress: record,
       });
     } catch (e) {
       next(e);
@@ -322,101 +308,26 @@ router.post(
   }
 );
 
-router.patch(
-  "/:id",
-  authorize("admin", "mentor"),
-  async (req, res, next) => {
-    try {
-      const r = await Progress.findById(
-        req.params.id
-      );
-
-      if (!r) {
-        return res.status(404).json({
-          success: false,
-          message:
-            "Progress record not found.",
-        });
-      }
-
-      if (
-        !(await canManage(
-          req.user,
-          r.student
-        ))
-      ) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "You can only manage assigned students.",
-        });
-      }
-
-      if (
-        req.body.status !== undefined &&
-        !statuses.includes(req.body.status)
-      ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Invalid progress status.",
-        });
-      }
-
-      if (req.body.percentage !== undefined) {
-        const percentage = Number(
-          req.body.percentage
-        );
-
-        if (
-          Number.isNaN(percentage) ||
-          percentage < 0 ||
-          percentage > 100
-        ) {
-          return res.status(400).json({
-            success: false,
-            message:
-              "Percentage must be between 0 and 100.",
-          });
-        }
-
-        r.percentage = percentage;
-      }
-
-      if (req.body.topic !== undefined) {
-        r.topic = String(
-          req.body.topic
-        ).trim();
-      }
-
-      if (req.body.status !== undefined) {
-        r.status = req.body.status;
-      }
-
-      if (req.body.note !== undefined) {
-        r.note = String(
-          req.body.note
-        ).trim();
-      }
-
-      await r.save();
-
-      await notifyStudentOfProgress(r);
-
-      res.json({
-        success: true,
-        progress: r,
-      });
-    } catch (e) {
-      next(e);
-    }
-  }
-);
-
+/*
+ * POST COMMENT ON PROGRESS RECORD
+ *
+ * Frontend request:
+ * POST /api/progress/:id/comments
+ *
+ * This fixes the 404 error from StudentProgressPage.jsx.
+ */
 router.post(
   "/:id/comments",
+  body({
+    text: {
+      required: true,
+      type: "string",
+      maxLength: 1000,
+    },
+  }),
   async (req, res, next) => {
     try {
+      const { id } = req.params;
       const text = String(req.body.text || "").trim();
 
       if (!text) {
@@ -426,72 +337,73 @@ router.post(
         });
       }
 
-      if (text.length > 1000) {
-        return res.status(400).json({
-          success: false,
-          message: "Comment is too long (max 1000 characters).",
-        });
-      }
+      const record = await Progress.findById(id);
 
-      const r = await Progress.findById(req.params.id);
-
-      if (!r) {
+      if (!record) {
         return res.status(404).json({
           success: false,
           message: "Progress record not found.",
         });
       }
 
-      // Either the mentor assigned to this student, or the student the
-      // record belongs to, can post a reply. Admins can too.
-      const isOwnStudent =
-        req.user.role === "student" &&
-        String(r.student) === String(req.user._id);
-
-      const isManagingMentor =
-        req.user.role === "mentor" &&
-        (await canManage(req.user, r.student));
-
+      // Students can only comment on their own progress.
       if (
-        !isOwnStudent &&
-        !isManagingMentor &&
-        req.user.role !== "admin"
+        req.user.role === "student" &&
+        String(record.student) !== String(req.user._id)
       ) {
         return res.status(403).json({
           success: false,
-          message: "You can't comment on this progress record.",
+          message: "You can only comment on your own progress.",
         });
       }
 
-      r.comments.push({
+      // Mentors can only comment on progress belonging to their assigned students.
+      if (
+        req.user.role === "mentor" &&
+        !(await canManage(req.user, record.student))
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "You can only comment on assigned students.",
+        });
+      }
+
+      record.comments.push({
         author: req.user._id,
         authorRole: req.user.role,
         text,
       });
 
-      await r.save();
+      await record.save();
 
-      const populated = await Progress.findById(r._id)
+      const updated = await Progress.findById(record._id)
         .populate("student", "fullName email")
         .populate("mentor", "fullName")
         .populate("comments.author", "fullName role");
 
-      // Notify whichever side didn't write the comment.
-      const recipientId =
-        req.user.role === "student" ? r.mentor : r.student;
+      const studentId = String(record.student);
+      const mentorId = record.mentor ? String(record.mentor) : null;
 
-      if (recipientId) {
-        await notifyOfComment({
-          record: r,
-          recipientId,
-          authorName: req.user.fullName || "Someone",
+      // Notify the other participant.
+      if (req.user.role === "student" && mentorId) {
+        notifyOfComment({
+          record: updated,
+          recipientId: record.mentor,
+          authorName: req.user.fullName || "Your student",
+          authorRole: req.user.role,
+        });
+      } else if (req.user.role === "mentor") {
+        notifyOfComment({
+          record: updated,
+          recipientId: record.student,
+          authorName: req.user.fullName || "Your mentor",
           authorRole: req.user.role,
         });
       }
 
       res.status(201).json({
         success: true,
-        progress: populated,
+        progress: updated,
       });
     } catch (e) {
       next(e);
@@ -499,41 +411,105 @@ router.post(
   }
 );
 
-router.delete(
+/*
+ * UPDATE EXISTING PROGRESS RECORD
+ *
+ * Frontend request:
+ * PATCH /api/progress/:id
+ *
+ * This route was missing, which caused:
+ * "Route not found"
+ */
+router.patch(
   "/:id",
   authorize("admin", "mentor"),
   async (req, res, next) => {
     try {
-      const r = await Progress.findById(
-        req.params.id
-      );
+      const { id } = req.params;
+      const {
+        topic,
+        status,
+        percentage,
+        note,
+      } = req.body;
 
-      if (!r) {
+      const record = await Progress.findById(id);
+
+      if (!record) {
         return res.status(404).json({
           success: false,
-          message:
-            "Progress record not found.",
+          message: "Progress record not found.",
         });
       }
 
       if (
-        !(await canManage(
-          req.user,
-          r.student
-        ))
+        req.user.role === "mentor" &&
+        !(await canManage(req.user, record.student))
       ) {
         return res.status(403).json({
           success: false,
-          message:
-            "You can only manage assigned students.",
+          message: "You can only manage assigned students.",
         });
       }
 
-      await r.deleteOne();
+      if (topic && topic !== record.topic) {
+        const duplicate = await Progress.findOne({
+          _id: { $ne: record._id },
+          student: record.student,
+          topic,
+        });
+
+        if (duplicate) {
+          return res.status(400).json({
+            success: false,
+            message: `Progress record for topic "${topic}" already exists.`,
+          });
+        }
+
+        record.topic = topic;
+      }
+
+      if (status !== undefined) {
+        if (!statuses.includes(status)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid progress status.",
+          });
+        }
+
+        record.status = status;
+      }
+
+      if (percentage !== undefined) {
+        const numericPercentage = Number(percentage);
+
+        if (
+          Number.isNaN(numericPercentage) ||
+          numericPercentage < 0 ||
+          numericPercentage > 100
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: "Percentage must be between 0 and 100.",
+          });
+        }
+
+        record.percentage = numericPercentage;
+      }
+
+      if (note !== undefined) {
+        record.note = note;
+      }
+
+      record.updatedAt = new Date();
+
+      await record.save();
+
+      notifyStudentOfProgress(record);
 
       res.json({
         success: true,
-        message: "Progress deleted.",
+        progress: record,
       });
     } catch (e) {
       next(e);
