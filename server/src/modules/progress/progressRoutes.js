@@ -1,6 +1,7 @@
 const express = require("express");
 const Progress = require("./progressModel");
 const User = require("../users/userModel");
+const Notification = require("../notifications/notificationModel");
 const protect = require("../../middleware/authMiddleware");
 const authorize = require("../../middleware/roleMiddleware");
 const { body } = require("../../validation");
@@ -8,6 +9,52 @@ const {
   canManage,
   summarize,
 } = require("../../services/progressService");
+
+// Let the student know their mentor touched their progress. Fire-and-forget:
+// a notification failure should never block the actual progress save.
+const notifyStudentOfProgress = async (record) => {
+  try {
+    await Notification.create({
+      user: record.student,
+      title: "Progress updated",
+      message: `Your mentor updated "${record.topic}" — now ${record.percentage}% (${record.status}).`,
+      type: "progress",
+      link: "/student/progress",
+      meta: {
+        progressId: String(record._id),
+        topic: record.topic,
+      },
+    });
+  } catch (notifyErr) {
+    console.error("Failed to create progress notification:", notifyErr);
+  }
+};
+
+// Notify the other side of the mentor/student pair that a new comment
+// was left on a progress topic.
+const notifyOfComment = async ({ record, recipientId, authorName, authorRole }) => {
+  try {
+    await Notification.create({
+      user: recipientId,
+      title:
+        authorRole === "student"
+          ? "New reply from your student"
+          : "New reply from your mentor",
+      message: `${authorName} replied on "${record.topic}".`,
+      type: "progress-comment",
+      link:
+        authorRole === "student"
+          ? "/mentor/progress"
+          : "/student/progress",
+      meta: {
+        progressId: String(record._id),
+        topic: record.topic,
+      },
+    });
+  } catch (notifyErr) {
+    console.error("Failed to create comment notification:", notifyErr);
+  }
+};
 
 const router = express.Router();
 
@@ -46,6 +93,7 @@ router.get("/", async (req, res, next) => {
       })
         .populate("student", "fullName email")
         .populate("mentor", "fullName")
+        .populate("comments.author", "fullName role")
         .sort({ student: 1, topic: 1 });
 
       const studentsWithProgress = new Set(
@@ -82,6 +130,7 @@ router.get("/", async (req, res, next) => {
     const records = await Progress.find(q)
       .populate("student", "fullName email")
       .populate("mentor", "fullName")
+      .populate("comments.author", "fullName role")
       .sort({ student: 1, topic: 1 });
 
     res.json({
@@ -128,6 +177,7 @@ router.get(
         student: req.params.studentId,
       })
         .populate("mentor", "fullName")
+        .populate("comments.author", "fullName role")
         .sort({ topic: 1 });
 
       res.json({
@@ -260,6 +310,8 @@ router.post(
           }
         );
 
+      await notifyStudentOfProgress(r);
+
       res.status(201).json({
         success: true,
         progress: r,
@@ -349,9 +401,97 @@ router.patch(
 
       await r.save();
 
+      await notifyStudentOfProgress(r);
+
       res.json({
         success: true,
         progress: r,
+      });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+router.post(
+  "/:id/comments",
+  async (req, res, next) => {
+    try {
+      const text = String(req.body.text || "").trim();
+
+      if (!text) {
+        return res.status(400).json({
+          success: false,
+          message: "Comment text is required.",
+        });
+      }
+
+      if (text.length > 1000) {
+        return res.status(400).json({
+          success: false,
+          message: "Comment is too long (max 1000 characters).",
+        });
+      }
+
+      const r = await Progress.findById(req.params.id);
+
+      if (!r) {
+        return res.status(404).json({
+          success: false,
+          message: "Progress record not found.",
+        });
+      }
+
+      // Either the mentor assigned to this student, or the student the
+      // record belongs to, can post a reply. Admins can too.
+      const isOwnStudent =
+        req.user.role === "student" &&
+        String(r.student) === String(req.user._id);
+
+      const isManagingMentor =
+        req.user.role === "mentor" &&
+        (await canManage(req.user, r.student));
+
+      if (
+        !isOwnStudent &&
+        !isManagingMentor &&
+        req.user.role !== "admin"
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "You can't comment on this progress record.",
+        });
+      }
+
+      r.comments.push({
+        author: req.user._id,
+        authorRole: req.user.role,
+        text,
+      });
+
+      await r.save();
+
+      const populated = await Progress.findById(r._id)
+        .populate("student", "fullName email")
+        .populate("mentor", "fullName")
+        .populate("comments.author", "fullName role");
+
+      // Notify whichever side didn't write the comment.
+      const recipientId =
+        req.user.role === "student" ? r.mentor : r.student;
+
+      if (recipientId) {
+        await notifyOfComment({
+          record: r,
+          recipientId,
+          authorName: req.user.fullName || "Someone",
+          authorRole: req.user.role,
+        });
+      }
+
+      res.status(201).json({
+        success: true,
+        progress: populated,
       });
     } catch (e) {
       next(e);

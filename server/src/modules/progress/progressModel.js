@@ -43,6 +43,34 @@ const progressSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+
+    // Lightweight two-way thread on top of the mentor's note — lets the
+    // student ask a question or the mentor follow up without needing a
+    // full chat system.
+    comments: [
+      {
+        author: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        authorRole: {
+          type: String,
+          enum: ["admin", "mentor", "student"],
+          required: true,
+        },
+        text: {
+          type: String,
+          required: true,
+          trim: true,
+          maxlength: 1000,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
   },
   {
     timestamps: true,
