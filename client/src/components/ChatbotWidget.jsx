@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
+import axiosInstance from "../api/axiosInstance";
 
 const ROLE_LABELS = {
   admin: "Admin guide",
@@ -84,15 +85,102 @@ function findAnswer(question, role) {
   return match?.answer || `I can answer only ${ROLE_LABELS[role].toLowerCase()} questions. Try asking about your authorized ${role} tools and workflow.`;
 }
 
+function dateText(value) {
+  return value ? new Date(value).toLocaleDateString() : "No date";
+}
+
+function answerFromData(question, role, roleData) {
+  const normalizedQuestion = question.toLowerCase().trim();
+  if (normalizedQuestion.includes("password")) {
+    return "I cannot view, reveal, or change passwords. Use Settings or Forgot Password to manage your password securely.";
+  }
+
+  if (role === "student") {
+    const dashboard = roleData?.dashboard;
+    const assignments = dashboard?.assignments || [];
+    const deadlines = assignments.filter((item) => !item.submission || item.submission.status === "redo").sort((a, b) => new Date(a.assignment.deadline) - new Date(b.assignment.deadline));
+    const graded = (dashboard?.assignments || []).filter((item) => item.submission?.status === "graded");
+    if (normalizedQuestion.includes("grade") || normalizedQuestion.includes("mark") || normalizedQuestion.includes("score")) {
+      if (!graded.length) return "You do not have graded submissions yet. Check Assignments for work awaiting review.";
+      return `Your average grade is ${dashboard.averageGrade || 0}%. ${graded.map((item) => `${item.assignment.title}: ${item.submission.score}/${item.assignment.maximumScore}`).join("; ")}.`;
+    }
+    if (normalizedQuestion.includes("deadline") || normalizedQuestion.includes("due") || normalizedQuestion.includes("task")) {
+      return deadlines.length ? `Your upcoming tasks are: ${deadlines.slice(0, 6).map((item) => `${item.assignment.title} due ${dateText(item.assignment.deadline)}`).join("; ")}.` : "You have no outstanding task deadlines.";
+    }
+    if (normalizedQuestion.includes("progress")) return `Your tracked progress is ${dashboard.completedTopics || 0} of ${dashboard.totalTopics || 0} topics completed (${dashboard.totalTopics ? Math.round((dashboard.completedTopics / dashboard.totalTopics) * 100) : 0}%).`;
+    if (normalizedQuestion.includes("announcement") || normalizedQuestion.includes("notice")) return dashboard.announcements?.length ? `Latest announcements: ${dashboard.announcements.slice(0, 5).map((item) => `${item.title} (${dateText(item.publishDate)})`).join("; ")}.` : "There are no current announcements for you.";
+  }
+
+  if (role === "mentor") {
+    const students = roleData?.dashboard?.assignedStudents || [];
+    const student = students.find((item) => normalizedQuestion.includes(item.fullName.toLowerCase()));
+    if (student && (normalizedQuestion.includes("progress") || normalizedQuestion.includes("attendance") || normalizedQuestion.includes("risk") || normalizedQuestion.includes("student"))) {
+      return `${student.fullName}: attendance ${student.attendancePercentage}%, progress ${student.progressCompleted}/${student.progressTotal} topics completed${student.atRisk ? ", currently at risk" : ", currently on track"}.`;
+    }
+    if (normalizedQuestion.includes("at risk") || normalizedQuestion.includes("risk")) return students.filter((item) => item.atRisk).length ? `Learners needing attention: ${students.filter((item) => item.atRisk).map((item) => item.fullName).join(", ")}.` : "No assigned learners are currently marked at risk.";
+    if (normalizedQuestion.includes("daily plan") || normalizedQuestion.includes("today") || normalizedQuestion.includes("plan")) return `Daily plan: review ${roleData.dashboard.pendingGrading?.length || 0} pending submissions, check attendance for ${students.length} assigned learners, follow up with learners needing support, and review your upcoming sessions.`;
+    if (normalizedQuestion.includes("announcement")) return roleData.dashboard.announcements?.length ? `Your latest announcements are: ${roleData.dashboard.announcements.map((item) => item.title).join(", ")}.` : "You have not posted any announcements yet.";
+  }
+
+  if (role === "admin") {
+    const users = roleData?.users || [];
+    const batches = roleData?.batches || [];
+    const student = users.find((item) => item.role === "student" && normalizedQuestion.includes(item.fullName.toLowerCase()));
+    if (student) {
+      const progress = (roleData.progress || []).filter((item) => String(item.student?._id || item.student) === String(student._id));
+      const attendance = (roleData.attendance || []).filter((item) => String(item.student?._id || item.student) === String(student._id));
+      const completed = progress.filter((item) => item.status === "Completed").length;
+      const present = attendance.filter((item) => item.status === "Present").length;
+      return `${student.fullName} is an active ${student.role}. Progress: ${completed}/${progress.length} topics completed. Attendance: ${attendance.length ? Math.round((present / attendance.length) * 100) : 0}%. Assigned mentor: ${student.mentor?.fullName || "none"}.`;
+    }
+    if (normalizedQuestion.includes("batch") || normalizedQuestion.includes("cohort")) return batches.length ? `Batches: ${batches.map((item) => `${item.name} (${item.status}, ${item.students?.length || 0} students, ${item.mentors?.length || 0} mentors)`).join("; ")}.` : "No batches are currently available.";
+    if (normalizedQuestion.includes("mentor")) return `There are ${users.filter((item) => item.role === "mentor").length} mentors and ${users.filter((item) => item.role === "student").length} students in the user records.`;
+    if (normalizedQuestion.includes("at risk") || normalizedQuestion.includes("risk")) return roleData.atRisk?.length ? `Students currently needing attention: ${roleData.atRisk.join(", ")}.` : "No at-risk students were identified from the current progress and attendance records.";
+    if (normalizedQuestion.includes("achievement")) return "Student achievement status is calculated from submissions, completed topics, coding activity, and attendance. Open a student report to inspect their current progress.";
+  }
+
+  return findAnswer(question, role);
+}
+
 export default function ChatbotWidget() {
   const { user } = useAuth();
   const role = user?.role?.toLowerCase() || "guest";
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  const [roleData, setRoleData] = useState(null);
   const [messages, setMessages] = useState([
     { id: 1, from: "bot", text: `Hi! I am your ${ROLE_LABELS[role].toLowerCase()}. Ask me about the bootcamp or choose a question below.` },
   ]);
   const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    if (role === "guest") {
+      return;
+    }
+    const requests = [axiosInstance.get("/sessions"), axiosInstance.get("/assignments"), axiosInstance.get("/announcements")];
+    if (role === "student") requests.push(axiosInstance.get("/students/dashboard"));
+    if (role === "mentor") requests.push(axiosInstance.get("/mentors/dashboard"));
+    if (role === "admin") requests.push(axiosInstance.get("/users"), axiosInstance.get("/batches"), axiosInstance.get("/progress"), axiosInstance.get("/attendance"));
+    Promise.all(requests).then((responses) => {
+      const nextData = { sessions: responses[0].data.sessions || [], assignments: responses[1].data.assignments || [], announcements: responses[2].data.announcements || [] };
+      if (role === "student") nextData.dashboard = responses[3].data.dashboard;
+      if (role === "mentor") nextData.dashboard = responses[3].data.dashboard;
+      if (role === "admin") {
+        nextData.users = responses[3].data.users || [];
+        nextData.batches = responses[4].data.batches || [];
+        nextData.progress = responses[5].data.progress || [];
+        nextData.attendance = responses[6].data.attendance || [];
+        const progressByStudent = new Map();
+        nextData.progress.forEach((item) => { const id = String(item.student?._id || item.student); progressByStudent.set(id, [...(progressByStudent.get(id) || []), item]); });
+        const attendanceByStudent = new Map();
+        nextData.attendance.forEach((item) => { const id = String(item.student?._id || item.student); attendanceByStudent.set(id, [...(attendanceByStudent.get(id) || []), item]); });
+        nextData.atRisk = nextData.users.filter((item) => item.role === "student").filter((item) => { const progress = progressByStudent.get(String(item._id)) || []; const attendance = attendanceByStudent.get(String(item._id)) || []; const completed = progress.filter((entry) => entry.status === "Completed").length; const present = attendance.filter((entry) => entry.status === "Present").length; return (progress.length > 0 && completed / progress.length < 0.5) || (attendance.length > 0 && present / attendance.length < 0.75); }).map((item) => item.fullName);
+      }
+      setRoleData(nextData);
+    }).catch(() => setRoleData(null));
+  }, [role]);
+
+  const dataLoading = role !== "guest" && !roleData;
 
   useEffect(() => {
     if (open) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -104,7 +192,7 @@ export default function ChatbotWidget() {
     setMessages((current) => [
       ...current,
       { id: `${Date.now()}-question`, from: "user", text: trimmedQuestion },
-      { id: `${Date.now()}-answer`, from: "bot", text: findAnswer(trimmedQuestion, role) },
+      { id: `${Date.now()}-answer`, from: "bot", text: answerFromData(trimmedQuestion, role, roleData) },
     ]);
     setInput("");
   };
@@ -145,7 +233,7 @@ export default function ChatbotWidget() {
             </div>
             <form onSubmit={handleSubmit} className="flex gap-2">
               <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask a question..." aria-label="Ask the chatbot a question" className="min-w-0 flex-1 rounded-lg border border-[#4a3b32] bg-[#16110e] px-3 py-2 text-sm text-[#f5efe6] outline-none placeholder:text-[#806b5d] focus:border-[#c89b7b]" />
-              <button type="submit" className="rounded-lg bg-[#c89b7b] px-3 py-2 text-sm font-bold text-[#1e1713] hover:brightness-110" aria-label="Send question">Send</button>
+              <button type="submit" disabled={dataLoading} className="rounded-lg bg-[#c89b7b] px-3 py-2 text-sm font-bold text-[#1e1713] hover:brightness-110 disabled:cursor-wait disabled:opacity-60" aria-label="Send question">{dataLoading ? "..." : "Send"}</button>
             </form>
           </div>
         </section>
