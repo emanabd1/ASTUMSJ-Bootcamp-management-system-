@@ -9,10 +9,6 @@ function Metric({ label, value, detail }) {
   return <div className={card}><p className="text-xs uppercase tracking-widest text-[#a39081]">{label}</p><p className="mt-3 text-3xl font-extrabold text-[#f5efe6]">{value}</p><p className="mt-1 text-xs text-[#c89b7b]">{detail}</p></div>;
 }
 
-function formatDate(value) {
-  return new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-}
-
 function Badge({ icon, title, description, earned }) {
   return <article className={`${card} ${earned ? "border-[#c89b7b]" : "opacity-55"}`}><div className="flex items-start gap-3"><span className="text-3xl" aria-hidden="true">{icon}</span><div><h3 className="font-bold">{title}</h3><p className="mt-1 text-xs leading-relaxed text-[#a39081]">{description}</p><p className="mt-3 text-[10px] uppercase tracking-widest text-[#c89b7b]">{earned ? "Earned" : "In progress"}</p></div></div></article>;
 }
@@ -24,19 +20,27 @@ export default function InsightsPage() {
   const [data, setData] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
   const [sessions, setSessions] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
+  const [achievements, setAchievements] = useState([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const requests = [axiosInstance.get("/sessions"), axiosInstance.get("/coding/leaderboard")];
+    const requests = [axiosInstance.get("/sessions"), axiosInstance.get("/coding/leaderboard"), axiosInstance.get("/assignments"), axiosInstance.get("/announcements")];
     if (role === "admin") requests.push(axiosInstance.get("/users/stats"));
     if (role === "mentor") requests.push(axiosInstance.get("/mentors/dashboard"));
-    if (role === "student") requests.push(axiosInstance.get("/students/dashboard"), axiosInstance.get("/coding/stats"));
+    if (role === "student") requests.push(axiosInstance.get("/students/dashboard"), axiosInstance.get("/coding/stats"), axiosInstance.get("/students/achievements"));
     Promise.all(requests).then((responses) => {
       setSessions(responses[0].data.sessions || []);
       setLeaderboard(responses[1].data.leaderboard || []);
-      if (role === "admin") setData({ stats: responses[2].data.stats || emptyStats });
-      if (role === "mentor") setData({ dashboard: responses[2].data.dashboard || {} });
-      if (role === "student") setData({ dashboard: responses[2].data.dashboard || {}, coding: responses[3].data.stats?.[user._id] || {} });
+      setAssignments(responses[2].data.assignments || []);
+      setAnnouncements(responses[3].data.announcements || []);
+      if (role === "admin") setData({ stats: responses[4].data.stats || emptyStats });
+      if (role === "mentor") setData({ dashboard: responses[4].data.dashboard || {} });
+      if (role === "student") {
+        setData({ dashboard: responses[4].data.dashboard || {}, coding: responses[5].data.stats?.[user._id] || {} });
+        setAchievements(responses[6].data.achievements || []);
+      }
     }).catch((requestError) => setError(requestError.response?.data?.message || "Could not load insights."));
   }, [role, user?._id]);
 
@@ -46,13 +50,15 @@ export default function InsightsPage() {
   const studentActivities = Object.values(studentCoding).reduce((total, item) => total + (item?.count || 0), 0);
   const mentorStudents = data?.dashboard?.assignedStudents || [];
   const mentorAverageAttendance = mentorStudents.length ? Math.round(mentorStudents.reduce((total, item) => total + item.attendancePercentage, 0) / mentorStudents.length) : 0;
-  const upcomingSessions = useMemo(() => sessions.filter((session) => new Date(session.startsAt) >= new Date()).sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt)), [sessions]);
-  const badges = [
-    { icon: "🎯", title: "First submission", description: "Submit your first assignment solution.", earned: Boolean(studentDashboard?.submissions?.length) },
-    { icon: "📚", title: "Topic builder", description: "Complete at least half of your tracked topics.", earned: studentProgress >= 50 },
-    { icon: "🔥", title: "Coding spark", description: "Record five coding activities.", earned: studentActivities >= 5 },
-    { icon: "⏱", title: "Reliable learner", description: "Reach 80% attendance across sessions.", earned: (studentDashboard?.attendancePercentage || 0) >= 80 },
-  ];
+  const calendarItems = useMemo(() => [
+    ...sessions.map((item) => ({ date: item.startsAt, title: item.title, type: "Session" })),
+    ...assignments.map((item) => ({ date: item.deadline, title: item.title, type: "Task" })),
+    ...announcements.map((item) => ({ date: item.publishDate, title: item.title, type: "Announcement" })),
+  ].filter((item) => item.date && new Date(item.date) >= new Date(new Date().setHours(0, 0, 0, 0))), [sessions, assignments, announcements]);
+  const calendarStart = new Date();
+  calendarStart.setDate(1);
+  const calendarDays = Array.from({ length: new Date(calendarStart.getFullYear(), calendarStart.getMonth() + 1, 0).getDate() }, (_, index) => index + 1);
+  const leadingDays = Array.from({ length: calendarStart.getDay() }, () => null);
 
   if (error) return <p className="rounded-xl border border-rose-900 bg-[#1e1713] p-4 text-rose-300">{error}</p>;
   if (!data) return <p className="text-[#a39081]">Loading insights...</p>;
@@ -69,8 +75,8 @@ export default function InsightsPage() {
 
     {tab === "leaderboard" && <section className="space-y-4"><div><h2 className="text-xl font-bold">Coding leaderboard</h2><p className="mt-1 text-sm text-[#a39081]">Ranked by recorded coding activities. Only display-safe names and totals are shown.</p></div>{leaderboard.map((item, index) => <div key={item._id} className={`${card} flex items-center gap-4`}><span className="w-8 text-center text-xl font-extrabold text-[#c89b7b]">{index + 1}</span><div className="flex-1"><p className="font-bold">{item.fullName}</p><p className="text-xs text-[#a39081]">{item.platforms} platforms active</p></div><p className="text-2xl font-extrabold text-[#d8b493]">{item.activities}</p></div>)}{!leaderboard.length && <p className={card}>No coding activity has been recorded yet.</p>}</section>}
 
-    {tab === "calendar" && <section className="space-y-4"><div><h2 className="text-xl font-bold">Learning calendar</h2><p className="mt-1 text-sm text-[#a39081]">Upcoming sessions available to your role and batch.</p></div><div className="grid gap-4 md:grid-cols-2">{upcomingSessions.map((session) => <article key={session._id} className={card}><p className="text-xs uppercase tracking-widest text-[#c89b7b]">{formatDate(session.startsAt)}</p><h3 className="mt-2 font-bold">{session.title}</h3><p className="mt-2 text-sm text-[#a39081]">{new Date(session.startsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} · {session.batch?.name || "Bootcamp session"}</p></article>)}</div>{!upcomingSessions.length && <p className={card}>No upcoming sessions are scheduled.</p>}</section>}
+    {tab === "calendar" && <section className="space-y-4"><div><h2 className="text-xl font-bold">Learning calendar</h2><p className="mt-1 text-sm text-[#a39081]">Sessions, task deadlines, and announcements for {calendarStart.toLocaleDateString(undefined, { month: "long", year: "numeric" })}.</p></div><div className={`${card} overflow-x-auto`}><div className="grid min-w-[560px] grid-cols-7 gap-2 text-center text-xs text-[#a39081]">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <p key={day} className="pb-2 font-bold">{day}</p>)}{[...leadingDays, ...calendarDays].map((day, index) => { const date = day ? new Date(calendarStart.getFullYear(), calendarStart.getMonth(), day) : null; const items = date ? calendarItems.filter((item) => new Date(item.date).toDateString() === date.toDateString()) : []; return <div key={`${day || "empty"}-${index}`} className={`min-h-24 rounded-lg border p-2 text-left ${day ? "border-[#4a3b32] bg-[#16110e]" : "border-transparent"}`}>{day && <><p className="font-bold text-[#d8b493]">{day}</p><div className="mt-1 space-y-1">{items.map((item) => <p key={`${item.type}-${item.title}`} className="truncate rounded bg-[#2d231d] px-1 py-0.5 text-[10px] text-[#c89b7b]" title={`${item.type}: ${item.title}`}><b>{item.type}:</b> {item.title}</p>)}</div></>}</div>; })}</div></div></section>}
 
-    {tab === "badges" && role === "student" && <section className="space-y-4"><div><h2 className="text-xl font-bold">Achievement badges</h2><p className="mt-1 text-sm text-[#a39081]">Small milestones that reflect your learning habits.</p></div><div className="grid gap-4 md:grid-cols-2">{badges.map((badge) => <Badge key={badge.title} {...badge} />)}</div></section>}
+    {tab === "badges" && role === "student" && <section className="space-y-4"><div><h2 className="text-xl font-bold">Achievement badges</h2><p className="mt-1 text-sm text-[#a39081]">Achievements calculated from your recorded bootcamp activity.</p></div><div className="grid gap-4 md:grid-cols-2">{achievements.map((badge) => <Badge key={badge.title} {...badge} />)}</div></section>}
   </div>;
 }

@@ -5,6 +5,7 @@ const Progress = require('../progress/progressModel');
 const Assignment = require('../assignments/assignmentModel');
 const Submission = require('../assignments/assignmentSubmissionModel');
 const Announcement = require('../announcements/announcementModel');
+const { CodingActivity } = require('../coding/codingModel');
 const protect = require('../../middleware/authMiddleware');
 const authorize = require('../../middleware/roleMiddleware');
 
@@ -74,6 +75,30 @@ router.get('/dashboard', async (req, res, next) => {
           .slice(0, 5)
       }
     });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get('/achievements', async (req, res, next) => {
+  try {
+    const [attendance, progress, submissions, codingActivities] = await Promise.all([
+      Attendance.find({ student: req.user._id, session: { $ne: null } }).select('status'),
+      Progress.find({ student: req.user._id }).select('status'),
+      Submission.find({ student: req.user._id }).select('_id'),
+      CodingActivity.find({ student: req.user._id }).select('_id'),
+    ]);
+    const completedTopics = progress.filter((item) => item.status === 'Completed').length;
+    const attendancePercentage = attendance.length
+      ? Math.round((attendance.filter((item) => item.status === 'Present').length / attendance.length) * 100)
+      : 0;
+    const achievements = [
+      { icon: '🎯', title: 'First submission', description: 'Submit your first assignment solution.', earned: submissions.length > 0 },
+      { icon: '📚', title: 'Topic builder', description: 'Complete at least half of your tracked topics.', earned: progress.length > 0 && completedTopics / progress.length >= 0.5 },
+      { icon: '🔥', title: 'Coding spark', description: 'Record five coding activities.', earned: codingActivities.length >= 5 },
+      { icon: '⏱', title: 'Reliable learner', description: 'Reach 80% attendance across sessions.', earned: attendance.length > 0 && attendancePercentage >= 80 },
+    ];
+    res.json({ success: true, achievements });
   } catch (e) {
     next(e);
   }

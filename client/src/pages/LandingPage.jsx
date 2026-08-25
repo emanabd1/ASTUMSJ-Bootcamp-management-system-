@@ -54,6 +54,7 @@ const LandingPage = () => {
           <a href="#tracks" className="hover:text-[#d8b493]">Tracks</a>
           <a href="#mentors" className="hover:text-[#d8b493]">Mentors</a>
           <a href="#faq" className="hover:text-[#d8b493]">FAQ</a>
+          <Link to="/alumni" className="hover:text-[#d8b493]">Alumni</Link>
         </div>
         <div className="flex gap-4">
           <Link to="/login" className="px-4 py-2 hover:text-[#d8b493]">Login</Link>
