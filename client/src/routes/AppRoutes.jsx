@@ -29,6 +29,7 @@ import MentorProgress from "../pages/MentorProgress";
 
 import StudentDashboard from "../pages/StudentDashboard";
 import StudentAttendancePage from "../pages/StudentAttendancePage";
+import StudentProgressPage from "../pages/StudentProgressPage";
 import StudentProfilePage from "../pages/StudentProfilePage";
 import ResourcesPage from "../pages/ResourcesPage";
 import SessionsPage from "../pages/SessionsPage";
@@ -208,7 +209,12 @@ export default function AppRoutes() {
             element={<AnnouncementsPage />}
           />
         </Route>
-      </Route>
+
+         <Route
+            path="/student/progress"
+            element={<StudentProgressPage />}
+          />
+        </Route>
 
       <Route
         path="*"

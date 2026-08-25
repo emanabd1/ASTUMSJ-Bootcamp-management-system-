@@ -72,6 +72,8 @@ export default function MentorProgress() {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [postingComment, setPostingComment] = useState(false);
 
   const [formData, setFormData] = useState({
     studentId: "",
@@ -165,6 +167,7 @@ export default function MentorProgress() {
           ),
         note: item.note || item.notes || "",
         lastUpdated: item.updatedAt || item.lastUpdated || null,
+        comments: item.comments || [],
       };
     });
   }, [progressData]);
@@ -222,6 +225,7 @@ export default function MentorProgress() {
 
   const openEditModal = (student) => {
     setSelectedStudent(student);
+    setCommentText("");
 
     setFormData({
       studentId: student.studentId,
@@ -238,6 +242,7 @@ export default function MentorProgress() {
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedStudent(null);
+    setCommentText("");
   };
 
   // Percentage no longer changes the status automatically.
@@ -340,6 +345,47 @@ export default function MentorProgress() {
         err.response?.data?.message ||
           "Failed to delete progress."
       );
+    }
+  };
+
+  const handlePostComment = async () => {
+    const text = commentText.trim();
+
+    if (!text || !selectedStudent?.id) return;
+
+    try {
+      setPostingComment(true);
+      setError("");
+
+      const token = getToken();
+
+      const res = await axios.post(
+        `${API_URL}/progress/${selectedStudent.id}/comments`,
+        { text },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const updated = res.data?.progress;
+
+      setCommentText("");
+
+      // Keep the modal open and just refresh this record's thread, instead
+      // of closing on every reply.
+      if (updated) {
+        setSelectedStudent((prev) => ({
+          ...prev,
+          comments: updated.comments || [],
+        }));
+      }
+
+      await fetchProgress();
+    } catch (err) {
+      console.error("Failed to post comment:", err);
+      setError(
+        err.response?.data?.message || "Failed to post your reply."
+      );
+    } finally {
+      setPostingComment(false);
     }
   };
 
@@ -738,6 +784,77 @@ export default function MentorProgress() {
                   placeholder="Optional mentor remarks..."
                 />
               </div>
+
+              {selectedStudent?.id ? (
+                <div>
+                  <label className="mb-1 block text-xs text-[#a98a72]">
+                    Discussion with {formData.name}
+                  </label>
+
+                  <div className="max-h-40 space-y-2 overflow-y-auto rounded-lg border border-[#4a3528] bg-[#120d0a] p-3">
+                    {selectedStudent.comments?.length ? (
+                      selectedStudent.comments.map((c, idx) => (
+                        <div
+                          key={c._id || idx}
+                          className={`rounded-lg px-3 py-2 text-xs ${
+                            c.authorRole === "student"
+                              ? "bg-[#241a15] text-[#e5dccf]"
+                              : "bg-[#c99d78]/10 text-[#e9c9ab]"
+                          }`}
+                        >
+                          <div className="mb-0.5 flex items-center justify-between gap-2">
+                            <span className="font-bold">
+                              {c.author?.fullName ||
+                                (c.authorRole === "student"
+                                  ? "Student"
+                                  : "Mentor")}
+                            </span>
+                            <span className="text-[10px] text-[#7c6d5f]">
+                              {c.createdAt
+                                ? new Date(c.createdAt).toLocaleDateString()
+                                : ""}
+                            </span>
+                          </div>
+                          <p>{c.text}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-[#7c6d5f]">
+                        No replies yet — say hi.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      type="text"
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      placeholder="Write a reply..."
+                      className="flex-1 rounded-lg border border-[#4a3528] bg-[#120d0a] px-3 py-2 text-sm text-white outline-none"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handlePostComment();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handlePostComment}
+                      disabled={postingComment || !commentText.trim()}
+                      className="rounded-lg bg-[#c99d78] px-4 py-2 text-xs font-bold text-[#120d0a] hover:bg-[#d8ae8b] disabled:opacity-50"
+                    >
+                      {postingComment ? "..." : "Send"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-[#7c6d5f]">
+                  Save this student's progress first to start a discussion
+                  thread with them.
+                </p>
+              )}
 
               <div className="mt-6 flex justify-end gap-3">
                 <button
