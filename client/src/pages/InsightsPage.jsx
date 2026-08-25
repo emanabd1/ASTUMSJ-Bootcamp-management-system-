@@ -25,6 +25,7 @@ export default function InsightsPage() {
   const [announcements, setAnnouncements] = useState([]);
   const [achievements, setAchievements] = useState([]);
   const [error, setError] = useState("");
+  const exportPdf = async () => { const response = await axiosInstance.get("/reports/pdf", { responseType: "blob" }); const url = URL.createObjectURL(response.data); const link = document.createElement("a"); link.href = url; link.download = `astumsj-${role}-report.pdf`; link.click(); URL.revokeObjectURL(url); };
 
   useEffect(() => {
     const requests = [axiosInstance.get("/sessions"), axiosInstance.get("/coding/leaderboard"), axiosInstance.get("/assignments"), axiosInstance.get("/announcements")];
@@ -64,7 +65,7 @@ export default function InsightsPage() {
   if (!data) return <p className="text-[#a39081]">Loading insights...</p>;
 
   return <div className="space-y-7 print:bg-white print:text-black">
-    <header className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs uppercase tracking-widest text-[#c89b7b]">Performance center</p><h1 className="mt-2 text-3xl font-extrabold">Reports & analytics</h1><p className="mt-1 text-sm text-[#a39081]">Your {role} view of progress, activity, achievements, and scheduled learning.</p></div><button type="button" onClick={() => window.print()} className="rounded-lg bg-[#c89b7b] px-4 py-2 text-sm font-bold text-[#1e1713] print:hidden">Export PDF</button></header>
+    <header className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs uppercase tracking-widest text-[#c89b7b]">Performance center</p><h1 className="mt-2 text-3xl font-extrabold">Reports & analytics</h1><p className="mt-1 text-sm text-[#a39081]">Your {role} view of progress, activity, achievements, and scheduled learning.</p></div><button type="button" onClick={exportPdf} className="rounded-lg bg-[#c89b7b] px-4 py-2 text-sm font-bold text-[#1e1713] print:hidden">Export PDF</button></header>
     <nav className="flex flex-wrap gap-2 border-b border-[#4a3b32] pb-3 print:hidden">{["overview", "leaderboard", "calendar", ...(role === "student" ? ["badges"] : [])].map((item) => <button key={item} type="button" onClick={() => setTab(item)} className={`rounded-lg px-4 py-2 text-sm capitalize ${tab === item ? "bg-[#c89b7b] font-bold text-[#1e1713]" : "text-[#a39081] hover:bg-[#2d231d]"}`}>{item}</button>)}</nav>
 
     {tab === "overview" && <div className="space-y-6">

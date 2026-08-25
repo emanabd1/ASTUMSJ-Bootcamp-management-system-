@@ -6,6 +6,7 @@ const Assignment = require('../assignments/assignmentModel');
 const Submission = require('../assignments/assignmentSubmissionModel');
 const Announcement = require('../announcements/announcementModel');
 const { CodingActivity } = require('../coding/codingModel');
+const Achievement = require('../achievements/achievementModel');
 const protect = require('../../middleware/authMiddleware');
 const authorize = require('../../middleware/roleMiddleware');
 
@@ -71,7 +72,7 @@ router.get('/dashboard', async (req, res, next) => {
         averageGrade,
         announcements,
         upcomingDeadlines: assignmentStatus
-          .filter((x) => !x.submission || x.submission.status === 'redo')
+          .filter((x) => !x.submission || x.submission.status === 'resubmission_requested')
           .slice(0, 5)
       }
     });
@@ -92,12 +93,17 @@ router.get('/achievements', async (req, res, next) => {
     const attendancePercentage = attendance.length
       ? Math.round((attendance.filter((item) => item.status === 'Present').length / attendance.length) * 100)
       : 0;
-    const achievements = [
-      { icon: '🎯', title: 'First submission', description: 'Submit your first assignment solution.', earned: submissions.length > 0 },
-      { icon: '📚', title: 'Topic builder', description: 'Complete at least half of your tracked topics.', earned: progress.length > 0 && completedTopics / progress.length >= 0.5 },
-      { icon: '🔥', title: 'Coding spark', description: 'Record five coding activities.', earned: codingActivities.length >= 5 },
-      { icon: '⏱', title: 'Reliable learner', description: 'Reach 80% attendance across sessions.', earned: attendance.length > 0 && attendancePercentage >= 80 },
-    ];
+    let definitions = await Achievement.find({ active: true }).sort({ createdAt: 1 });
+    if (!definitions.length) {
+      definitions = await Achievement.insertMany([
+        { title: 'First submission', description: 'Submit your first assignment solution.', icon: '🎯', metric: 'submissions', threshold: 1, createdBy: req.user._id },
+        { title: 'Topic builder', description: 'Complete at least half of your tracked topics.', icon: '📚', metric: 'completed_topics_ratio', threshold: 0.5, createdBy: req.user._id },
+        { title: 'Coding spark', description: 'Record five coding activities.', icon: '🔥', metric: 'coding_activities', threshold: 5, createdBy: req.user._id },
+        { title: 'Reliable learner', description: 'Reach 80% attendance across sessions.', icon: '⏱', metric: 'attendance_percentage', threshold: 80, createdBy: req.user._id },
+      ]);
+    }
+    const values = { submissions: submissions.length, completed_topics_ratio: progress.length ? completedTopics / progress.length : 0, coding_activities: codingActivities.length, attendance_percentage: attendancePercentage };
+    const achievements = definitions.map(({ icon, title, description, metric, threshold }) => ({ icon, title, description, earned: values[metric] >= threshold }));
     res.json({ success: true, achievements });
   } catch (e) {
     next(e);

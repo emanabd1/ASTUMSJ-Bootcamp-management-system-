@@ -34,6 +34,7 @@ import SessionsPage from "../pages/SessionsPage";
 import SessionDetailPage from "../pages/SessionDetailPage";
 import InsightsPage from "../pages/InsightsPage";
 import AlumniPage from "../pages/AlumniPage";
+import AdminCommunityPage from "../pages/AdminCommunityPage";
 
 export default function AppRoutes() {
   return (
@@ -136,6 +137,11 @@ export default function AppRoutes() {
           <Route
             path="/admin/coding"
             element={<CodingPage />}
+          />
+
+          <Route
+            path="/admin/community"
+            element={<AdminCommunityPage />}
           />
         </Route>
 

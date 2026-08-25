@@ -98,7 +98,7 @@ function answerFromData(question, role, roleData) {
   if (role === "student") {
     const dashboard = roleData?.dashboard;
     const assignments = dashboard?.assignments || [];
-    const deadlines = assignments.filter((item) => !item.submission || item.submission.status === "redo").sort((a, b) => new Date(a.assignment.deadline) - new Date(b.assignment.deadline));
+    const deadlines = assignments.filter((item) => !item.submission || item.submission.status === "resubmission_requested").sort((a, b) => new Date(a.assignment.deadline) - new Date(b.assignment.deadline));
     const graded = (dashboard?.assignments || []).filter((item) => item.submission?.status === "graded");
     if (normalizedQuestion.includes("grade") || normalizedQuestion.includes("mark") || normalizedQuestion.includes("score")) {
       if (!graded.length) return "You do not have graded submissions yet. Check Assignments for work awaiting review.";
