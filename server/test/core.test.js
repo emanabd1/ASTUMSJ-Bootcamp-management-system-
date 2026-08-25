@@ -10,6 +10,7 @@ const {
   canMentorViewAssignment,
   canGradeSubmission,
   canViewAnnouncement,
+  canAccessSession,
 } = require("../src/services/accessPolicy");
 
 function responseCapture() {
@@ -91,4 +92,20 @@ test("announcement visibility respects role audience", () => {
   assert.equal(canViewAnnouncement({ role: "student" }, { targetAudience: "students" }), true);
   assert.equal(canViewAnnouncement({ role: "student" }, { targetAudience: "mentors" }), false);
   assert.equal(canViewAnnouncement({ role: "mentor" }, { targetAudience: "students" }), false);
+});
+
+test("session access is limited to batch members", () => {
+  const session = { batch: { mentors: ["mentor-1"], students: ["student-1"] } };
+  assert.equal(canAccessSession({ role: "admin", _id: "admin-1" }, session), true);
+  assert.equal(canAccessSession({ role: "mentor", _id: "mentor-1" }, session), true);
+  assert.equal(canAccessSession({ role: "mentor", _id: "mentor-2" }, session), false);
+  assert.equal(canAccessSession({ role: "student", _id: "student-1" }, session), true);
+  assert.equal(canAccessSession({ role: "student", _id: "student-2" }, session), false);
+});
+
+test("only admins or the assignment owner can grade mentor submissions", () => {
+  const assignment = { creator: "mentor-1" };
+  assert.equal(canGradeSubmission({ role: "admin", _id: "admin-1" }, { studentMentor: "mentor-2" }, assignment), true);
+  assert.equal(canGradeSubmission({ role: "mentor", _id: "mentor-1" }, { studentMentor: "mentor-1" }, assignment), true);
+  assert.equal(canGradeSubmission({ role: "mentor", _id: "mentor-2" }, { studentMentor: "mentor-2" }, assignment), false);
 });
