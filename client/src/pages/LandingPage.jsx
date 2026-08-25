@@ -1,5 +1,5 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
+import { usePreferences } from '../hooks/usePreferences';
 
 const TRACKS = [
   {
@@ -41,6 +41,7 @@ const MENTORS = [
 ];
 
 const LandingPage = () => {
+  const { preferences, updatePreferences, t } = usePreferences();
   return (
     <div className="bg-[#fdf6e3] min-h-screen font-sans text-[#2c1a11]">
       {/* Navigation */}
@@ -50,15 +51,19 @@ const LandingPage = () => {
           <span className="font-bold text-xl tracking-tight">ASTU MSJ</span>
         </div>
         <div className="hidden md:flex gap-8 font-medium">
-          <a href="#about" className="hover:text-[#d8b493]">About</a>
-          <a href="#tracks" className="hover:text-[#d8b493]">Tracks</a>
-          <a href="#mentors" className="hover:text-[#d8b493]">Mentors</a>
-          <a href="#faq" className="hover:text-[#d8b493]">FAQ</a>
-          <Link to="/alumni" className="hover:text-[#d8b493]">Alumni</Link>
+          <a href="#about" className="hover:text-[#d8b493]">{t('about')}</a>
+          <a href="#tracks" className="hover:text-[#d8b493]">{t('tracks')}</a>
+          <a href="#mentors" className="hover:text-[#d8b493]">{t('mentors')}</a>
+          <a href="#faq" className="hover:text-[#d8b493]">{t('faq')}</a>
+          <Link to="/alumni" className="hover:text-[#d8b493]">{t('alumni')}</Link>
         </div>
         <div className="flex gap-4">
-          <Link to="/login" className="px-4 py-2 hover:text-[#d8b493]">Login</Link>
-          <Link to="/signup" className="bg-[#d8b493] text-[#2c1a11] px-5 py-2 rounded-lg font-bold hover:bg-[#c8a98c]">Join Now</Link>
+          <label className="sr-only" htmlFor="landing-language">{t('language')}</label>
+          <select id="landing-language" value={preferences.language} onChange={(event) => updatePreferences({ language: event.target.value })} className="max-w-24 rounded-lg border border-[#80644e] bg-[#2c1a11] px-2 py-2 text-xs text-[#fdf6e3] outline-none">
+            <option value="en">English</option><option value="am">አማርኛ</option><option value="om">Oromiffa</option><option value="so">Af-Soomaali</option><option value="ar">العربية</option>
+          </select>
+          <Link to="/login" className="px-4 py-2 hover:text-[#d8b493]">{t('login')}</Link>
+          <Link to="/signup" className="bg-[#d8b493] text-[#2c1a11] px-5 py-2 rounded-lg font-bold hover:bg-[#c8a98c]">{t('join')}</Link>
         </div>
       </nav>
 

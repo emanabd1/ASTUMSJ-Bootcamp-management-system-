@@ -8,6 +8,7 @@ import ResetPasswordPage from "../pages/ResetPasswordPage";
 import OAuthSuccessPage from "../pages/OAuthSuccessPage";
 
 import SettingsPage from "../pages/SettingsPage";
+import GeneralSettingsPage from "../pages/GeneralSettingsPage";
 import NotificationsPage from "../pages/NotificationsPage";
 import DashboardLayout from "../components/layout/DashboardLayout";
 import ProtectedRoute from "./ProtectedRoute";
@@ -71,6 +72,11 @@ export default function AppRoutes() {
           <Route
             path="/settings"
             element={<SettingsPage />}
+          />
+
+          <Route
+            path="/settings/general"
+            element={<GeneralSettingsPage />}
           />
 
           <Route
