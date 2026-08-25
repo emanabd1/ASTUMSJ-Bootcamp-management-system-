@@ -53,15 +53,17 @@ router.patch("/:id", authorize("admin","mentor"), async(req,res,next)=>{
     if(req.user.role==='mentor'&&String(a.author)!==String(req.user._id))return res.status(403).json({success:false,message:"You can only edit your announcements."});
     if(req.body.title!==undefined){if(!String(req.body.title).trim())return res.status(400).json({success:false,message:"Title cannot be empty."});a.title=String(req.body.title).trim();}
     if(req.body.content!==undefined){if(!String(req.body.content).trim())return res.status(400).json({success:false,message:"Content cannot be empty."});a.content=String(req.body.content).trim();}
-    if(req.body.targetAudience!==undefined)a.targetAudience=req.body.targetAudience;
+      if(req.body.targetAudience!==undefined)a.targetAudience=req.body.targetAudience;
+      if(req.body.targetRole!==undefined){if(!["all","students","mentors"].includes(req.body.targetRole))return res.status(400).json({success:false,message:"Invalid announcement role."});a.targetRole=req.body.targetRole;}
     if(req.body.batch!==undefined)a.batch=req.body.batch||null;
     if(req.body.publishDate!==undefined){const d=new Date(req.body.publishDate);if(Number.isNaN(d.getTime()))return res.status(400).json({success:false,message:"Invalid publish date."});a.publishDate=d;}
     if(!audienceValues.includes(a.targetAudience))return res.status(400).json({success:false,message:"Invalid target audience."});
-    if(req.user.role==='mentor'&&!["students","batch"].includes(a.targetAudience))return res.status(403).json({success:false,message:"Mentors can only announce to their assigned students."});
+      if(req.user.role==='mentor'&&!["students","batch"].includes(a.targetAudience))return res.status(403).json({success:false,message:"Mentors can only announce to their assigned students."});
+      if(req.user.role==='mentor'&&a.targetRole&&a.targetRole!=="students")return res.status(403).json({success:false,message:"Mentors can only announce to students."});
     if(a.targetAudience==='batch'&&(!a.batch||!await Batch.exists({_id:a.batch})))return res.status(400).json({success:false,message:"A valid batch is required."});
     await a.save();
     await Notification.deleteMany({type:"announcement","meta.announcementId":String(a._id)});
-    const recipients=await recipientsFor(req.user,a.targetAudience,a.batch);
+    const recipients=await recipientsFor(req.user,a.targetAudience,a.batch,a.targetRole || (a.targetAudience === "students" ? "students" : a.targetAudience === "mentors" ? "mentors" : "all"));
     if(recipients.length) await Notification.insertMany(recipients.map(r=>({user:r._id,title:"Announcement updated",message:a.title,type:"announcement",link:"/notifications",meta:{announcementId:String(a._id)}})));
     const populated=await Announcement.findById(a._id).populate("author","fullName role").populate("batch","name");
     res.json({success:true,announcement:populated,recipientCount:recipients.length});

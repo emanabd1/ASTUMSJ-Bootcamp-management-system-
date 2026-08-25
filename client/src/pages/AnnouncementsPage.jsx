@@ -1,3 +1,178 @@
-import React,{useEffect,useState} from 'react';import axiosInstance from '../api/axiosInstance';import {useAuth} from '../hooks/useAuth';
-const field='w-full rounded-xl border border-[#4a3b32] bg-[#16110e] px-3 py-2 text-sm text-[#f5efe6] focus:border-[#c89b7b] focus:outline-none';
-export default function AnnouncementsPage(){const {user}=useAuth();const [items,setItems]=useState([]),[form,setForm]=useState({title:'',content:'',targetAudience:'all',batch:'',publishDate:''}),[editing,setEditing]=useState(null),[message,setMessage]=useState('');const load=()=>axiosInstance.get('/announcements').then(r=>setItems(r.data.announcements||[])).catch(e=>setMessage(e.response?.data?.message||'Could not load announcements.'));useEffect(()=>{load()},[]);const save=async e=>{e.preventDefault();try{if(editing)await axiosInstance.patch(`/announcements/${editing}`,form);else await axiosInstance.post('/announcements',form);setForm({title:'',content:'',targetAudience:'all',batch:'',publishDate:''});setEditing(null);setMessage('Announcement saved.');load()}catch(e){setMessage(e.response?.data?.message||'Could not save announcement.')}};const remove=async id=>{if(!confirm('Delete this announcement?'))return;await axiosInstance.delete(`/announcements/${id}`);load()};const canManage=user.role==='admin'||user.role==='mentor';return <div className="space-y-7"><div><h1 className="text-3xl font-extrabold">Announcements</h1><p className="text-xs text-[#a39081]">{canManage?'Publish important bootcamp updates to the right audience.':'Relevant announcements for your role and batch.'}</p></div>{message&&<p className="rounded-xl border border-[#4a3b32] bg-[#1e1713] p-3 text-sm text-amber-400">{message}</p>}{canManage&&<form onSubmit={save} className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5 space-y-3"><input className={field} placeholder="Title" required value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/><textarea className={field+' min-h-32'} placeholder="Content" required value={form.content} onChange={e=>setForm({...form,content:e.target.value})}/><div className="grid gap-3 md:grid-cols-2"><select className={field} value={form.targetAudience} onChange={e=>setForm({...form,targetAudience:e.target.value})}><option value="all">All</option><option value="students">Students</option><option value="mentors">Mentors</option></select><input className={field} type="datetime-local" value={form.publishDate} onChange={e=>setForm({...form,publishDate:e.target.value})}/></div><button className="rounded-xl bg-[#c89b7b] px-5 py-3 text-xs font-bold text-[#1e1713]">{editing?'Update':'Publish'} Announcement</button></form>}<div className="space-y-3">{items.map(a=><article key={a._id} className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5"><div className="flex flex-wrap justify-between gap-3"><div><h2 className="font-bold">{a.title}</h2><p className="mt-1 text-sm whitespace-pre-wrap">{a.content}</p><p className="mt-2 text-xs text-[#a39081]">{a.targetAudience} · {new Date(a.publishDate).toLocaleString()} · by {a.author?.fullName}</p></div>{canManage&&(user.role==='admin'||String(a.author?._id)===String(user._id))&&<div className="flex gap-2"><button onClick={()=>{setEditing(a._id);setForm({title:a.title,content:a.content,targetAudience:a.targetAudience,batch:a.batch?._id||'',publishDate:a.publishDate?.slice(0,16)})}} className="rounded-lg bg-[#c89b7b] px-3 py-2 text-xs font-bold text-[#1e1713]">Edit</button><button onClick={()=>remove(a._id)} className="rounded-lg bg-rose-700/70 px-3 py-2 text-xs">Delete</button></div>}</div></article>)}</div></div>}
+import { useEffect, useState } from "react";
+import axiosInstance from "../api/axiosInstance";
+import { useAuth } from "../hooks/useAuth";
+const field =
+  "w-full rounded-xl border border-[#4a3b32] bg-[#16110e] px-3 py-2 text-sm text-[#f5efe6] focus:border-[#c89b7b] focus:outline-none";
+export default function AnnouncementsPage() {
+  const { user } = useAuth();
+  const [items, setItems] = useState([]),
+    [batches, setBatches] = useState([]),
+    [form, setForm] = useState({
+      title: "",
+      content: "",
+      targetAudience: "all",
+      targetRole: "all",
+      batch: "",
+      publishDate: "",
+    }),
+    [editing, setEditing] = useState(null),
+    [message, setMessage] = useState("");
+  const load = () =>
+    axiosInstance
+      .get("/announcements")
+      .then((r) => setItems(r.data.announcements || []))
+      .catch((e) =>
+        setMessage(
+          e.response?.data?.message || "Could not load announcements.",
+        ),
+      );
+  useEffect(() => {
+    Promise.all([axiosInstance.get("/announcements"), axiosInstance.get("/batches")]).then(([announcementResponse, batchResponse]) => {
+      setItems(announcementResponse.data.announcements || []);
+      setBatches(batchResponse.data.batches || []);
+    }).catch((e) => setMessage(e.response?.data?.message || "Could not load announcements."));
+  }, []);
+  const save = async (e) => {
+    e.preventDefault();
+    try {
+      const announcementForm = { ...form, targetRole: user.role === "mentor" ? "students" : form.targetRole };
+      if (editing) await axiosInstance.patch(`/announcements/${editing}`, announcementForm);
+      else await axiosInstance.post("/announcements", announcementForm);
+      setForm({
+        title: "",
+        content: "",
+        targetAudience: "all",
+        targetRole: "all",
+        batch: "",
+        publishDate: "",
+      });
+      setEditing(null);
+      setMessage("Announcement saved.");
+      load();
+    } catch (e) {
+      setMessage(e.response?.data?.message || "Could not save announcement.");
+    }
+  };
+  const remove = async (id) => {
+    if (!confirm("Delete this announcement?")) return;
+    await axiosInstance.delete(`/announcements/${id}`);
+    load();
+  };
+  const canManage = user.role === "admin" || user.role === "mentor";
+  return (
+    <div className="space-y-7">
+      <div>
+        <h1 className="text-3xl font-extrabold">Announcements</h1>
+        <p className="text-xs text-[#a39081]">
+          {canManage
+            ? "Publish important bootcamp updates to the right audience."
+            : "Relevant announcements for your role and batch."}
+        </p>
+      </div>
+      {message && (
+        <p className="rounded-xl border border-[#4a3b32] bg-[#1e1713] p-3 text-sm text-amber-400">
+          {message}
+        </p>
+      )}
+      {canManage && (
+        <form
+          onSubmit={save}
+          className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5 space-y-3"
+        >
+          <input
+            className={field}
+            placeholder="Title"
+            required
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+          />
+          <textarea
+            className={field + " min-h-32"}
+            placeholder="Content"
+            required
+            value={form.content}
+            onChange={(e) => setForm({ ...form, content: e.target.value })}
+          />
+          <div className="grid gap-3 md:grid-cols-2">
+            <select
+              className={field}
+              value={form.targetRole}
+              onChange={(e) => setForm({ ...form, targetRole: e.target.value })}
+            >
+              <option value="all">Both students and mentors</option>
+              <option value="students">Students only</option>
+              {user.role === "admin" && <option value="mentors">Mentors only</option>}
+            </select>
+            <select
+              className={field}
+              value={form.batch}
+              onChange={(e) => setForm({ ...form, batch: e.target.value, targetAudience: e.target.value ? "batch" : "all" })}
+            >
+              <option value="">All batches</option>
+              {batches.map((batch) => <option key={batch._id} value={batch._id}>{batch.name}</option>)}
+            </select>
+            <input
+              className={field}
+              type="datetime-local"
+              value={form.publishDate}
+              onChange={(e) =>
+                setForm({ ...form, publishDate: e.target.value })
+              }
+            />
+          </div>
+          <button className="rounded-xl bg-[#c89b7b] px-5 py-3 text-xs font-bold text-[#1e1713]">
+            {editing ? "Update" : "Publish"} Announcement
+          </button>
+        </form>
+      )}
+      <div className="space-y-3">
+        {items.map((a) => (
+          <article
+            key={a._id}
+            className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5"
+          >
+            <div className="flex flex-wrap justify-between gap-3">
+              <div>
+                <h2 className="font-bold">{a.title}</h2>
+                <p className="mt-1 text-sm whitespace-pre-wrap">{a.content}</p>
+                <p className="mt-2 text-xs text-[#a39081]">
+                  {a.targetAudience} ·{" "}
+                  {new Date(a.publishDate).toLocaleString()} · by{" "}
+                  {a.author?.fullName}
+                </p>
+              </div>
+              {canManage &&
+                (user.role === "admin" ||
+                  String(a.author?._id) === String(user._id)) && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setEditing(a._id);
+                        setForm({
+                          title: a.title,
+                          content: a.content,
+                          targetAudience: a.targetAudience,
+                          targetRole: a.targetRole || (a.targetAudience === "students" ? "students" : a.targetAudience === "mentors" ? "mentors" : "all"),
+                          batch: a.batch?._id || "",
+                          publishDate: a.publishDate?.slice(0, 16),
+                        });
+                      }}
+                      className="rounded-lg bg-[#c89b7b] px-3 py-2 text-xs font-bold text-[#1e1713]"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => remove(a._id)}
+                      className="rounded-lg bg-rose-700/70 px-3 py-2 text-xs"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
