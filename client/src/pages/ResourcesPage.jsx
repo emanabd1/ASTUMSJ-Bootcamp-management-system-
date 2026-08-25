@@ -182,18 +182,30 @@ function timeAgo(dateStr) {
 // render a raw minute count as "45 min" or "1h 20m"
 function formatDuration(mins) {
   if (mins === null || mins === undefined || mins === "") return null;
+
   const total = Number(mins);
+
   if (Number.isNaN(total) || total < 0) return null;
+
   if (total < 60) return `${total} min`;
 
   const hours = Math.floor(total / 60);
   const rest = total % 60;
+
   return rest ? `${hours}h ${rest}m` : `${hours}h`;
 }
 
 function StopwatchIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      className="h-3 w-3"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <circle cx="12" cy="13" r="8" />
       <path d="M12 9v4l2.5 2.5" />
       <path d="M9 2h6" />
@@ -204,7 +216,15 @@ function StopwatchIcon() {
 
 function LeetCodeMark() {
   return (
-    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      className="h-3.5 w-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M15 4 9 12l6 8" />
       <path d="M5 12h4" />
     </svg>
@@ -213,7 +233,14 @@ function LeetCodeMark() {
 
 function CodeforcesMark() {
   return (
-    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+    <svg
+      viewBox="0 0 24 24"
+      className="h-3.5 w-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+    >
       <rect x="3" y="13" width="4" height="8" rx="1" />
       <rect x="10" y="7" width="4" height="14" rx="1" />
       <rect x="17" y="3" width="4" height="18" rx="1" />
@@ -229,7 +256,15 @@ function PlatformMark({ platform }) {
 
 function CheckIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      className="h-3 w-3"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M20 6 9 17l-5-5" />
     </svg>
   );
@@ -237,7 +272,15 @@ function CheckIcon() {
 
 function RefreshIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      className="h-3 w-3"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M21 12a9 9 0 1 1-2.64-6.36" />
       <path d="M21 3v6h-6" />
     </svg>
@@ -246,7 +289,15 @@ function RefreshIcon() {
 
 function ClockIcon() {
   return (
-    <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      viewBox="0 0 24 24"
+      className="h-3 w-3"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5l3 3" />
     </svg>
@@ -290,9 +341,12 @@ function SearchIcon() {
 // by the static resource list ("LeetCode") so the same filter works on both.
 function normalizePlatform(p) {
   if (!p) return "";
+
   const lower = p.toLowerCase();
+
   if (lower === "leetcode") return "LeetCode";
   if (lower === "codeforces") return "Codeforces";
+
   return p;
 }
 
@@ -301,8 +355,11 @@ function CpTab({ user }) {
   const [challenges, setChallenges] = useState([]);
   const [resourceSubs, setResourceSubs] = useState({});
   const [platformFilter, setPlatformFilter] = useState("All");
+
   const [solutionLinks, setSolutionLinks] = useState({});
   const [timeSpent, setTimeSpent] = useState({});
+  const [attempts, setAttempts] = useState({});
+
   const [submittingId, setSubmittingId] = useState("");
   const [msg, setMsg] = useState("");
 
@@ -318,7 +375,9 @@ function CpTab({ user }) {
       setChallenges(c.data.challenges || []);
       setResourceSubs(r.data.submissions || {});
     } catch (e) {
-      setMsg(e.response?.data?.message || "Could not load coding data.");
+      setMsg(
+        e.response?.data?.message || "Could not load coding data."
+      );
     }
   };
 
@@ -327,37 +386,89 @@ function CpTab({ user }) {
   }, []);
 
   const submitSolution = async (item) => {
-    const url = solutionLinks[item.key]?.trim();
-    const minutes = timeSpent[item.key];
+    const existingSubmission = item.mySubmission;
+
+    const url =
+      solutionLinks[item.key] !== undefined
+        ? solutionLinks[item.key].trim()
+        : existingSubmission?.url?.trim();
+
+    const minutes =
+      timeSpent[item.key] !== undefined
+        ? timeSpent[item.key]
+        : existingSubmission?.timeSpentMinutes ?? "";
+
+    const attemptValue =
+      attempts[item.key] !== undefined
+        ? attempts[item.key]
+        : existingSubmission?.attempts ?? 1;
 
     if (!url) {
       setMsg("Please enter your solution link first.");
       return;
     }
 
+    if (
+      attemptValue === "" ||
+      Number.isNaN(Number(attemptValue)) ||
+      Number(attemptValue) < 1 ||
+      !Number.isInteger(Number(attemptValue))
+    ) {
+      setMsg(
+        "Attempts must be a whole number greater than or equal to 1."
+      );
+      return;
+    }
+
+    if (
+      minutes !== "" &&
+      minutes !== null &&
+      minutes !== undefined &&
+      (Number.isNaN(Number(minutes)) || Number(minutes) < 0)
+    ) {
+      setMsg("Time taken must be 0 or greater.");
+      return;
+    }
+
     setSubmittingId(item.key);
+    setMsg("");
 
     try {
       await axiosInstance.post("/coding/activity", {
         platform: item.platform?.toLowerCase(),
         url,
         note: `Solution submitted for: ${item.title}`,
-        challenge: item.kind === "challenge" ? item._id : undefined,
-        resourceKey: item.kind === "resource" ? item.resourceKey : undefined,
-        timeSpentMinutes: minutes !== undefined && minutes !== "" ? minutes : undefined,
+
+        challenge:
+          item.kind === "challenge" ? item._id : undefined,
+
+        resourceKey:
+          item.kind === "resource"
+            ? item.resourceKey
+            : undefined,
+
+        timeSpentMinutes:
+          minutes !== "" &&
+          minutes !== null &&
+          minutes !== undefined
+            ? Number(minutes)
+            : null,
+
+        attempts: Number(attemptValue),
       });
 
-      setSolutionLinks((prev) => ({ ...prev, [item.key]: "" }));
-      setTimeSpent((prev) => ({ ...prev, [item.key]: "" }));
-
       setMsg(
-        item.mySubmission
-          ? "New attempt submitted successfully."
-          : "Solution link submitted successfully."
+        existingSubmission
+          ? "Submission updated successfully."
+          : "Solution submitted successfully."
       );
-      load();
+
+      await load();
     } catch (e) {
-      setMsg(e.response?.data?.message || "Could not submit solution.");
+      setMsg(
+        e.response?.data?.message ||
+          "Could not save solution."
+      );
     } finally {
       setSubmittingId("");
     }
@@ -377,6 +488,7 @@ function CpTab({ user }) {
       link: r.url,
       mySubmission: resourceSubs[r.resourceKey] || null,
     })),
+
     ...challenges.map((c) => ({
       kind: "challenge",
       key: `challenge-${c._id}`,
@@ -392,20 +504,36 @@ function CpTab({ user }) {
 
   const filteredItems = combinedItems.filter((item) => {
     if (platformFilter === "All") return true;
-    if (platformFilter === "Unsolved") return !item.mySubmission;
+
+    if (platformFilter === "Unsolved") {
+      return !item.mySubmission;
+    }
+
     return item.platform === platformFilter;
   });
 
   const filterCounts = {
     All: combinedItems.length,
-    LeetCode: combinedItems.filter((i) => i.platform === "LeetCode").length,
-    Codeforces: combinedItems.filter((i) => i.platform === "Codeforces")
-      .length,
-    Unsolved: combinedItems.filter((i) => !i.mySubmission).length,
+
+    LeetCode: combinedItems.filter(
+      (i) => i.platform === "LeetCode"
+    ).length,
+
+    Codeforces: combinedItems.filter(
+      (i) => i.platform === "Codeforces"
+    ).length,
+
+    Unsolved: combinedItems.filter(
+      (i) => !i.mySubmission
+    ).length,
   };
 
   const assignedCount = challenges.length;
-  const solvedCount = challenges.filter((c) => c.mySubmission).length;
+
+  const solvedCount = challenges.filter(
+    (c) => c.mySubmission
+  ).length;
+
   const solvedPct = assignedCount
     ? Math.round((solvedCount / assignedCount) * 100)
     : 0;
@@ -415,6 +543,7 @@ function CpTab({ user }) {
       {msg && (
         <div className="flex items-center justify-between rounded-xl border border-[#4a3b32] bg-[#1e1713] p-3 text-sm text-amber-400">
           <span>{msg}</span>
+
           <button
             onClick={() => setMsg("")}
             className="ml-4 text-[#a39081] hover:text-[#f5efe6]"
@@ -430,7 +559,9 @@ function CpTab({ user }) {
             key={platform}
             className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5"
           >
-            <p className="text-xs uppercase text-[#a39081]">{platform}</p>
+            <p className="text-xs uppercase text-[#a39081]">
+              {platform}
+            </p>
 
             <p className="mt-2 text-3xl font-bold text-[#c89b7b]">
               {stats[user?._id]?.[platform]?.streak || 0} days
@@ -447,6 +578,7 @@ function CpTab({ user }) {
             <p className="text-xs uppercase text-[#a39081]">
               Assigned Problems
             </p>
+
             <span className="rounded-full bg-[#c89b7b]/10 px-2 py-0.5 text-[10px] font-bold text-[#c89b7b]">
               {solvedPct}%
             </span>
@@ -454,6 +586,7 @@ function CpTab({ user }) {
 
           <p className="mt-2 text-3xl font-bold text-[#c89b7b]">
             {solvedCount}
+
             <span className="text-base font-semibold text-[#a39081]">
               {" "}
               / {assignedCount}
@@ -478,7 +611,10 @@ function CpTab({ user }) {
       <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-6">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-bold text-[#f5efe6]">Practice Sheets</h2>
+            <h2 className="font-bold text-[#f5efe6]">
+              Practice Sheets
+            </h2>
+
             <p className="mt-1 text-xs text-[#a39081]">
               Every sheet and assigned problem has its own submission
               slot — drop your solution link, log the time it took, and
@@ -498,10 +634,13 @@ function CpTab({ user }) {
                     : "border border-[#4a3b32] text-[#a39081] hover:text-[#f5efe6]"
                 }`}
               >
-                {platform !== "All" && platform !== "Unsolved" && (
-                  <PlatformMark platform={platform} />
-                )}
+                {platform !== "All" &&
+                  platform !== "Unsolved" && (
+                    <PlatformMark platform={platform} />
+                  )}
+
                 {platform}
+
                 <span
                   className={`rounded-full px-1.5 text-[9px] font-bold ${
                     platformFilter === platform
@@ -524,14 +663,18 @@ function CpTab({ user }) {
           <div className="space-y-3">
             {filteredItems.map((item) => {
               const submission = item.mySubmission;
-              const nextAttempt = (submission?.attempts || 0) + 1;
-              const duration = formatDuration(submission?.timeSpentMinutes);
+
+              const duration = formatDuration(
+                submission?.timeSpentMinutes
+              );
 
               return (
                 <div
                   key={item.key}
                   className={`flex flex-col justify-between gap-4 rounded-xl border bg-[#16110e] p-4 lg:flex-row lg:items-start ${
-                    !submission ? "border-rose-400/30" : "border-[#4a3b32]"
+                    !submission
+                      ? "border-rose-400/30"
+                      : "border-[#4a3b32]"
                   }`}
                 >
                   <div className="min-w-0 flex-1">
@@ -553,20 +696,30 @@ function CpTab({ user }) {
                         }`}
                       >
                         {submission ? <CheckIcon /> : null}
-                        {submission ? "Submitted" : "Unsolved"}
+
+                        {submission
+                          ? "Submitted"
+                          : "Unsolved"}
                       </span>
 
-                      <span className="flex items-center gap-1 rounded-full bg-[#4a3b32] px-2 py-0.5 text-[10px] font-bold text-[#a39081]">
-                        <RefreshIcon />
-                        {submission?.attempts || 0} attempt
-                        {(submission?.attempts || 0) === 1 ? "" : "s"}
-                      </span>
+                      {submission && (
+                        <>
+                          <span className="flex items-center gap-1 rounded-full bg-[#4a3b32] px-2 py-0.5 text-[10px] font-bold text-[#a39081]">
+                            <RefreshIcon />
 
-                      {duration && (
-                        <span className="flex items-center gap-1 rounded-full bg-[#4a3b32] px-2 py-0.5 text-[10px] font-bold text-[#a39081]">
-                          <StopwatchIcon />
-                          {duration}
-                        </span>
+                            {submission.attempts || 1} attempt
+                            {(submission.attempts || 1) === 1
+                              ? ""
+                              : "s"}
+                          </span>
+
+                          {duration && (
+                            <span className="flex items-center gap-1 rounded-full bg-[#4a3b32] px-2 py-0.5 text-[10px] font-bold text-[#a39081]">
+                              <StopwatchIcon />
+                              {duration}
+                            </span>
+                          )}
+                        </>
                       )}
 
                       <span className="text-[10px] uppercase tracking-wide text-[#a39081]">
@@ -583,9 +736,12 @@ function CpTab({ user }) {
                     {submission && (
                       <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-[#4a3b32] bg-[#1e1713] px-2.5 py-1.5">
                         <span className="flex items-center gap-1 text-[10px] text-[#a39081]">
-                          <ClockIcon /> Last submitted{" "}
+                          <ClockIcon />
+
+                          Last submitted{" "}
                           {timeAgo(submission.completedAt)}
                         </span>
+
                         <a
                           href={submission.url}
                           target="_blank"
@@ -610,15 +766,20 @@ function CpTab({ user }) {
                       </a>
                     )}
 
+                    {/* SOLUTION LINK */}
                     <input
                       type="url"
                       className={field}
                       placeholder={
                         submission
-                          ? `Paste a new link for attempt #${nextAttempt}`
+                          ? "Edit solution link"
                           : "Paste your solution link (e.g. GitHub)"
                       }
-                      value={solutionLinks[item.key] || ""}
+                      value={
+                        solutionLinks[item.key] !== undefined
+                          ? solutionLinks[item.key]
+                          : submission?.url || ""
+                      }
                       onChange={(e) =>
                         setSolutionLinks((prev) => ({
                           ...prev,
@@ -627,16 +788,22 @@ function CpTab({ user }) {
                       }
                     />
 
+                    {/* TIME TAKEN */}
                     <div className="relative">
                       <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#a39081]">
                         <StopwatchIcon />
                       </div>
+
                       <input
                         type="number"
                         min="0"
                         className={`${field} pl-9`}
                         placeholder="Time taken (minutes)"
-                        value={timeSpent[item.key] || ""}
+                        value={
+                          timeSpent[item.key] !== undefined
+                            ? timeSpent[item.key]
+                            : submission?.timeSpentMinutes ?? ""
+                        }
                         onChange={(e) =>
                           setTimeSpent((prev) => ({
                             ...prev,
@@ -646,6 +813,33 @@ function CpTab({ user }) {
                       />
                     </div>
 
+                    {/* NUMBER OF ATTEMPTS */}
+                    <div className="relative">
+                      <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#a39081]">
+                        <RefreshIcon />
+                      </div>
+
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        className={`${field} pl-9`}
+                        placeholder="Number of attempts"
+                        value={
+                          attempts[item.key] !== undefined
+                            ? attempts[item.key]
+                            : submission?.attempts ?? ""
+                        }
+                        onChange={(e) =>
+                          setAttempts((prev) => ({
+                            ...prev,
+                            [item.key]: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+
+                    {/* SUBMIT / EDIT */}
                     <button
                       type="button"
                       disabled={submittingId === item.key}
@@ -653,9 +847,11 @@ function CpTab({ user }) {
                       className="rounded-xl bg-[#c89b7b] px-4 py-2 text-xs font-bold text-[#1e1713] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {submittingId === item.key
-                        ? "Submitting..."
+                        ? submission
+                          ? "Saving..."
+                          : "Submitting..."
                         : submission
-                        ? `Resubmit — Attempt #${nextAttempt}`
+                        ? "Edit"
                         : "Submit Solution"}
                     </button>
                   </div>
@@ -680,7 +876,9 @@ function DevTab() {
     return (
       section.week.toLowerCase().includes(query) ||
       section.title.toLowerCase().includes(query) ||
-      section.topics.some((topic) => topic.toLowerCase().includes(query)) ||
+      section.topics.some((topic) =>
+        topic.toLowerCase().includes(query)
+      ) ||
       section.items.some((item) =>
         item.title.toLowerCase().includes(query)
       )
@@ -754,6 +952,7 @@ function DevTab() {
                   >
                     <span className="flex items-center">
                       {item.title}
+
                       <ArrowIcon />
                     </span>
 
@@ -815,7 +1014,11 @@ export default function ResourcesPage() {
         ))}
       </div>
 
-      {tab === "cp" ? <CpTab user={user} /> : <DevTab />}
+      {tab === "cp" ? (
+        <CpTab user={user} />
+      ) : (
+        <DevTab />
+      )}
     </div>
   );
 }
