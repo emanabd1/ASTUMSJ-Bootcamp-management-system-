@@ -1,6 +1,6 @@
 const User = require("../modules/users/userModel");
 
-async function recipientsFor(author, targetAudience, batchId) {
+async function recipientsFor(author, targetAudience, batchId, targetRole = 'all') {
   const base = { status: 'approved', isActive: true };
 
   if (author.role === 'mentor') {
@@ -9,19 +9,10 @@ async function recipientsFor(author, targetAudience, batchId) {
     return User.find(q).select('_id');
   }
 
-  if (targetAudience === 'all') {
-    return User.find({ ...base, role: { $in: ['student', 'mentor'] } }).select('_id');
-  }
-
-  if (targetAudience === 'students') {
-    return User.find({ ...base, role: 'student' }).select('_id');
-  }
-
-  if (targetAudience === 'mentors') {
-    return User.find({ ...base, role: 'mentor' }).select('_id');
-  }
-
-  return User.find({ ...base, role: 'student', batch: batchId }).select('_id');
+  const roles = targetRole === 'students' ? ['student'] : targetRole === 'mentors' ? ['mentor'] : ['student', 'mentor'];
+  const q = { ...base, role: { $in: roles } };
+  if (targetAudience === 'batch') q.batch = batchId;
+  return User.find(q).select('_id');
 }
 
 module.exports = { recipientsFor };
