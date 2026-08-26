@@ -1,9 +1,8 @@
 import React, { useState } from "react";
-import axios from "axios";
+import { Link, useNavigate } from "react-router-dom";
+import axiosInstance from "../api/axiosInstance";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-
-const inputClass = "w-full rounded-xl border border-[#4a3b32] bg-transparent px-4 py-3 text-sm focus:border-[#c89b7b] focus:outline-none";
+const inputClass = "w-full rounded-3xl border border-[#4a3b32] bg-transparent px-4 py-3 text-sm focus:border-[#c89b7b] focus:outline-none";
 
 export default function SignupPage() {
   const [form, setForm] = useState({
@@ -11,31 +10,75 @@ export default function SignupPage() {
     department: "", yearOfStudy: "1st Year", githubUrl: "", leetcodeUrl: "", codeforcesUrl: "", bootcampReason: "",
   });
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [feedback, setFeedback] = useState({ type: "", message: "" });
+  const navigate = useNavigate();
   const update = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
   const handleSignup = async (e) => {
-    e.preventDefault(); setLoading(true); setMessage("");
+    e.preventDefault();
+    setFeedback({ type: "", message: "" });
+
+    if (form.password !== form.confirmPassword) {
+      setFeedback({ type: "error", message: "Passwords do not match." });
+      return;
+    }
+
+    setLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/auth/register`, form);
-      setMessage(res.data.message || "Registration submitted. Pending admin approval.");
+      const res = await axiosInstance.post("/auth/register", {
+        ...form,
+        fullName: form.fullName.trim(),
+        email: form.email.trim().toLowerCase(),
+        department: form.department.trim(),
+        githubUrl: form.githubUrl.trim(),
+        leetcodeUrl: form.leetcodeUrl.trim(),
+        codeforcesUrl: form.codeforcesUrl.trim(),
+        bootcampReason: form.bootcampReason.trim(),
+      });
+      setFeedback({
+        type: "success",
+        message: res.data.message || "Registration submitted. Pending admin approval.",
+      });
       setForm({ fullName: "", email: "", password: "", confirmPassword: "", gender: "Male", department: "", yearOfStudy: "1st Year", githubUrl: "", leetcodeUrl: "", codeforcesUrl: "", bootcampReason: "" });
-    } catch (err) { setMessage(err.response?.data?.message || "Registration failed."); }
-    finally { setLoading(false); }
+      setTimeout(() => navigate("/login"), 1800);
+    } catch (err) {
+      setFeedback({ type: "error", message: err.response?.data?.message || "Registration failed." });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="flex min-h-screen w-screen items-center justify-center bg-[#c89b7b] font-serif overflow-auto py-6">
-      <div className="flex min-h-[85vh] w-[90vw] max-w-6xl rounded-3xl bg-[#1e1713] shadow-2xl overflow-hidden">
-        <div className="hidden md:flex w-1/2 flex-col items-center justify-center bg-[#c89b7b] p-10 text-center text-[#1e1713]">
-          <span className="mb-4 text-xs font-bold tracking-widest uppercase">ASTUMSJ SUMMER BOOTCAMP</span>
-          <div className="my-6 flex h-32 w-32 items-center justify-center rounded-full border-4 border-[#1e1713] shadow-inner overflow-hidden bg-white"><img src="/logo.png" alt="ASTUMSJ Logo" className="h-full w-full object-cover" /></div>
-          <h1 className="text-4xl font-extrabold tracking-tight">Step Bold,</h1><h1 className="text-4xl font-extrabold tracking-tight">Stay Iconic</h1>
+        <div className="flex min-h-screen items-center justify-center bg-[#c89b7b] p-4">
+      <div className="flex w-full max-w-4xl overflow-hidden rounded-2xl shadow-2xl bg-[#1e1713]">
+        
+        {/* left BACKGROUND / LOGO SECTION */}
+        <div className="hidden w-1/2 flex-col items-center justify-center bg-[#c89b7b] p-8 text-center text-[#1e1713] md:flex">
+          <span className="mb-2 text-xl font-extrabold uppercase tracking-wider text-[#1e1713]">
+            ASTUMSJ SUMMER BOOTCAMP
+          </span>
+
+          <div className="my-2">
+            <div className="mx-auto flex h-48 w-48 items-center justify-center">
+              <img
+                src="/logo.png"
+                alt="ASTUMSJ Logo"
+                className="h-full w-full object-contain"
+              />
+            </div>
+          </div>
+
+          <h1 className="text-4xl font-bold font-serif tracking-tight text-[#1e1713]">
+            Step Bold,
+          </h1>
+          <h1 className="text-4xl font-bold tracking-tight text-[#1e1713]">
+            Stay Iconic
+          </h1>
         </div>
-        <div className="w-full md:w-1/2 flex flex-col justify-center px-7 md:px-12 py-8 text-[#f5efe6]">
+        <div className="flex w-full flex-col justify-center px-7 py-8 text-[#f5efe6] md:w-1/2 md:px-12">
           <h2 className="mb-2 text-3xl font-bold tracking-wide">Create Account</h2>
           <p className="mb-5 text-xs text-[#a39081]">Your application will be reviewed by an administrator before you can log in.</p>
-          {message && <p className="mb-4 rounded-xl border border-[#4a3b32] bg-[#16110e] p-3 text-sm text-amber-400">{message}</p>}
+          {feedback.message && <p role="alert" className={`mb-4 rounded-xl border p-3 text-sm ${feedback.type === "success" ? "border-emerald-700 bg-emerald-950 text-emerald-300" : "border-red-800 bg-red-950 text-red-300"}`}>{feedback.message}</p>}
           <form onSubmit={handleSignup} className="space-y-3">
             <div><label className="text-xs text-[#a39081]">Full Name *</label><input required value={form.fullName} onChange={e => update("fullName", e.target.value)} className={inputClass} placeholder="Enter your full name" /></div>
             <div><label className="text-xs text-[#a39081]">Email *</label><input required type="email" value={form.email} onChange={e => update("email", e.target.value)} className={inputClass} placeholder="Enter your email" /></div>
@@ -54,9 +97,9 @@ export default function SignupPage() {
               <input type="url" value={form.codeforcesUrl} onChange={e => update("codeforcesUrl", e.target.value)} className={inputClass} placeholder="Codeforces URL" />
             </div>
             <div><label className="text-xs text-[#a39081]">Why do you want to join this bootcamp? *</label><textarea required rows="3" value={form.bootcampReason} onChange={e => update("bootcampReason", e.target.value)} className={`${inputClass} resize-none`} placeholder="Tell the admin why you want to join..." /></div>
-            <button disabled={loading} className="w-full rounded-xl bg-[#c89b7b] py-3 text-sm font-semibold text-[#1e1713] transition hover:bg-[#b08567] disabled:opacity-60">{loading ? "Submitting..." : "Submit Application"}</button>
+            <button disabled={loading} className="w-full rounded-3xl bg-[#c89b7b] py-3 text-sm font-semibold text-[#1e1713] transition hover:bg-[#b08567] disabled:opacity-60">{loading ? "Submitting..." : "Submit Application"}</button>
           </form>
-          <div className="mt-5 text-center text-xs text-[#a39081]">Already have an account? <a href="/login" className="font-bold text-[#c89b7b] underline hover:text-white">Login</a></div>
+          <div className="mt-5 text-center text-xs text-[#a39081]">Already have an account? <Link to="/login" className="font-bold text-[#c89b7b] underline hover:text-white">Login</Link></div>
         </div>
       </div>
     </div>
