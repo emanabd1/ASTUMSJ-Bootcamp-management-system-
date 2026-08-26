@@ -194,7 +194,15 @@ router.post("/:id/feedback", async (req, res, next) => {
     session.feedback.push({ message: req.body.message.trim(), student: req.user._id });
     await session.save();
     const batch = await Batch.findById(session.batch).populate("students", "fullName email").populate("mentors", "fullName email");
-    await notifyUsers([...batch.mentors], "New anonymous session feedback", `New anonymous feedback was submitted for ${session.title}.`, "/sessions", { sessionId: String(session._id) });
+    const reviewers = await User.find({
+      $or: [
+        { _id: { $in: batch.mentors.map((mentor) => mentor._id) } },
+        { role: "admin" },
+      ],
+      status: "approved",
+      isActive: true,
+    }).select("_id email");
+    await notifyUsers(reviewers, "New anonymous session feedback", `New anonymous feedback was submitted for ${session.title}.`, "/sessions", { sessionId: String(session._id) });
     res.status(201).json({ success: true, message: "Anonymous feedback submitted." });
   } catch (error) { next(error); }
 });
