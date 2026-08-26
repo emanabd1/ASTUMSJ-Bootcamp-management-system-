@@ -924,7 +924,7 @@ export default function SessionDetailPage() {
             </p>
           ))}
 
-          {user?.role === "student" && (
+          {user?.role === "student" && new Date() >= new Date(session.endsAt) && (
             <form onSubmit={submitFeedback} className="space-y-2 border-t border-[#4a3b32] pt-4">
               <label className="text-sm font-medium" htmlFor="session-feedback">
                 Share your feedback anonymously
