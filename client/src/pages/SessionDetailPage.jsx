@@ -19,6 +19,7 @@ export default function SessionDetailPage() {
   const [tab, setTab] = useState("tasks");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState("");
 
   const [task, setTask] = useState({
     title: "",
@@ -406,6 +407,23 @@ export default function SessionDetailPage() {
         error.response?.data?.message ||
           "Unable to add resource."
       );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitFeedback = async (event) => {
+    event.preventDefault();
+    if (busy || !feedbackMessage.trim()) return;
+
+    setBusy(true);
+    try {
+      await axiosInstance.post(`/sessions/${id}/feedback`, { message: feedbackMessage.trim() });
+      setFeedbackMessage("");
+      setMessage("Anonymous feedback submitted.");
+      await load();
+    } catch (error) {
+      setMessage(error.response?.data?.message || "Unable to submit feedback.");
     } finally {
       setBusy(false);
     }
@@ -905,6 +923,27 @@ export default function SessionDetailPage() {
               {item.message}
             </p>
           ))}
+
+          {user?.role === "student" && new Date() >= new Date(session.endsAt) && (
+            <form onSubmit={submitFeedback} className="space-y-2 border-t border-[#4a3b32] pt-4">
+              <label className="text-sm font-medium" htmlFor="session-feedback">
+                Share your feedback anonymously
+              </label>
+              <textarea
+                id="session-feedback"
+                className={field}
+                rows="4"
+                maxLength="2000"
+                required
+                value={feedbackMessage}
+                onChange={(event) => setFeedbackMessage(event.target.value)}
+                placeholder="What worked well, and what could be improved?"
+              />
+              <button disabled={busy} className="rounded bg-[#c89b7b] px-3 py-2 text-sm font-bold text-[#1e1713] disabled:opacity-60">
+                {busy ? "Submitting..." : "Submit anonymous feedback"}
+              </button>
+            </form>
+          )}
 
           {manager && (
             <p className="text-xs text-[#a39081]">

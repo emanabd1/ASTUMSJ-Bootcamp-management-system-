@@ -48,6 +48,10 @@ router.post("/", async (req, res, next) => {
     if (!(await canAccess(req.user, batch))) return res.status(403).json({ success: false, message: "You can only create sessions for your assigned batches." });
     const start = new Date(startsAt); const end = new Date(endsAt);
     if (!title?.trim() || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start || (meetLink && !/^https:\/\/meet\.google\.com\//i.test(meetLink))) return res.status(400).json({ success: false, message: "Title, valid times, and a valid Google Meet link are required." });
+    if (start < new Date(Date.now() + 60 * 60 * 1000)) return res.status(400).json({ success: false, message: "A session must start at least 1 hour after it is created." });
+    if (end - start < 30 * 60 * 1000) return res.status(400).json({ success: false, message: "A session must last at least 30 minutes." });
+    const nearbySession = await Session.findOne({ startsAt: { $lt: new Date(end.getTime() + 2 * 60 * 60 * 1000) }, endsAt: { $gt: new Date(start.getTime() - 2 * 60 * 60 * 1000) } });
+    if (nearbySession) return res.status(400).json({ success: false, message: "Sessions must have at least a 2-hour gap." });
     const session = await Session.create({ title: title.trim(), description: description.trim(), meetLink: meetLink.trim(), startsAt: start, endsAt: end, batch: batch._id, createdBy: req.user._id });
     const users = [...batch.students, ...batch.mentors];
     const message = `${session.title} is scheduled for ${start.toLocaleString()} to ${end.toLocaleString()} for batch ${batch.name}.${session.meetLink ? ` Join: ${session.meetLink}` : ""}`;
@@ -77,37 +81,180 @@ router.get("/:id", async (req, res, next) => {
     const tasksWithSubmissions = tasks.map((task) => ({ ...task.toObject(), submissions: submissions.filter((submission) => String(submission.assignment) === String(task._id)) }));
     const safeSession = session.toObject();
     if (req.user.role === "mentor") safeSession.batch.students = safeSession.batch.students.filter((student) => assignedStudents.some((assigned) => String(assigned._id) === String(student._id)));
-    safeSession.feedback = safeSession.feedback.map(({ student, ...item }) => item);
+    safeSession.feedback = req.user.role === "student"
+      ? safeSession.feedback.filter((item) => String(item.student) === String(req.user._id)).map(({ student, ...item }) => item)
+      : safeSession.feedback.map(({ student, ...item }) => item);
     res.json({ success: true, session: safeSession, tasks: tasksWithSubmissions, attendance: req.user.role === "student" ? attendance.filter((record) => String(record.student?._id) === String(req.user._id)) : attendance });
   } catch (error) { next(error); }
 });
 router.post("/:id/join", async (req, res, next) => {
   try {
-    if (req.user.role !== "student") return res.status(403).json({ success: false, message: "Only students can join sessions." });
-    const session = await Session.findById(req.params.id).populate("batch", "students");
-    if (!session || !session.batch.students.some((student) => String(student) === String(req.user._id))) return res.status(403).json({ success: false, message: "You are not enrolled in this session." });
+    if (req.user.role !== "student") {
+      return res.status(403).json({
+        success: false,
+        message: "Only students can join sessions.",
+      });
+    }
+
+    const session = await Session.findById(req.params.id)
+      .populate("batch", "students");
+
+    if (
+      !session ||
+      !session.batch.students.some(
+        (student) => String(student) === String(req.user._id)
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not enrolled in this session.",
+      });
+    }
+
     const now = new Date();
-    const record = await Attendance.findOneAndUpdate({ session: session._id, student: req.user._id }, { $set: { session: session._id, student: req.user._id, mentor: session.createdBy, date: session.startsAt, status: "Absent", lastSeenAt: now, note: "Attendance is being tracked." }, $setOnInsert: { joinedAt: now, attendedSeconds: 0 } }, { upsert: true, new: true, runValidators: true });
-    res.json({ success: true, attendance: record });
-  } catch (error) { next(error); }
+
+    const trackingStart =
+      now < session.startsAt ? session.startsAt : now;
+
+    const lateMinutes =
+      now > session.startsAt
+        ? Math.floor((now - session.startsAt) / 60000)
+        : 0;
+
+    const record = await Attendance.findOneAndUpdate(
+      {
+        session: session._id,
+        student: req.user._id,
+      },
+      {
+        $set: {
+          session: session._id,
+          student: req.user._id,
+          mentor: session.createdBy,
+          date: session.startsAt,
+          status: "Absent",
+          lastSeenAt: trackingStart,
+          lateMinutes: Math.min(lateMinutes, 15),
+          note: "Attendance is being tracked.",
+        },
+        $setOnInsert: {
+          joinedAt: now,
+          attendedSeconds: 0,
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    res.json({
+      success: true,
+      attendance: record,
+      startsAt: session.startsAt,
+      endsAt: session.endsAt,
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.post("/:id/presence", async (req, res, next) => {
   try {
-    if (req.user.role !== "student") return res.status(403).json({ success: false, message: "Only students can report presence." });
-    const session = await Session.findById(req.params.id).populate("batch", "students");
-    if (!session || !session.batch.students.some((student) => String(student) === String(req.user._id))) return res.status(403).json({ success: false, message: "You are not enrolled in this session." });
-    const record = await Attendance.findOne({ session: session._id, student: req.user._id });
-    if (!record) return res.status(400).json({ success: false, message: "Join the session first." });
+    if (req.user.role !== "student") {
+      return res.status(403).json({
+        success: false,
+        message: "Only students can report presence.",
+      });
+    }
+
+    const session = await Session.findById(req.params.id)
+      .populate("batch", "students");
+
+    if (
+      !session ||
+      !session.batch.students.some(
+        (student) => String(student) === String(req.user._id)
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not enrolled in this session.",
+      });
+    }
+
+    const record = await Attendance.findOne({
+      session: session._id,
+      student: req.user._id,
+    });
+
+    if (!record) {
+      return res.status(400).json({
+        success: false,
+        message: "Join the session first.",
+      });
+    }
+
     const now = new Date();
-    const elapsed = record.lastSeenAt ? Math.max(0, Math.min(60, (now - record.lastSeenAt) / 1000)) : 0;
-    record.attendedSeconds += elapsed;
-    record.lastSeenAt = now;
-    const duration = Math.max(1, (session.endsAt - session.startsAt) / 1000);
-    if (now >= session.endsAt && record.attendedSeconds >= duration * 0.8) record.status = "Present";
+
+    const effectiveNow =
+      now < session.startsAt ? session.startsAt : now;
+
+    const previousSeen =
+      record.lastSeenAt && record.lastSeenAt > session.startsAt
+        ? record.lastSeenAt
+        : session.startsAt;
+
+    const effectiveEnd =
+      effectiveNow > session.endsAt
+        ? session.endsAt
+        : effectiveNow;
+
+    if (effectiveEnd > previousSeen) {
+      const elapsed = Math.min(
+        60,
+        Math.max(
+          0,
+          (effectiveEnd - previousSeen) / 1000
+        )
+      );
+
+      record.attendedSeconds += elapsed;
+    }
+
+    record.lastSeenAt = effectiveNow;
+
+    const duration = Math.max(
+      1,
+      (session.endsAt - session.startsAt) / 1000
+    );
+
+    if (now >= session.endsAt) {
+      record.attendedSeconds = Math.min(
+        record.attendedSeconds,
+        duration
+      );
+
+      if (record.attendedSeconds >= duration * 0.8) {
+        record.status = "Present";
+      } else if (record.attendedSeconds > 0) {
+        record.status = "Late";
+      } else {
+        record.status = "Absent";
+      }
+    }
+
     await record.save();
-    res.json({ success: true, attendance: record, completed: record.status === "Present" });
-  } catch (error) { next(error); }
+
+    res.json({
+      success: true,
+      attendance: record,
+      completed: now >= session.endsAt,
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.post("/:id/resources", upload.single("file"), async (req, res, next) => {
@@ -159,6 +306,7 @@ router.patch("/:id", async (req, res, next) => {
     if (req.user.role !== "admin") return res.status(403).json({ success: false, message: "Only admins can edit sessions." });
     const session = await Session.findById(req.params.id).populate("batch", "students mentors");
     if (!session || !(await canAccess(req.user, session.batch))) return res.status(403).json({ success: false, message: "You cannot edit this session." });
+    const originalStart = session.startsAt.getTime();
     const { title, description, meetLink, startsAt, endsAt, batchId } = req.body;
     if (title !== undefined) session.title = String(title).trim();
     if (description !== undefined) session.description = String(description).trim();
@@ -171,6 +319,10 @@ router.patch("/:id", async (req, res, next) => {
       session.batch = batch._id;
     }
     if (Number.isNaN(session.startsAt.getTime()) || Number.isNaN(session.endsAt.getTime()) || session.endsAt <= session.startsAt) return res.status(400).json({ success: false, message: "Session times are invalid." });
+    if (session.startsAt.getTime() !== originalStart && session.startsAt < new Date(Date.now() + 60 * 60 * 1000)) return res.status(400).json({ success: false, message: "A new session start time must be at least 1 hour from now." });
+    if (session.endsAt - session.startsAt < 30 * 60 * 1000) return res.status(400).json({ success: false, message: "A session must last at least 30 minutes." });
+    const nearbySession = await Session.findOne({ _id: { $ne: session._id }, startsAt: { $lt: new Date(session.endsAt.getTime() + 2 * 60 * 60 * 1000) }, endsAt: { $gt: new Date(session.startsAt.getTime() - 2 * 60 * 60 * 1000) } });
+    if (nearbySession) return res.status(400).json({ success: false, message: "Sessions must have at least a 2-hour gap." });
     await session.save(); res.json({ success: true, session });
   } catch (error) { next(error); }
 });
@@ -190,11 +342,20 @@ router.post("/:id/feedback", async (req, res, next) => {
     if (req.user.role !== "student") return res.status(403).json({ success: false, message: "Only students can leave session feedback." });
     const session = await Session.findById(req.params.id).populate("batch", "students");
     if (!session || !session.batch.students.some((id) => String(id) === String(req.user._id))) return res.status(403).json({ success: false, message: "You cannot give feedback for this session." });
+    if (new Date() < session.endsAt) return res.status(400).json({ success: false, message: "Feedback can only be submitted after the session ends." });
     if (!req.body.message?.trim()) return res.status(400).json({ success: false, message: "Feedback is required." });
     session.feedback.push({ message: req.body.message.trim(), student: req.user._id });
     await session.save();
     const batch = await Batch.findById(session.batch).populate("students", "fullName email").populate("mentors", "fullName email");
-    await notifyUsers([...batch.mentors], "New anonymous session feedback", `New anonymous feedback was submitted for ${session.title}.`, "/sessions", { sessionId: String(session._id) });
+    const reviewers = await User.find({
+      $or: [
+        { _id: { $in: batch.mentors.map((mentor) => mentor._id) } },
+        { role: "admin" },
+      ],
+      status: "approved",
+      isActive: true,
+    }).select("_id email");
+    await notifyUsers(reviewers, "New anonymous session feedback", `New anonymous feedback was submitted for ${session.title}.`, "/sessions", { sessionId: String(session._id) });
     res.status(201).json({ success: true, message: "Anonymous feedback submitted." });
   } catch (error) { next(error); }
 });
