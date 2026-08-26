@@ -23,6 +23,7 @@ const communityRoutes = require("./modules/community/communityRoutes");
 const achievementRoutes = require("./modules/achievements/achievementRoutes");
 const reportRoutes = require("./modules/reports/reportRoutes");
 const chatRoutes = require("./modules/chat/chatRoutes");
+const adminCommitteeRoutes = require("./modules/adminCommittee/adminCommitteeRoutes");
 const errorHandler = require("./middleware/errorHandler");
 const { startNotificationScheduler } = require("./utils/notificationScheduler");
 
@@ -66,6 +67,7 @@ app.use("/api/community", communityRoutes);
 app.use("/api/achievements", achievementRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/admin-committee", adminCommitteeRoutes);
 
 app.use("/uploads", express.static(require("path").join(__dirname, "../uploads")));
 
