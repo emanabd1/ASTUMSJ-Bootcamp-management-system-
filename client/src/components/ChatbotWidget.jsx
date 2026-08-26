@@ -219,7 +219,7 @@ export default function ChatbotWidget() {
       formData.append("context", JSON.stringify({ role, data: roleData }));
       if (fileForQuestion) formData.append("file", fileForQuestion);
       const response = await axiosInstance.post("/chat/message", formData);
-      setMessages((current) => [...current, { id: `${Date.now()}-answer`, from: "bot", text: response.data.answer }]);
+      setMessages(response.data.messages || []);
     } catch {
       setMessages((current) => [...current, { id: `${Date.now()}-answer`, from: "bot", text: answerFromData(trimmedQuestion, role, roleData) }]);
     } finally {
