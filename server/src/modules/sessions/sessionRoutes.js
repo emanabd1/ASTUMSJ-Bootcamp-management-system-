@@ -89,31 +89,172 @@ router.get("/:id", async (req, res, next) => {
 });
 router.post("/:id/join", async (req, res, next) => {
   try {
-    if (req.user.role !== "student") return res.status(403).json({ success: false, message: "Only students can join sessions." });
-    const session = await Session.findById(req.params.id).populate("batch", "students");
-    if (!session || !session.batch.students.some((student) => String(student) === String(req.user._id))) return res.status(403).json({ success: false, message: "You are not enrolled in this session." });
+    if (req.user.role !== "student") {
+      return res.status(403).json({
+        success: false,
+        message: "Only students can join sessions.",
+      });
+    }
+
+    const session = await Session.findById(req.params.id)
+      .populate("batch", "students");
+
+    if (
+      !session ||
+      !session.batch.students.some(
+        (student) => String(student) === String(req.user._id)
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not enrolled in this session.",
+      });
+    }
+
     const now = new Date();
-    const record = await Attendance.findOneAndUpdate({ session: session._id, student: req.user._id }, { $set: { session: session._id, student: req.user._id, mentor: session.createdBy, date: session.startsAt, status: "Absent", lastSeenAt: now, note: "Attendance is being tracked." }, $setOnInsert: { joinedAt: now, attendedSeconds: 0 } }, { upsert: true, new: true, runValidators: true });
-    res.json({ success: true, attendance: record });
-  } catch (error) { next(error); }
+
+    const trackingStart =
+      now < session.startsAt ? session.startsAt : now;
+
+    const lateMinutes =
+      now > session.startsAt
+        ? Math.floor((now - session.startsAt) / 60000)
+        : 0;
+
+    const record = await Attendance.findOneAndUpdate(
+      {
+        session: session._id,
+        student: req.user._id,
+      },
+      {
+        $set: {
+          session: session._id,
+          student: req.user._id,
+          mentor: session.createdBy,
+          date: session.startsAt,
+          status: "Absent",
+          lastSeenAt: trackingStart,
+          lateMinutes: Math.min(lateMinutes, 15),
+          note: "Attendance is being tracked.",
+        },
+        $setOnInsert: {
+          joinedAt: now,
+          attendedSeconds: 0,
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    res.json({
+      success: true,
+      attendance: record,
+      startsAt: session.startsAt,
+      endsAt: session.endsAt,
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.post("/:id/presence", async (req, res, next) => {
   try {
-    if (req.user.role !== "student") return res.status(403).json({ success: false, message: "Only students can report presence." });
-    const session = await Session.findById(req.params.id).populate("batch", "students");
-    if (!session || !session.batch.students.some((student) => String(student) === String(req.user._id))) return res.status(403).json({ success: false, message: "You are not enrolled in this session." });
-    const record = await Attendance.findOne({ session: session._id, student: req.user._id });
-    if (!record) return res.status(400).json({ success: false, message: "Join the session first." });
+    if (req.user.role !== "student") {
+      return res.status(403).json({
+        success: false,
+        message: "Only students can report presence.",
+      });
+    }
+
+    const session = await Session.findById(req.params.id)
+      .populate("batch", "students");
+
+    if (
+      !session ||
+      !session.batch.students.some(
+        (student) => String(student) === String(req.user._id)
+      )
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not enrolled in this session.",
+      });
+    }
+
+    const record = await Attendance.findOne({
+      session: session._id,
+      student: req.user._id,
+    });
+
+    if (!record) {
+      return res.status(400).json({
+        success: false,
+        message: "Join the session first.",
+      });
+    }
+
     const now = new Date();
-    const elapsed = record.lastSeenAt ? Math.max(0, Math.min(60, (now - record.lastSeenAt) / 1000)) : 0;
-    record.attendedSeconds += elapsed;
-    record.lastSeenAt = now;
-    const duration = Math.max(1, (session.endsAt - session.startsAt) / 1000);
-    if (now >= session.endsAt && record.attendedSeconds >= duration * 0.8) record.status = "Present";
+
+    const effectiveNow =
+      now < session.startsAt ? session.startsAt : now;
+
+    const previousSeen =
+      record.lastSeenAt && record.lastSeenAt > session.startsAt
+        ? record.lastSeenAt
+        : session.startsAt;
+
+    const effectiveEnd =
+      effectiveNow > session.endsAt
+        ? session.endsAt
+        : effectiveNow;
+
+    if (effectiveEnd > previousSeen) {
+      const elapsed = Math.min(
+        60,
+        Math.max(
+          0,
+          (effectiveEnd - previousSeen) / 1000
+        )
+      );
+
+      record.attendedSeconds += elapsed;
+    }
+
+    record.lastSeenAt = effectiveNow;
+
+    const duration = Math.max(
+      1,
+      (session.endsAt - session.startsAt) / 1000
+    );
+
+    if (now >= session.endsAt) {
+      record.attendedSeconds = Math.min(
+        record.attendedSeconds,
+        duration
+      );
+
+      if (record.attendedSeconds >= duration * 0.8) {
+        record.status = "Present";
+      } else if (record.attendedSeconds > 0) {
+        record.status = "Late";
+      } else {
+        record.status = "Absent";
+      }
+    }
+
     await record.save();
-    res.json({ success: true, attendance: record, completed: record.status === "Present" });
-  } catch (error) { next(error); }
+
+    res.json({
+      success: true,
+      attendance: record,
+      completed: now >= session.endsAt,
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.post("/:id/resources", upload.single("file"), async (req, res, next) => {
