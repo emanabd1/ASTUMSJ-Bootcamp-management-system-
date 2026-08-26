@@ -147,11 +147,30 @@ export default function ChatbotWidget() {
   const role = user?.role?.toLowerCase() || "guest";
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [sending, setSending] = useState(false);
   const [roleData, setRoleData] = useState(null);
   const [messages, setMessages] = useState([
     { id: 1, from: "bot", text: `Hi! I am your ${ROLE_LABELS[role].toLowerCase()}. Ask me about the bootcamp or choose a question below.` },
   ]);
   const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    let active = true;
+    setSelectedFile(null);
+    if (role === "guest") {
+      setMessages([{ id: `guest-${Date.now()}`, from: "bot", text: `Hi! I am your ${ROLE_LABELS[role].toLowerCase()}. Ask me about the bootcamp or choose a question below.` }]);
+      return undefined;
+    }
+    axiosInstance.get("/chat/history").then((response) => {
+      if (!active) return;
+      const history = response.data.messages || [];
+      setMessages(history.length ? history : [{ id: `welcome-${Date.now()}`, from: "bot", text: `Hi! I am your ${ROLE_LABELS[role].toLowerCase()}. Ask me about the bootcamp or choose a question below.` }]);
+    }).catch(() => {
+      if (active) setMessages([{ id: `welcome-${Date.now()}`, from: "bot", text: `Hi! I am your ${ROLE_LABELS[role].toLowerCase()}. Ask me about the bootcamp or choose a question below.` }]);
+    });
+    return () => { active = false; };
+  }, [role, user?._id]);
 
   useEffect(() => {
     if (role === "guest") {
@@ -186,15 +205,26 @@ export default function ChatbotWidget() {
     if (open) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, open]);
 
-  const ask = (question) => {
+  const ask = async (question) => {
     const trimmedQuestion = question.trim();
-    if (!trimmedQuestion) return;
-    setMessages((current) => [
-      ...current,
-      { id: `${Date.now()}-question`, from: "user", text: trimmedQuestion },
-      { id: `${Date.now()}-answer`, from: "bot", text: answerFromData(trimmedQuestion, role, roleData) },
-    ]);
+    if (!trimmedQuestion || sending) return;
+    setSending(true);
+    const fileForQuestion = role === "student" ? selectedFile : null;
+    setMessages((current) => [...current, { id: `${Date.now()}-question`, from: "user", text: trimmedQuestion, fileName: fileForQuestion?.name || "" }]);
     setInput("");
+    setSelectedFile(null);
+    try {
+      const formData = new FormData();
+      formData.append("question", trimmedQuestion);
+      formData.append("context", JSON.stringify({ role, data: roleData }));
+      if (fileForQuestion) formData.append("file", fileForQuestion);
+      const response = await axiosInstance.post("/chat/message", formData);
+      setMessages((current) => [...current, { id: `${Date.now()}-answer`, from: "bot", text: response.data.answer }]);
+    } catch {
+      setMessages((current) => [...current, { id: `${Date.now()}-answer`, from: "bot", text: answerFromData(trimmedQuestion, role, roleData) }]);
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleSubmit = (event) => {
@@ -217,9 +247,10 @@ export default function ChatbotWidget() {
           <div className="flex-1 space-y-3 overflow-y-auto p-4" aria-live="polite">
             {messages.map((message) => (
               <div key={message.id} className={`flex ${message.from === "user" ? "justify-end" : "justify-start"}`}>
-                <p className={`max-w-[88%] break-words rounded-2xl px-3 py-2 text-sm leading-relaxed ${message.from === "user" ? "rounded-br-sm bg-[#c89b7b] text-[#1e1713]" : "rounded-bl-sm bg-[#2d231d] text-[#f5efe6]"}`}>
-                  {message.text}
-                </p>
+                <div className={`max-w-[88%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${message.from === "user" ? "rounded-br-sm bg-[#c89b7b] text-[#1e1713]" : "rounded-bl-sm bg-[#2d231d] text-[#f5efe6]"}`}>
+                  <p className="break-words">{message.text}</p>
+                  {message.fileName && <p className="mt-1 break-all text-[10px] opacity-70">Attached: {message.fileName}</p>}
+                </div>
               </div>
             ))}
             <div ref={messagesEndRef} />
@@ -231,9 +262,14 @@ export default function ChatbotWidget() {
                 <button key={question} type="button" onClick={() => ask(question)} className="shrink-0 rounded-full border border-[#6e5748] px-2.5 py-1.5 text-[11px] text-[#d8b493] hover:border-[#c89b7b] hover:bg-[#2d231d]">{question}</button>
               ))}
             </div>
+            {selectedFile && <p className="mb-2 truncate text-[11px] text-[#d8b493]">File: {selectedFile.name}</p>}
             <form onSubmit={handleSubmit} className="flex gap-2">
+              {role === "student" && <label className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-[#4a3b32] text-lg text-[#d8b493] hover:bg-[#2d231d]" title="Ask about a file">
+                <span aria-hidden="true">📎</span>
+                <input type="file" accept=".pdf,.txt,.md,.doc,.docx" className="sr-only" onChange={(event) => setSelectedFile(event.target.files?.[0] || null)} />
+              </label>}
               <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask a question..." aria-label="Ask the chatbot a question" className="min-w-0 flex-1 rounded-lg border border-[#4a3b32] bg-[#16110e] px-3 py-2 text-sm text-[#f5efe6] outline-none placeholder:text-[#806b5d] focus:border-[#c89b7b]" />
-              <button type="submit" disabled={dataLoading} className="rounded-lg bg-[#c89b7b] px-3 py-2 text-sm font-bold text-[#1e1713] hover:brightness-110 disabled:cursor-wait disabled:opacity-60" aria-label="Send question">{dataLoading ? "..." : "Send"}</button>
+              <button type="submit" disabled={dataLoading || sending} className="rounded-lg bg-[#c89b7b] px-3 py-2 text-sm font-bold text-[#1e1713] hover:brightness-110 disabled:cursor-wait disabled:opacity-60" aria-label="Send question">{dataLoading || sending ? "..." : "Send"}</button>
             </form>
           </div>
         </section>

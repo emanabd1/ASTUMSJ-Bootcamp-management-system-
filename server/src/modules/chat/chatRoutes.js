@@ -11,33 +11,50 @@ const upload = multer({
 router.use(protect);
 
 const fallbackAnswer = "I could not reach the RAG assistant right now. Please try again shortly.";
+const assistantPolicy = `You are the Bootcamp Management System assistant.
 
-async function askRag({ question, role, history, file }) {
-  if (!process.env.RAG_API_URL) return null;
+You may ONLY answer using information provided in CONTEXT.
+
+If the information is not present in CONTEXT:
+say that the information is not available in the system.
+
+Do not use your general/world knowledge.
+Do not answer questions unrelated to the Bootcamp Management System.
+Do not reveal information belonging to another user.
+Do not reveal passwords, JWT tokens, API keys, database credentials, or security secrets.
+Only use information that the authenticated user is authorized to access.
+Never guess or invent information.`;
+
+async function askRag({ question, role, history, file, context }) {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.RAG_API_KEY;
+  const apiUrl = process.env.GEMINI_API_URL || process.env.RAG_API_URL;
+  if (!apiKey || !apiUrl) return null;
 
   const payload = {
-    question,
-    role,
-    history: history.map(({ from, text }) => ({ role: from === "user" ? "user" : "assistant", content: text })),
+    contents: [{
+      role: "user",
+      parts: [{ text: `CONTEXT:\n${context || "No context was provided."}\n\nQUESTION:\n${question}` }],
+    }],
+    systemInstruction: { parts: [{ text: assistantPolicy }] },
   };
+  if (history.length) {
+    payload.contents.unshift(...history.map(({ from, text }) => ({
+      role: from === "user" ? "user" : "model",
+      parts: [{ text }],
+    })));
+  }
   if (file) {
-    payload.file = {
-      name: file.originalname,
-      mimeType: file.mimetype,
-      contentBase64: file.buffer.toString("base64"),
-    };
+    payload.contents[0].parts.push({ inlineData: { mimeType: file.mimetype, data: file.buffer.toString("base64") } });
   }
 
-  const headers = { "Content-Type": "application/json" };
-  if (process.env.RAG_API_KEY) headers.Authorization = `Bearer ${process.env.RAG_API_KEY}`;
-  const response = await fetch(process.env.RAG_API_URL, {
+  const response = await fetch(`${apiUrl}?key=${encodeURIComponent(apiKey)}`, {
     method: "POST",
-    headers,
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   if (!response.ok) throw new Error(`RAG API returned ${response.status}`);
   const data = await response.json();
-  return String(data.answer || data.response || data.message || "").trim() || fallbackAnswer;
+  return String(data.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("") || "").trim() || fallbackAnswer;
 }
 
 router.get("/history", async (req, res, next) => {
@@ -52,6 +69,7 @@ router.get("/history", async (req, res, next) => {
 router.post("/message", upload.single("file"), async (req, res, next) => {
   try {
     const question = String(req.body.question || "").trim();
+    const context = String(req.body.context || "").slice(0, 100000);
     if (!question) return res.status(400).json({ success: false, message: "A question is required." });
     if (req.file && req.user.role !== "student") {
       return res.status(403).json({ success: false, message: "Only students can ask questions about uploaded files." });
@@ -67,12 +85,14 @@ router.post("/message", upload.single("file"), async (req, res, next) => {
 
     let answer;
     try {
-      answer = await askRag({ question, role: req.user.role, history: previousMessages, file: req.file });
+      answer = await askRag({ question, role: req.user.role, history: previousMessages, file: req.file, context });
     } catch (error) {
       console.error("RAG request failed:", error.message);
       answer = null;
     }
-    answer = answer || "The RAG assistant is not configured yet. Please ask a general bootcamp question or try again later.";
+    answer = answer || (process.env.GEMINI_API_KEY || process.env.RAG_API_KEY
+      ? "The assistant could not process this request. Please try again later."
+      : "The RAG assistant is not configured yet. Please ask a general bootcamp question or try again later.");
     chat.messages.push({ from: "bot", text: answer });
     await chat.save();
 
