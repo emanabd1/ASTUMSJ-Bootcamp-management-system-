@@ -26,6 +26,7 @@ export default function LoginPage() {
   const [codeforcesUrl, setCodeforcesUrl] = useState("");
   const [githubUrl, setGithubUrl] = useState("");
   const [bootcampReason, setBootcampReason] = useState("");
+  const [university, setUniversity] = useState("");
 
   // =========================
   // GENERAL STATE
@@ -148,6 +149,7 @@ export default function LoginPage() {
         leetcodeUrl,
         codeforcesUrl,
         githubUrl,
+        university,
         bootcampReason,
       });
 
@@ -168,8 +170,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center overflow-hidden bg-[#c89b7b] font-serif">
-      <div className="relative flex h-[95vh] w-[200vw] max-w-7xl overflow-hidden rounded-3xl bg-[#1e1713] shadow-2xl">
+    <div className="flex h-screen w-screen items-center justify-center overflow-hidden bg-[#F5F8FC] font-serif">
+      <div className="relative flex h-[95vh] w-[200vw] max-w-7xl overflow-hidden rounded-3xl bg-[#050B14] shadow-2xl">
 
         {/* =====================================================
             STATIC BACKGROUND LOGO PANELS
@@ -178,8 +180,8 @@ export default function LoginPage() {
         <div className="absolute inset-0 flex">
 
           {/* LEFT BACKGROUND */}
-          <div className="flex w-1/2 flex-col items-center justify-center bg-[#c89b7b] p-8 text-center px-6 py-4">
-            <span className="mb-2 text-4xl font-extrabold uppercase tracking-wider text-[#1e1713]">
+          <div className="flex w-1/2 flex-col items-center justify-center bg-[#0B1F3A] p-8 text-center px-6 py-4">
+            <span className="mb-2 text-4xl font-extrabold uppercase tracking-wider text-[#F5F8FC]">
               ASTUMSJ SUMMER BOOTCAMP
             </span>
 
@@ -203,8 +205,8 @@ export default function LoginPage() {
           </div>
 
           {/* RIGHT BACKGROUND */}
-          <div className="flex w-1/2 flex-col items-center justify-center bg-[#c89b7b] p-8 text-center px-6 py-4">
-            <span className="mb-2 text-4xl font-extrabold uppercase tracking-wider text-[#1e1713] ">
+          <div className="flex w-1/2 flex-col items-center justify-center bg-[#0B1F3A] p-8 text-center px-6 py-4">
+            <span className="mb-2 text-4xl font-extrabold uppercase tracking-wider text-[#F5F8FC]">
               ASTUMSJ SUMMER BOOTCAMP
             </span>
 
@@ -218,11 +220,11 @@ export default function LoginPage() {
                 </div>
              </div>
 
-            <h1 className="text-4xl font-bold text-[#1e1713] font-serif tracking-tight">
+            <h1 className="text-4xl font-bold text-[#F5F8FC] font-serif tracking-tight">
               Step Bold,
             </h1>
 
-            <h1 className="text-4xl font-bold tracking-tight">
+            <h1 className="text-4xl font-bold text-[#F5F8FC] tracking-tight">
               Stay Iconic
             </h1>
           </div>
@@ -233,7 +235,7 @@ export default function LoginPage() {
         ====================================================== */}
 
         <div
-          className={`absolute top-0 z-20 flex h-full w-1/2 flex-col justify-center overflow-y-auto bg-[#1e1713] px-10 text-[#f5efe6] shadow-2xl transition-transform duration-700 ease-in-out ${
+          className={`absolute top-0 z-20 flex h-full w-1/2 flex-col justify-center overflow-y-auto bg-[#F5F8FC] px-10 text-[#f5efe6] shadow-2xl transition-transform duration-700 ease-in-out ${
             isSignup
               ? "translate-x-full"
               : "translate-x-0"
@@ -247,7 +249,7 @@ export default function LoginPage() {
           {!isSignup ? (
             <div>
 
-              <h2 className="mb-6 text-3xl font-bold tracking-wide">
+              <h2 className="mb-6 text-3xl font-bold tracking-wide text-[#102A43]">
                 Welcome Back
               </h2>
 
@@ -266,7 +268,7 @@ export default function LoginPage() {
                 {/* ================= EMAIL ================= */}
 
                 <div>
-                  <label className="text-xs text-[#a39081]">
+                  <label className="text-xs text-[#102A43]">
                     Email
                   </label>
 
@@ -277,7 +279,7 @@ export default function LoginPage() {
                     onChange={(e) =>
                       setEmail(e.target.value)
                     }
-                    className="w-full rounded-xl border border-[#4a3b32] bg-transparent px-4 py-3 text-sm focus:border-[#c89b7b] focus:outline-none"
+                    className="w-full rounded-xl border border-[#B8CBE3]  px-4 py-3 text-sm focus:border-[#B8CBE3] focus:outline-none text-[#102A43]"
                     placeholder="Enter your email"
                   />
                 </div>
@@ -285,7 +287,7 @@ export default function LoginPage() {
                 {/* ================= PASSWORD ================= */}
 
                 <div>
-                  <label className="text-xs text-[#a39081]">
+                  <label className="text-xs text-[#102A43]">
                     Password
                   </label>
 
@@ -301,7 +303,7 @@ export default function LoginPage() {
                       onChange={(e) =>
                         setPassword(e.target.value)
                       }
-                      className="w-full rounded-xl border border-[#4a3b32] bg-transparent px-4 py-3 pr-12 text-sm focus:border-[#c89b7b] focus:outline-none"
+                      className="w-full rounded-xl border border-[#B8CBE3] bg-transparent px-4 py-3 pr-12 text-sm focus:border-[#B8CBE3] focus:outline-none text-[#102A43]"
                       placeholder="Enter your password"
                     />
 
@@ -371,7 +373,7 @@ export default function LoginPage() {
                   <div className="mt-2 text-right">
                     <a
                       href="/forgot-password"
-                      className="text-[11px] font-semibold text-[#c89b7b] underline hover:text-white"
+                      className="text-[11px] font-semibold text-[#102A43] underline hover:text-[#102A43]"
                     >
                       Forgot password?
                     </a>
@@ -383,7 +385,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full rounded-xl bg-[#c89b7b] py-3 text-sm font-semibold text-[#1e1713] transition hover:bg-[#b08567] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-xl bg-[#102A43] py-3 text-sm font-semibold text-[#F5F8FC] transition hover:bg-[#1E4D8C] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {loading
                     ? "Logging in..."
@@ -412,7 +414,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={handleGoogleLogin}
-                  className="flex items-center justify-center gap-3 rounded-xl border border-[#4a3b32] bg-[#1e1713] py-3 text-sm font-semibold text-[#f5efe6] transition hover:border-[#c89b7b] hover:bg-[#2d231d]"
+                  className="flex items-center justify-center gap-3 rounded-xl border border-[#B8CBE3] bg-[#102A43] py-3 text-sm font-semibold text-[#f5efe6] transition hover:border-[#c89b7b] hover:bg-[#1E4D8C]"
                 >
                   {/* Google G */}
 
@@ -450,7 +452,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={handleGithubLogin}
-                  className="flex items-center justify-center gap-3 rounded-xl border border-[#4a3b32] bg-[#1e1713] py-3 text-sm font-semibold text-[#f5efe6] transition hover:border-[#c89b7b] hover:bg-[#2d231d]"
+                  className="flex items-center justify-center gap-3 rounded-xl border border-[#B8CBE3] bg-[#102A43] py-3 text-sm font-semibold text-[#f5efe6] transition hover:border-[#c89b7b] hover:bg-[#1E4D8C]"
                 >
                   {/* GitHub Icon */}
 
@@ -480,7 +482,7 @@ export default function LoginPage() {
                         setSignupStep(1);
                         setIsSignup(true);
                       }}
-                      className="cursor-pointer border-none bg-transparent font-bold text-[#c89b7b] underline hover:text-white"
+                      className="cursor-pointer border-none bg-transparent font-bold text-[#102A43] underline hover:text-[#1E4D8C]"
                     >
                       Sign up
                     </button>
@@ -503,7 +505,7 @@ export default function LoginPage() {
               {/* HEADER */}
 
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-xl font-bold tracking-wide">
+                <h2 className="text-xl font-bold tracking-wide text-[#102A43]">
                   Create Account
                 </h2>
 
@@ -530,7 +532,7 @@ export default function LoginPage() {
                   {/* FULL NAME */}
 
                   <div>
-                    <label className="text-xs text-[#a39081]">
+                    <label className="text-xs text-[#102A43]">
                       Full Name
                     </label>
 
@@ -541,7 +543,7 @@ export default function LoginPage() {
                       onChange={(e) =>
                         setFullName(e.target.value)
                       }
-                      className="w-full rounded-xl border border-[#4a3b32] bg-transparent px-3 py-2 text-sm focus:border-[#c89b7b] focus:outline-none"
+                      className="w-full rounded-xl border border-[#B8CBE3] bg-[#102A43]transparent px-3 py-2 text-sm focus:border-[#102A43] focus:outline-none text-[#102A43]"
                       placeholder="Enter your full name"
                     />
                   </div>
@@ -549,7 +551,7 @@ export default function LoginPage() {
                   {/* EMAIL */}
 
                   <div>
-                    <label className="text-xs text-[#a39081]">
+                    <label className="text-xs text-[#102A43]">
                       Email
                     </label>
 
@@ -560,7 +562,7 @@ export default function LoginPage() {
                       onChange={(e) =>
                         setEmail(e.target.value)
                       }
-                      className="w-full rounded-xl border border-[#4a3b32] bg-transparent px-3 py-2 text-sm focus:border-[#c89b7b] focus:outline-none"
+                      className="w-full rounded-xl border border-[#B8CBE3] bg-[#102A43]transparent px-3 py-2 text-sm focus:border-[#102A43] focus:outline-none text-[#102A43]"
                       placeholder="Enter your email"
                     />
                   </div>
@@ -568,7 +570,7 @@ export default function LoginPage() {
                   {/* PASSWORD */}
 
                   <div>
-                    <label className="text-xs text-[#a39081]">
+                    <label className="text-xs text-[#102A43]">
                       Password
                     </label>
 
@@ -580,7 +582,7 @@ export default function LoginPage() {
                       onChange={(e) =>
                         setPassword(e.target.value)
                       }
-                      className="w-full rounded-xl border border-[#4a3b32] bg-transparent px-3 py-2 text-sm focus:border-[#c89b7b] focus:outline-none"
+                      className="w-full rounded-xl border border-[#B8CBE3] bg-[#102A43]transparent px-3 py-2 text-sm focus:border-[#102A43] focus:outline-none text-[#102A43]"
                       placeholder="Min 6 characters"
                     />
                   </div>
@@ -588,7 +590,7 @@ export default function LoginPage() {
                   {/* CONFIRM PASSWORD */}
 
                   <div>
-                    <label className="text-xs text-[#a39081]">
+                    <label className="text-xs text-[#102A43]">
                       Confirm Password
                     </label>
 
@@ -602,7 +604,7 @@ export default function LoginPage() {
                           e.target.value
                         )
                       }
-                      className="w-full rounded-xl border border-[#4a3b32] bg-transparent px-3 py-2 text-sm focus:border-[#c89b7b] focus:outline-none"
+                      className="w-full rounded-xl border border-[#B8CBE3] bg-[#102A43]transparent px-3 py-2 text-sm focus:border-[#102A43] focus:outline-none text-[#102A43]"
                       placeholder="Confirm password"
                     />
                   </div>
@@ -614,7 +616,7 @@ export default function LoginPage() {
                     {/* GENDER */}
 
                     <div>
-                      <label className="text-xs text-[#a39081]">
+                      <label className="text-xs text-[#102A43]">
                         Gender
                       </label>
 
@@ -623,7 +625,7 @@ export default function LoginPage() {
                         onChange={(e) =>
                           setGender(e.target.value)
                         }
-                        className="w-full rounded-xl border border-[#4a3b32] bg-[#1e1713] px-3 py-2 text-sm text-[#f5efe6] focus:border-[#c89b7b] focus:outline-none"
+                        className="w-full rounded-xl border border-[#B8CBE3] bg-[#102A43]transparent px-3 py-2 text-sm focus:border-[#102A43] focus:outline-none text-[#102A43]"
                       >
                         <option value="Male">
                           Male
@@ -638,7 +640,7 @@ export default function LoginPage() {
                     {/* YEAR */}
 
                     <div>
-                      <label className="text-xs text-[#a39081]">
+                      <label className="text-xs text-[#102A43]">
                         Year of Study
                       </label>
 
@@ -649,7 +651,7 @@ export default function LoginPage() {
                             e.target.value
                           )
                         }
-                        className="w-full rounded-xl border border-[#4a3b32] bg-[#1e1713] px-3 py-2 text-sm text-[#f5efe6] focus:border-[#c89b7b] focus:outline-none"
+                        className="w-full rounded-xl border border-[#B8CBE3] bg-[#102A43]transparent px-3 py-2 text-sm focus:border-[#102A43] focus:outline-none text-[#102A43]"
                       >
                         <option value="1st Year">
                           1st Year
@@ -677,7 +679,7 @@ export default function LoginPage() {
                   {/* DEPARTMENT */}
 
                   <div>
-                    <label className="text-xs text-[#a39081]">
+                    <label className="text-xs text-[#102A43]">
                       Department
                     </label>
 
@@ -690,7 +692,7 @@ export default function LoginPage() {
                           e.target.value
                         )
                       }
-                      className="w-full rounded-xl border border-[#4a3b32] bg-transparent px-3 py-2 text-sm focus:border-[#c89b7b] focus:outline-none"
+                      className="w-full rounded-xl border border-[#B8CBE3] bg-[#102A43]transparent px-3 py-2 text-sm focus:border-[#102A43] focus:outline-none text-[#102A43]"
                       placeholder="e.g. Software Engineering"
                     />
                   </div>
@@ -726,7 +728,7 @@ export default function LoginPage() {
                         );
                       }
                     }}
-                    className="mt-1 w-full rounded-xl bg-[#c89b7b] py-2.5 text-sm font-semibold text-[#1e1713] transition hover:bg-[#b08567]"
+                    className="mt-1 w-full rounded-xl bg-[#102A43] py-2.5 text-sm font-semibold text-[#F5F8FC] transition hover:bg-[#1E4D8C]"
                   >
                     Next: Coding Profiles & Motivation →
                   </button>
@@ -745,7 +747,7 @@ export default function LoginPage() {
                   {/* LEETCODE */}
 
                   <div>
-                    <label className="text-xs text-[#a39081]">
+                    <label className="text-xs text-[#102A43]">
                       LeetCode Profile URL
                     </label>
 
@@ -757,7 +759,7 @@ export default function LoginPage() {
                           e.target.value
                         )
                       }
-                      className="w-full rounded-xl border border-[#4a3b32] bg-transparent px-3 py-2 text-xs focus:border-[#c89b7b] focus:outline-none"
+                      className="w-full rounded-xl border border-[#B8CBE3] bg-[#102A43]transparent px-3 py-2 text-xs focus:border-[#102A43] focus:outline-none text-[#102A43]"
                       placeholder="https://leetcode.com/username"
                     />
                   </div>
@@ -765,7 +767,7 @@ export default function LoginPage() {
                   {/* CODEFORCES */}
 
                   <div>
-                    <label className="text-xs text-[#a39081]">
+                    <label className="text-xs text-[#102A43]">
                       Codeforces Profile URL
                     </label>
 
@@ -777,7 +779,7 @@ export default function LoginPage() {
                           e.target.value
                         )
                       }
-                      className="w-full rounded-xl border border-[#4a3b32] bg-transparent px-3 py-2 text-xs focus:border-[#c89b7b] focus:outline-none"
+                      className="w-full rounded-xl border border-[#B8CBE3] bg-[#102A43]transparent px-3 py-2 text-xs focus:border-[#102A43] focus:outline-none text-[#102A43]"
                       placeholder="https://codeforces.com/profile/username"
                     />
                   </div>
@@ -785,7 +787,7 @@ export default function LoginPage() {
                   {/* GITHUB PROFILE */}
 
                   <div>
-                    <label className="text-xs text-[#a39081]">
+                    <label className="text-xs text-[#102A43]">
                       GitHub Profile URL
                     </label>
 
@@ -797,7 +799,7 @@ export default function LoginPage() {
                           e.target.value
                         )
                       }
-                      className="w-full rounded-xl border border-[#4a3b32] bg-transparent px-3 py-2 text-xs focus:border-[#c89b7b] focus:outline-none"
+                      className="w-full rounded-xl border border-[#B8CBE3] bg-[#102A43]transparent px-3 py-2 text-xs focus:border-[#102A43] focus:outline-none text-[#102A43]"
                       placeholder="https://github.com/username"
                     />
                   </div>
@@ -805,7 +807,7 @@ export default function LoginPage() {
                   {/* BOOTCAMP REASON */}
 
                   <div>
-                    <label className="text-xs text-[#a39081]">
+                    <label className="text-xs text-[#102A43]">
                       Why do you want to join this bootcamp? *
                     </label>
 
@@ -818,7 +820,7 @@ export default function LoginPage() {
                           e.target.value
                         )
                       }
-                      className="w-full resize-none rounded-xl border border-[#4a3b32] bg-transparent px-3 py-2 text-xs focus:border-[#c89b7b] focus:outline-none"
+                      className="w-full resize-none rounded-xl border border-[#B8CBE3] bg-[#102A43]transparent px-3 py-2 text-xs focus:border-[#102A43] focus:outline-none text-[#102A43]"
                       placeholder="Briefly explain your motivation..."
                     />
                   </div>
@@ -832,7 +834,7 @@ export default function LoginPage() {
                       onClick={() =>
                         setSignupStep(1)
                       }
-                      className="w-1/3 rounded-xl border border-[#4a3b32] py-2 text-xs font-semibold text-[#a39081] transition hover:bg-[#2d231d]"
+                      className="w-1/3 rounded-xl bg-[#102A43] border border-[#B8CBE3] py-2 text-xs font-semibold text-[#F5F8FC] transition hover:bg-[#1E4D8C]"
                     >
                       ← Back
                     </button>
@@ -840,7 +842,7 @@ export default function LoginPage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-2/3 rounded-xl bg-[#c89b7b] py-2 text-xs font-semibold text-[#1e1713] transition hover:bg-[#b08567] disabled:cursor-not-allowed disabled:opacity-60"
+                      className="w-2/3 rounded-xl bg-[#102A43] py-2 text-xs font-semibold text-[#F5F8FC] transition hover:bg-[#1E4D8C] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {loading
                         ? "Submitting..."
@@ -853,7 +855,7 @@ export default function LoginPage() {
 
               {/* ================= LOGIN LINK ================= */}
 
-              <div className="mt-3 text-center text-xs text-[#a39081]">
+              <div className="mt-3 text-center text-xs text-[#102A43]">
                 Already have an account?{" "}
 
                 <button
@@ -863,7 +865,7 @@ export default function LoginPage() {
                     setIsSignup(false);
                     setSignupStep(1);
                   }}
-                  className="cursor-pointer border-none bg-transparent font-bold text-[#c89b7b] underline hover:text-white"
+                  className="cursor-pointer border-none bg-transparent font-bold text-[#102A43] underline hover:text-[#1E4D8C]"
                 >
                   Login
                 </button>

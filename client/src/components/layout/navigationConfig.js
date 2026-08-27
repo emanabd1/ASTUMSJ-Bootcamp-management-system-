@@ -9,6 +9,7 @@ export const navigationConfig = {
     // { name: "Notifications", path: "/notifications" },
     { name: "Announcements", path: "/admin/announcements" },
     { name: "Community & Badges", path: "/admin/community" },
+    { name: "Admin Committee", path: "/admin/committee" },
     // { name: "Settings", path: "/settings" },
   ],
   mentor: [
