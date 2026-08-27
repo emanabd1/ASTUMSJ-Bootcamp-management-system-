@@ -4,7 +4,7 @@ import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 
 export default function DashboardLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#16110e] font-serif">
