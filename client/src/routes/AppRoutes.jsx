@@ -31,6 +31,7 @@ import StudentDashboard from "../pages/StudentDashboard";
 import StudentAttendancePage from "../pages/StudentAttendancePage";
 import StudentProgressPage from "../pages/StudentProgressPage";
 import StudentProfilePage from "../pages/StudentProfilePage";
+import DailyDisciplinePage from "../pages/DailyDisciplinePage";
 import ResourcesPage from "../pages/ResourcesPage";
 import SessionsPage from "../pages/SessionsPage";
 import SessionDetailPage from "../pages/SessionDetailPage";
@@ -226,6 +227,11 @@ export default function AppRoutes() {
           <Route
             path="/student/announcements"
             element={<AnnouncementsPage />}
+          />
+
+          <Route
+            path="/student/discipline"
+            element={<DailyDisciplinePage />}
           />
         </Route>
 
