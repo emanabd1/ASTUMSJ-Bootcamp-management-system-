@@ -23,6 +23,7 @@ export const navigationConfig = {
     { name: "Dashboard", path: "/student/dashboard" },
     { name: "My Attendance", path: "/student/attendance" },
     { name: "My Progress", path: "/student/progress" },
+    { name: "Daily Discipline", path: "/student/discipline" },
     { name: "Assignments", path: "/student/assignments" },
     { name: "Sessions", path: "/sessions" },
     { name: "Reports & Analytics", path: "/insights" },
