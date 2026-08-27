@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const Batch = require("./batchModel");
+const BatchYear = require("../batchYears/batchYearModel");
 const User = require("../users/userModel");
 const protect = require("../../middleware/authMiddleware");
 const authorize = require("../../middleware/roleMiddleware");
@@ -11,18 +12,6 @@ const router = express.Router();
 // Require authentication for all routes here
 router.use(protect);
 
-const validDates = (startDate, endDate) => {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  return (
-    startDate &&
-    endDate &&
-    !Number.isNaN(start.getTime()) &&
-    !Number.isNaN(end.getTime()) &&
-    end >= start
-  );
-};
-
 const ids = (value) =>
   Array.isArray(value) ? value.filter((id) => mongoose.isValidObjectId(id)) : [];
 
@@ -32,6 +21,7 @@ router.get("/", authorize("admin", "mentor"), async (req, res, next) => {
     const batches = await Batch.find(query)
       .populate("mentors", "fullName email")
       .populate("students", "fullName email department yearOfStudy")
+      .populate("batchYear", "name startDate endDate status")
       .sort({ startDate: -1 });
 
     res.json({ success: true, batches });
@@ -44,7 +34,8 @@ router.get("/:id", authorize("admin", "mentor"), async (req, res, next) => {
   try {
     const batch = await Batch.findById(req.params.id)
       .populate("mentors", "fullName email")
-      .populate("students", "fullName email department yearOfStudy");
+      .populate("students", "fullName email department yearOfStudy")
+      .populate("batchYear", "name startDate endDate status");
 
     if (!batch) {
       return res.status(404).json({ success: false, message: "Batch not found." });
@@ -66,34 +57,46 @@ router.post(
   "/",
   body({
     name: { required: true, maxLength: 200 },
-    startDate: { required: true },
-    endDate: { required: true }
+    batchYearId: { required: true }
   }),
   async (req, res, next) => {
     try {
-      const { name, description = "", startDate, endDate, status = "upcoming" } = req.body;
+      const { name, description = "", batchYearId, status = "upcoming" } = req.body;
 
-      if (!name?.trim() || !validDates(startDate, endDate)) {
-        return res.status(400).json({
-          success: false,
-          message: "Name and valid start/end dates are required."
-        });
+      if (!name?.trim()) {
+        return res.status(400).json({ success: false, message: "A group name is required." });
+      }
+      if (!mongoose.isValidObjectId(batchYearId)) {
+        return res.status(400).json({ success: false, message: "Choose which batch this group belongs to." });
+      }
+
+      const batchYear = await BatchYear.findById(batchYearId);
+      if (!batchYear) {
+        return res.status(404).json({ success: false, message: "That batch no longer exists." });
       }
 
       if (!["upcoming", "active", "completed"].includes(status)) {
         return res.status(400).json({ success: false, message: "Invalid batch status." });
       }
 
+      // Groups inherit their timeframe from the parent batch (year) instead
+      // of asking the admin for dates every time.
       const batch = await Batch.create({
         name: name.trim(),
         description,
-        startDate,
-        endDate,
+        batchYear: batchYear._id,
+        startDate: batchYear.startDate,
+        endDate: batchYear.endDate,
         status
       });
 
-      res.status(201).json({ success: true, batch });
+      const populated = await Batch.findById(batch._id).populate("batchYear", "name startDate endDate status");
+
+      res.status(201).json({ success: true, batch: populated });
     } catch (e) {
+      if (e.code === 11000) {
+        return res.status(409).json({ success: false, message: "A group with that name already exists." });
+      }
       next(e);
     }
   }
@@ -109,19 +112,13 @@ router.patch(
         return res.status(404).json({ success: false, message: "Batch not found." });
       }
 
-      const { name, description, startDate, endDate, status } = req.body;
+      const { name, description, status, batchYearId } = req.body;
 
       if (name !== undefined) {
         batch.name = String(name).trim();
       }
       if (description !== undefined) {
         batch.description = String(description);
-      }
-      if (startDate !== undefined) {
-        batch.startDate = startDate;
-      }
-      if (endDate !== undefined) {
-        batch.endDate = endDate;
       }
       if (status !== undefined) {
         if (!["upcoming", "active", "completed"].includes(status)) {
@@ -130,15 +127,24 @@ router.patch(
         batch.status = status;
       }
 
-      if (!validDates(batch.startDate, batch.endDate)) {
-        return res.status(400).json({
-          success: false,
-          message: "End date must be on or after start date."
-        });
+      // Moving a group to a different batch (year) also carries its dates along,
+      // since a group's timeframe is always inherited from its parent batch.
+      if (batchYearId !== undefined) {
+        if (!mongoose.isValidObjectId(batchYearId)) {
+          return res.status(400).json({ success: false, message: "Choose a valid batch." });
+        }
+        const batchYear = await BatchYear.findById(batchYearId);
+        if (!batchYear) {
+          return res.status(404).json({ success: false, message: "That batch no longer exists." });
+        }
+        batch.batchYear = batchYear._id;
+        batch.startDate = batchYear.startDate;
+        batch.endDate = batchYear.endDate;
       }
 
       await batch.save();
-      res.json({ success: true, batch });
+      const populated = await Batch.findById(batch._id).populate("batchYear", "name startDate endDate status");
+      res.json({ success: true, batch: populated });
     } catch (e) {
       next(e);
     }
@@ -209,13 +215,24 @@ router.patch("/:id/students", async (req, res, next) => {
       await User.updateMany({ _id: { $in: removed } }, { $set: { batch: null } });
     }
 
+    // A student can only belong to one group at a time: pull them out of any
+    // other group's roster before adding them here, so rosters stay in sync
+    // with User.batch instead of a student silently lingering in two groups.
+    if (newIds.length) {
+      await Batch.updateMany(
+        { _id: { $ne: batch._id } },
+        { $pull: { students: { $in: newIds } } }
+      );
+    }
+
     await User.updateMany({ _id: { $in: newIds } }, { $set: { batch: batch._id } });
     batch.students = newIds;
     await batch.save();
 
     const populated = await Batch.findById(batch._id)
       .populate("mentors", "fullName email")
-      .populate("students", "fullName email department yearOfStudy");
+      .populate("students", "fullName email department yearOfStudy")
+      .populate("batchYear", "name startDate endDate status");
 
     res.json({ success: true, batch: populated });
   } catch (e) {

@@ -9,6 +9,7 @@ const authRoutes = require("./modules/auth/authRoutes");
 const userRoutes = require("./modules/users/userRoutes");
 const mentorRoutes = require("./modules/mentors/mentorRoutes");
 const batchRoutes = require("./modules/batches/batchRoutes");
+const batchYearRoutes = require("./modules/batchYears/batchYearRoutes");
 const settingsRoutes = require("./modules/settings/settingsRoutes");
 const studentRoutes = require("./modules/students/studentRoutes");
 const assignmentRoutes = require("./modules/assignments/assignmentRoutes");
@@ -24,6 +25,7 @@ const communityRoutes = require("./modules/community/communityRoutes");
 const achievementRoutes = require("./modules/achievements/achievementRoutes");
 const reportRoutes = require("./modules/reports/reportRoutes");
 const chatRoutes = require("./modules/chat/chatRoutes");
+const adminCommitteeRoutes = require("./modules/adminCommittee/adminCommitteeRoutes");
 const errorHandler = require("./middleware/errorHandler");
 const { startNotificationScheduler } = require("./utils/notificationScheduler");
 
@@ -53,6 +55,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/mentors", mentorRoutes);
 app.use("/api/batches", batchRoutes);
+app.use("/api/batch-years", batchYearRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/students", studentRoutes);
 app.use("/api/assignments", assignmentRoutes);
@@ -68,6 +71,7 @@ app.use("/api/community", communityRoutes);
 app.use("/api/achievements", achievementRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/admin-committee", adminCommitteeRoutes);
 
 app.use("/uploads", express.static(require("path").join(__dirname, "../uploads")));
 
