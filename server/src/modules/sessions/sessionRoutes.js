@@ -4,6 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const Session = require("./sessionModel");
 const Batch = require("../batches/batchModel");
+const BatchYear = require("../batchYears/batchYearModel");
 const User = require("../users/userModel");
 const Assignment = require("../assignments/assignmentModel");
 const Submission = require("../assignments/assignmentSubmissionModel");
@@ -22,7 +23,9 @@ router.use(protect);
 
 async function canAccess(user, batch) {
   const members = user.role === "student" ? batch.students : batch.mentors;
-  return user.role === "admin" || members.some((member) => String(member._id || member) === String(user._id));
+  const parentBatchYear = batch.batchYear || await BatchYear.findOne({ name: batch.name }).select("students mentors");
+  const parentMembers = user.role === "student" ? parentBatchYear?.students : parentBatchYear?.mentors;
+  return user.role === "admin" || members.some((member) => String(member._id || member) === String(user._id)) || parentMembers?.some((member) => String(member._id || member) === String(user._id));
 }
 
 async function notifyUsers(users, title, message, link, meta) {
@@ -33,7 +36,19 @@ async function notifyUsers(users, title, message, link, meta) {
 
 router.get("/", async (req, res, next) => {
   try {
-    const batches = req.user.role === "admin" ? await Batch.find().select("_id") : await Batch.find(req.user.role === "student" ? { students: req.user._id } : { mentors: req.user._id }).select("_id");
+    const batches = req.user.role === "admin"
+      ? await Batch.find().select("_id")
+      : await (async () => {
+        const memberField = req.user.role === "student" ? "students" : "mentors";
+        const parentBatchYears = await BatchYear.find({ [memberField]: req.user._id }).select("_id name");
+        return Batch.find({
+          $or: [
+            { [memberField]: req.user._id },
+            { batchYear: { $in: parentBatchYears.map((batchYear) => batchYear._id) } },
+            { name: { $in: parentBatchYears.map((batchYear) => batchYear.name) } },
+          ],
+        }).select("_id");
+      })();
     const sessions = await Session.find({ batch: { $in: batches.map((batch) => batch._id) } }).populate("batch", "name").populate("createdBy", "fullName role").sort({ startsAt: -1 });
     res.json({ success: true, sessions });
   } catch (error) { next(error); }
@@ -43,7 +58,7 @@ router.post("/", async (req, res, next) => {
   try {
     if (req.user.role !== "admin") return res.status(403).json({ success: false, message: "Only admins can create sessions." });
     const { title, description = "", startsAt, endsAt, meetLink = "", batchId } = req.body;
-    const batch = await Batch.findById(batchId).populate("students", "fullName email").populate("mentors", "fullName email");
+    const batch = await Batch.findById(batchId).populate("students", "fullName email").populate("mentors", "fullName email").populate("batchYear", "students mentors");
     if (!batch) return res.status(404).json({ success: false, message: "Batch not found." });
     if (!(await canAccess(req.user, batch))) return res.status(403).json({ success: false, message: "You can only create sessions for your assigned batches." });
     const start = new Date(startsAt); const end = new Date(endsAt);
@@ -53,7 +68,11 @@ router.post("/", async (req, res, next) => {
     const nearbySession = await Session.findOne({ startsAt: { $lt: new Date(end.getTime() + 2 * 60 * 60 * 1000) }, endsAt: { $gt: new Date(start.getTime() - 2 * 60 * 60 * 1000) } });
     if (nearbySession) return res.status(400).json({ success: false, message: "Sessions must have at least a 2-hour gap." });
     const session = await Session.create({ title: title.trim(), description: description.trim(), meetLink: meetLink.trim(), startsAt: start, endsAt: end, batch: batch._id, createdBy: req.user._id });
-    const users = [...batch.students, ...batch.mentors];
+    const parentBatchYear = batch.batchYear || await BatchYear.findOne({ name: batch.name }).select("students mentors");
+    const parentUsers = parentBatchYear
+      ? await User.find({ _id: { $in: [...parentBatchYear.students, ...parentBatchYear.mentors] } }).select("fullName email")
+      : [];
+    const users = [...batch.students, ...batch.mentors, ...parentUsers];
     const message = `${session.title} is scheduled for ${start.toLocaleString()} to ${end.toLocaleString()} for batch ${batch.name}.${session.meetLink ? ` Join: ${session.meetLink}` : ""}`;
     await notifyUsers(users, "New learning session", message, "/sessions", { sessionId: String(session._id), batchId: String(batch._id) });
     res.status(201).json({ success: true, session });
@@ -62,7 +81,7 @@ router.post("/", async (req, res, next) => {
 
 router.get("/:id", async (req, res, next) => {
   try {
-    const session = await Session.findById(req.params.id).populate("batch", "name students mentors").populate("batch.students", "fullName email").populate("batch.mentors", "fullName email").populate("createdBy", "fullName role");
+    const session = await Session.findById(req.params.id).populate("batch", "name students mentors batchYear").populate("batch.students", "fullName email").populate("batch.mentors", "fullName email").populate("batch.batchYear", "students mentors").populate("createdBy", "fullName role");
     if (!session) return res.status(404).json({ success: false, message: "Session not found." });
     if (!(await canAccess(req.user, session.batch))) return res.status(403).json({ success: false, message: "You cannot access this session." });
     const assignedStudents = req.user.role === "mentor"
@@ -97,13 +116,13 @@ router.post("/:id/join", async (req, res, next) => {
     }
 
     const session = await Session.findById(req.params.id)
-      .populate("batch", "students");
+      .populate("batch", "name students batchYear")
+      .populate("batch.batchYear", "students");
+    const parentBatchYear = session?.batch?.batchYear || (session?.batch ? await BatchYear.findOne({ name: session.batch.name }).select("students") : null);
 
     if (
       !session ||
-      !session.batch.students.some(
-        (student) => String(student) === String(req.user._id)
-      )
+      !(session.batch.students.some((student) => String(student) === String(req.user._id)) || parentBatchYear?.students?.some((student) => String(student) === String(req.user._id)))
     ) {
       return res.status(403).json({
         success: false,

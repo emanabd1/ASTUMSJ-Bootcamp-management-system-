@@ -45,38 +45,18 @@
 }
 
 body {
-  font-family: var(--app-font);
-  background: var(--bg);
-  color: var(--body);
+	font-family: var(--app-font);
+	transition: background-color 180ms ease, color 180ms ease;
 }
 
-/* ---------------------------------------------------------------------
- * Structural re-skin: the app was built with hard-coded Tailwind
- * arbitrary-value classes (the "Warm Stone & Rust" palette). Rather than
- * touching every file, we re-target those exact classes to the design
- * tokens above so the whole app follows the light/dark toggle.
- * ------------------------------------------------------------------- */
-
-/* Page / deepest background layer */
-.bg-\[\#16110e\],
-.hover\:bg-\[\#16110e\]:hover,
-.bg-\[\#120d0a\],
-.bg-\[\#1d1511\] {
-  background-color: var(--surface-alt) !important;
+body[data-theme="light"] {
+	background: #fdf6e3;
+	color: #2c1a11;
 }
 
-/* Card / container surface */
-.bg-\[\#1e1713\] {
-  background-color: var(--surface) !important;
-}
-.border-\[\#1e1713\] {
-  border-color: var(--surface) !important;
-}
-.ring-\[\#1e1713\] {
-  --tw-ring-color: var(--surface) !important;
-}
-.text-\[\#120d0a\] {
-  color: var(--heading) !important;
+body[data-theme="dark"] {
+	background: #16110e;
+	color: #f5efe6;
 }
 
 /* Subtle borders / dividers */
