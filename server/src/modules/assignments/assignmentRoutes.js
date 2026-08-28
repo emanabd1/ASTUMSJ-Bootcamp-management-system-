@@ -113,7 +113,7 @@ router.post("/", authorize("admin", "mentor"), upload.array("resourceFiles", 50)
       title: "New assignment",
       message: `${assignment.title} has been assigned to you.`,
       type: "assignment",
-      link: "/student/assignments",
+      link: `/assignments/${submission.assignment._id}`,
       meta: { assignmentId: String(assignment._id) },
     })));
     const assignmentRecipients = await User.find({ _id: { $in: students } }).select("email");
