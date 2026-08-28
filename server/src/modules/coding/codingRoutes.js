@@ -36,9 +36,9 @@ function streak(acts) {
  
 router.get('/stats', async (req, res, next) => { 
   try { 
-    const students = 
+    const studentRecords =
       req.user.role === 'student' 
-        ? [req.user._id] 
+        ? [req.user]
         : ( 
             await User.find({ 
               role: 'student', 
@@ -46,10 +46,14 @@ router.get('/stats', async (req, res, next) => {
               status: 'approved', 
               isActive: true 
             }) 
-          ).map((s) => s._id); 
+              );
+            const students = studentRecords.map((student) => student._id);
  
     const acts = await CodingActivity.find({ student: { $in: students } }); 
-    const result = {}; 
+    const result = {};
+    const mentorChallenges = req.user.role === 'mentor'
+      ? await CodingChallenge.find({ assignedStudents: { $in: students } }).select('_id assignedStudents')
+      : [];
  
     for (const id of students) { 
       const a = acts.filter((x) => String(x.student) === String(id)); 
@@ -69,7 +73,23 @@ router.get('/stats', async (req, res, next) => {
       }; 
     } 
  
-    res.json({ success: true, stats: result }); 
+    const studentSummary = req.user.role === 'mentor'
+      ? students.map((studentId) => {
+          const studentActivities = acts.filter((activity) => String(activity.student) === String(studentId));
+          const assignedChallenges = mentorChallenges.filter((challenge) => challenge.assignedStudents.some((id) => String(id) === String(studentId)));
+          const solvedChallenges = new Set(studentActivities.filter((activity) => activity.challenge).map((activity) => String(activity.challenge)));
+          const student = studentRecords.find((record) => String(record._id) === String(studentId));
+          return {
+            _id: studentId,
+            fullName: student.fullName,
+            solvedChallenges: assignedChallenges.filter((challenge) => solvedChallenges.has(String(challenge._id))).length,
+            totalChallenges: assignedChallenges.length,
+            stats: result[studentId],
+          };
+        })
+      : [];
+
+    res.json({ success: true, stats: result, students: studentSummary }); 
   } catch (e) { 
     next(e); 
   } 
@@ -98,20 +118,26 @@ router.get('/leaderboard', async (req, res, next) => {
     next(e);
   }
 });
- 
 router.get('/challenges', async (req, res, next) => { 
   try { 
-    const q = req.user.role === 'admin' ? {} : { assignedStudents: req.user._id }; 
+    const assignedStudentIds = req.user.role === 'mentor'
+      ? (await User.find({ mentor: req.user._id, role: 'student', status: 'approved', isActive: true }).select('_id')).map((student) => student._id)
+      : [];
+    const q = req.user.role === 'admin'
+      ? {}
+      : req.user.role === 'mentor'
+        ? { assignedStudents: { $in: assignedStudentIds } }
+        : { assignedStudents: req.user._id }; 
     const challenges = await CodingChallenge.find(q) 
       .populate('createdBy', 'fullName') 
       .sort({ dueDate: 1 }); 
  
     // attach the current user's own submission (link + attempt count) for 
     // each challenge so the student UI can show submission status inline 
-    const myActivities = await CodingActivity.find({ 
-      student: req.user._id, 
-      challenge: { $in: challenges.map((c) => c._id) } 
-    }); 
+    const activityQuery = req.user.role === 'mentor'
+      ? { student: { $in: assignedStudentIds }, challenge: { $in: challenges.map((c) => c._id) } }
+      : { student: req.user._id, challenge: { $in: challenges.map((c) => c._id) } };
+    const myActivities = await CodingActivity.find(activityQuery).populate('student', 'fullName email');
  
     const activityMap = {}; 
     myActivities.forEach((a) => { 
@@ -129,6 +155,17 @@ router.get('/challenges', async (req, res, next) => {
             completedAt: a.completedAt 
           } 
         : null; 
+      if (req.user.role === 'mentor') {
+        obj.submissions = myActivities
+          .filter((activity) => String(activity.challenge) === String(c._id))
+          .map((activity) => ({
+            student: activity.student,
+            url: activity.url,
+            attempts: activity.attempts || 1,
+            timeSpentMinutes: activity.timeSpentMinutes || null,
+            completedAt: activity.completedAt,
+          }));
+      }
       return obj; 
     }); 
  
