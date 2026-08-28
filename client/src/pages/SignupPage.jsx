@@ -2,28 +2,49 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 
-const inputClass = "w-full rounded-3xl border border-[#4a3b32] bg-transparent px-4 py-3 text-sm focus:border-[#c89b7b] focus:outline-none";
+const inputClass =
+  "w-full rounded-3xl border border-[#334155] bg-transparent px-4 py-3 text-sm focus:border-[#2563eb] focus:outline-none";
 
 export default function SignupPage() {
   const [form, setForm] = useState({
-    fullName: "", email: "", password: "", confirmPassword: "", gender: "Male",
-    department: "", yearOfStudy: "1st Year", githubUrl: "", leetcodeUrl: "", codeforcesUrl: "", bootcampReason: "",
+    fullName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    gender: "Male",
+    department: "",
+    yearOfStudy: "1st Year",
+    githubUrl: "",
+    leetcodeUrl: "",
+    codeforcesUrl: "",
+    bootcampReason: "",
   });
+
   const [loading, setLoading] = useState(false);
-  const [feedback, setFeedback] = useState({ type: "", message: "" });
+  const [feedback, setFeedback] = useState({
+    type: "",
+    message: "",
+  });
+
   const navigate = useNavigate();
-  const update = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  const update = (key, value) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
 
   const handleSignup = async (e) => {
     e.preventDefault();
     setFeedback({ type: "", message: "" });
 
     if (form.password !== form.confirmPassword) {
-      setFeedback({ type: "error", message: "Passwords do not match." });
+      setFeedback({
+        type: "error",
+        message: "Passwords do not match.",
+      });
       return;
     }
 
     setLoading(true);
+
     try {
       const res = await axiosInstance.post("/auth/register", {
         ...form,
@@ -35,31 +56,53 @@ export default function SignupPage() {
         codeforcesUrl: form.codeforcesUrl.trim(),
         bootcampReason: form.bootcampReason.trim(),
       });
+
       setFeedback({
         type: "success",
-        message: res.data.message || "Registration submitted. Pending admin approval.",
+        message:
+          res.data.message ||
+          "Registration submitted. Pending admin approval.",
       });
-      setForm({ fullName: "", email: "", password: "", confirmPassword: "", gender: "Male", department: "", yearOfStudy: "1st Year", githubUrl: "", leetcodeUrl: "", codeforcesUrl: "", bootcampReason: "" });
+
+      setForm({
+        fullName: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+        gender: "Male",
+        department: "",
+        yearOfStudy: "1st Year",
+        githubUrl: "",
+        leetcodeUrl: "",
+        codeforcesUrl: "",
+        bootcampReason: "",
+      });
+
       setTimeout(() => navigate("/login"), 1800);
     } catch (err) {
-      setFeedback({ type: "error", message: err.response?.data?.message || "Registration failed." });
+      setFeedback({
+        type: "error",
+        message:
+          err.response?.data?.message || "Registration failed.",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-        <div className="flex min-h-screen items-center justify-center bg-[#c89b7b] p-4">
-      <div className="flex w-full max-w-4xl overflow-hidden rounded-2xl shadow-2xl bg-[#1e1713]">
-        
-        {/* left BACKGROUND / LOGO SECTION */}
-        <div className="hidden w-1/2 flex-col items-center justify-center bg-[#c89b7b] p-8 text-center text-[#1e1713] md:flex">
-          <span className="mb-2 text-xl font-extrabold uppercase tracking-wider text-[#1e1713]">
+    <div className="flex min-h-screen items-center justify-center bg-[#f5f7fa] p-4">
+      <div className="flex w-full max-w-4xl overflow-hidden rounded-2xl bg-[#0b1f3a] shadow-2xl">
+
+        {/* LEFT LOGO SECTION */}
+        <div className="hidden w-1/2 flex-col items-center justify-center bg-[#0b1f3a] p-8 text-center text-white md:flex">
+
+          <span className="mb-2 text-3xl font-extrabold uppercase tracking-wider text-white">
             ASTUMSJ SUMMER BOOTCAMP
           </span>
 
           <div className="my-2">
-            <div className="mx-auto flex h-48 w-48 items-center justify-center">
+            <div className="mx-auto flex h-110 w-110 items-center justify-center">
               <img
                 src="/logo.png"
                 alt="ASTUMSJ Logo"
@@ -68,38 +111,261 @@ export default function SignupPage() {
             </div>
           </div>
 
-          <h1 className="text-4xl font-bold font-serif tracking-tight text-[#1e1713]">
+          <h1 className="font-serif text-4xl font-bold tracking-tight text-white">
             Step Bold,
           </h1>
-          <h1 className="text-4xl font-bold tracking-tight text-[#1e1713]">
+
+          <h1 className="text-4xl font-bold tracking-tight text-white">
             Stay Iconic
           </h1>
         </div>
-        <div className="flex w-full flex-col justify-center px-7 py-8 text-[#f5efe6] md:w-1/2 md:px-12">
-          <h2 className="mb-2 text-3xl font-bold tracking-wide">Create Account</h2>
-          <p className="mb-5 text-xs text-[#a39081]">Your application will be reviewed by an administrator before you can log in.</p>
-          {feedback.message && <p role="alert" className={`mb-4 rounded-xl border p-3 text-sm ${feedback.type === "success" ? "border-emerald-700 bg-emerald-950 text-emerald-300" : "border-red-800 bg-red-950 text-red-300"}`}>{feedback.message}</p>}
+
+        {/* RIGHT FORM SECTION */}
+        <div className="flex w-full flex-col justify-center bg-[#ffffff] px-7 py-8 text-[#0b1f3a] md:w-1/2 md:px-12">
+
+          <h2 className="mb-2 text-3xl font-bold tracking-wide text-[#0b1f3a]">
+            Create Account
+          </h2>
+
+          <p className="mb-5 text-xs text-[#64748b]">
+            Your application will be reviewed by an administrator before you
+            can log in.
+          </p>
+
+          {feedback.message && (
+            <p
+              role="alert"
+              className={`mb-4 rounded-xl border p-3 text-sm ${
+                feedback.type === "success"
+                  ? "border-emerald-700 bg-emerald-50 text-emerald-700"
+                  : "border-red-700 bg-red-50 text-red-700"
+              }`}
+            >
+              {feedback.message}
+            </p>
+          )}
+
           <form onSubmit={handleSignup} className="space-y-3">
-            <div><label className="text-xs text-[#a39081]">Full Name *</label><input required value={form.fullName} onChange={e => update("fullName", e.target.value)} className={inputClass} placeholder="Enter your full name" /></div>
-            <div><label className="text-xs text-[#a39081]">Email *</label><input required type="email" value={form.email} onChange={e => update("email", e.target.value)} className={inputClass} placeholder="Enter your email" /></div>
+
+            {/* FULL NAME */}
+            <div>
+              <label className="text-xs text-[#475569]">
+                Full Name *
+              </label>
+
+              <input
+                required
+                value={form.fullName}
+                onChange={(e) =>
+                  update("fullName", e.target.value)
+                }
+                className={inputClass}
+                placeholder="Enter your full name"
+              />
+            </div>
+
+            {/* EMAIL */}
+            <div>
+              <label className="text-xs text-[#475569]">
+                Email *
+              </label>
+
+              <input
+                required
+                type="email"
+                value={form.email}
+                onChange={(e) =>
+                  update("email", e.target.value)
+                }
+                className={inputClass}
+                placeholder="Enter your email"
+              />
+            </div>
+
+            {/* PASSWORD */}
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-xs text-[#a39081]">Password *</label><input required minLength={6} type="password" value={form.password} onChange={e => update("password", e.target.value)} className={inputClass} /></div>
-              <div><label className="text-xs text-[#a39081]">Confirm Password *</label><input required minLength={6} type="password" value={form.confirmPassword} onChange={e => update("confirmPassword", e.target.value)} className={inputClass} /></div>
+
+              <div>
+                <label className="text-xs text-[#475569]">
+                  Password *
+                </label>
+
+                <input
+                  required
+                  minLength={6}
+                  type="password"
+                  value={form.password}
+                  onChange={(e) =>
+                    update("password", e.target.value)
+                  }
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-[#475569]">
+                  Confirm Password *
+                </label>
+
+                <input
+                  required
+                  minLength={6}
+                  type="password"
+                  value={form.confirmPassword}
+                  onChange={(e) =>
+                    update("confirmPassword", e.target.value)
+                  }
+                  className={inputClass}
+                />
+              </div>
+
             </div>
+
+            {/* GENDER + YEAR */}
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="text-xs text-[#a39081]">Gender *</label><select required value={form.gender} onChange={e => update("gender", e.target.value)} className={`${inputClass} bg-[#16110e]`}><option>Male</option><option>Female</option><option>Other</option></select></div>
-              <div><label className="text-xs text-[#a39081]">Year *</label><select required value={form.yearOfStudy} onChange={e => update("yearOfStudy", e.target.value)} className={`${inputClass} bg-[#16110e]`}>{[1,2,3,4,5].map(y => <option key={y}>{y}{y === 1 ? "st" : y === 2 ? "nd" : y === 3 ? "rd" : "th"} Year</option>)}</select></div>
+
+              <div>
+                <label className="text-xs text-[#475569]">
+                  Gender *
+                </label>
+
+                <select
+                  required
+                  value={form.gender}
+                  onChange={(e) =>
+                    update("gender", e.target.value)
+                  }
+                  className={`${inputClass} bg-[#ffffff]`}
+                >
+                  <option>Male</option>
+                  <option>Female</option>
+                  <option>Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs text-[#475569]">
+                  Year *
+                </label>
+
+                <select
+                  required
+                  value={form.yearOfStudy}
+                  onChange={(e) =>
+                    update("yearOfStudy", e.target.value)
+                  }
+                  className={`${inputClass} bg-[#ffffff]`}
+                >
+                  {[1, 2, 3, 4, 5].map((y) => (
+                    <option key={y}>
+                      {y}
+                      {y === 1
+                        ? "st"
+                        : y === 2
+                        ? "nd"
+                        : y === 3
+                        ? "rd"
+                        : "th"}{" "}
+                      Year
+                    </option>
+                  ))}
+                </select>
+              </div>
+
             </div>
-            <div><label className="text-xs text-[#a39081]">Department *</label><input required value={form.department} onChange={e => update("department", e.target.value)} className={inputClass} placeholder="e.g. Software Engineering" /></div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <input type="url" value={form.githubUrl} onChange={e => update("githubUrl", e.target.value)} className={inputClass} placeholder="GitHub URL" />
-              <input type="url" value={form.leetcodeUrl} onChange={e => update("leetcodeUrl", e.target.value)} className={inputClass} placeholder="LeetCode URL" />
-              <input type="url" value={form.codeforcesUrl} onChange={e => update("codeforcesUrl", e.target.value)} className={inputClass} placeholder="Codeforces URL" />
+
+            {/* DEPARTMENT */}
+            <div>
+              <label className="text-xs text-[#475569]">
+                Department *
+              </label>
+
+              <input
+                required
+                value={form.department}
+                onChange={(e) =>
+                  update("department", e.target.value)
+                }
+                className={inputClass}
+                placeholder="e.g. Software Engineering"
+              />
             </div>
-            <div><label className="text-xs text-[#a39081]">Why do you want to join this bootcamp? *</label><textarea required rows="3" value={form.bootcampReason} onChange={e => update("bootcampReason", e.target.value)} className={`${inputClass} resize-none`} placeholder="Tell the admin why you want to join..." /></div>
-            <button disabled={loading} className="w-full rounded-3xl bg-[#c89b7b] py-3 text-sm font-semibold text-[#1e1713] transition hover:bg-[#b08567] disabled:opacity-60">{loading ? "Submitting..." : "Submit Application"}</button>
+
+            {/* CODING PROFILES */}
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+
+              <input
+                type="url"
+                value={form.githubUrl}
+                onChange={(e) =>
+                  update("githubUrl", e.target.value)
+                }
+                className={inputClass}
+                placeholder="GitHub URL"
+              />
+
+              <input
+                type="url"
+                value={form.leetcodeUrl}
+                onChange={(e) =>
+                  update("leetcodeUrl", e.target.value)
+                }
+                className={inputClass}
+                placeholder="LeetCode URL"
+              />
+
+              <input
+                type="url"
+                value={form.codeforcesUrl}
+                onChange={(e) =>
+                  update("codeforcesUrl", e.target.value)
+                }
+                className={inputClass}
+                placeholder="Codeforces URL"
+              />
+
+            </div>
+
+            {/* BOOTCAMP REASON */}
+            <div>
+              <label className="text-xs text-[#475569]">
+                Why do you want to join this bootcamp? *
+              </label>
+
+              <textarea
+                required
+                rows="3"
+                value={form.bootcampReason}
+                onChange={(e) =>
+                  update("bootcampReason", e.target.value)
+                }
+                className={`${inputClass} resize-none`}
+                placeholder="Tell the admin why you want to join..."
+              />
+            </div>
+
+            {/* BUTTON */}
+            <button
+              disabled={loading}
+              className="w-full rounded-3xl bg-[#0b1f3a] py-3 text-sm font-semibold text-white transition hover:bg-[#12345d] disabled:opacity-60"
+            >
+              {loading ? "Submitting..." : "Submit Application"}
+            </button>
+
           </form>
-          <div className="mt-5 text-center text-xs text-[#a39081]">Already have an account? <Link to="/login" className="font-bold text-[#c89b7b] underline hover:text-white">Login</Link></div>
+
+          {/* LOGIN */}
+          <div className="mt-5 text-center text-xs text-[#64748b]">
+            Already have an account?{" "}
+
+            <Link
+              to="/login"
+              className="font-bold text-[#2563eb] underline hover:text-[#0b1f3a]"
+            >
+              Login
+            </Link>
+          </div>
+
         </div>
       </div>
     </div>
