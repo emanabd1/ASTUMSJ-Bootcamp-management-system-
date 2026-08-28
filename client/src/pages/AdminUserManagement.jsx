@@ -83,7 +83,7 @@ export default function AdminUserManagement() {
         });
       else response = await axiosInstance.delete(`/users/${studentId}/assign-mentor`);
       setMsg(response.data.message || "Mentor assignment updated successfully.");
-      load();
+      await load();
     } catch (e) {
       setMsg(e.response?.data?.message || "Assignment failed.");
     }
@@ -534,21 +534,17 @@ export default function AdminUserManagement() {
   );
 }
 function MentorCard({ mentor, students, assign }) {
-  const [selected, setSelected] = useState(
-    students.filter((s) => s.mentor?._id === mentor._id).map((s) => s._id),
-  );
-  const toggle = (id) =>
-    setSelected((v) =>
-      v.includes(id) ? v.filter((x) => x !== id) : [...v, id],
-    );
+  const [managed, setManaged] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState("");
+  const assignedStudents = students.filter((student) => student.mentor?._id === mentor._id);
+  const availableStudents = students.filter((student) => student.mentor?._id !== mentor._id);
+
   const save = async () => {
-    for (const s of students) {
-      const should = selected.includes(s._id);
-      const has = s.mentor?._id === mentor._id;
-      if (should && !has) await assign(s._id, mentor._id);
-      if (!should && has) await assign(s._id, "");
-    }
+    if (!selectedStudent) return;
+    await assign(selectedStudent, mentor._id);
+    setSelectedStudent("");
   };
+
   return (
     <div className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5">
       <div className="flex justify-between gap-3">
@@ -557,33 +553,32 @@ function MentorCard({ mentor, students, assign }) {
           <p className="text-xs text-[#a39081]">{mentor.email}</p>
         </div>
         <button
-          onClick={save}
+          type="button"
+          onClick={() => setManaged((value) => !value)}
           className="rounded-xl bg-[#c89b7b] px-4 py-2 text-xs font-bold text-[#1e1713]"
         >
-          Save Students
+          {managed ? "Close" : "Manage"}
         </button>
       </div>
-      <div className="mt-4 grid md:grid-cols-2 gap-2">
-        {students.map((s) => (
-          <label
-            key={s._id}
-            className="flex items-center gap-3 rounded-xl border border-[#4a3b32] p-3 text-xs"
+      <p className="mt-4 text-xs text-[#a39081]">
+        Assigned students: {assignedStudents.length ? assignedStudents.map((student) => student.fullName).join(", ") : "None"}
+      </p>
+      {managed && <div className="mt-4 space-y-4">
+        <div className="flex flex-wrap gap-2">
+          <select
+            value={selectedStudent}
+            onChange={(event) => setSelectedStudent(event.target.value)}
+            className="min-w-60 flex-1 rounded-xl border border-[#4a3b32] bg-[#16110e] px-3 py-2 text-xs"
           >
-            <input
-              type="checkbox"
-              checked={selected.includes(s._id)}
-              onChange={() => toggle(s._id)}
-            />
-            <span>
-              <b>{s.fullName}</b>
-              <br />
-              <span className="text-[#a39081]">
-                {s.email} · Current: {s.mentor?.fullName || "Unassigned"}
-              </span>
-            </span>
-          </label>
-        ))}
-      </div>
+            <option value="">Choose a student</option>
+            {availableStudents.map((student) => <option key={student._id} value={student._id}>{student.fullName} · {student.email}</option>)}
+          </select>
+          <button type="button" onClick={save} disabled={!selectedStudent} className="rounded-xl bg-[#c89b7b] px-4 py-2 text-xs font-bold text-[#1e1713] disabled:opacity-50">Save Student</button>
+        </div>
+        {assignedStudents.length > 0 && <div className="space-y-2">
+          {assignedStudents.map((student) => <div key={student._id} className="flex items-center justify-between gap-3 rounded-xl border border-[#4a3b32] p-3 text-xs"><span><b>{student.fullName}</b><br /><span className="text-[#a39081]">{student.email}</span></span><button type="button" onClick={() => assign(student._id, "")} className="rounded-lg bg-rose-700/70 px-3 py-1">Remove</button></div>)}
+        </div>}
+      </div>}
     </div>
   );
 }
