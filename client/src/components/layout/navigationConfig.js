@@ -2,6 +2,7 @@ export const navigationConfig = {
   admin: [
     { name: "Dashboard", path: "/admin/dashboard" },
     { name: "User Management", path: "/admin/users" },
+    { name: "Universities", path: "/admin/universities" },
     { name: "Batches & Groups", path: "/admin/batches" },
     { name: "Sessions", path: "/sessions" },
     { name: "Reports & Analytics", path: "/insights" },

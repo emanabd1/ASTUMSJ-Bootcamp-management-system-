@@ -1,7 +1,9 @@
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
 const User = require("../users/userModel");
+const University = require("../universities/universityModel");
 const sendEmail = require("../../utils/sendEmail");
 
 const safeUser = (user) => {
@@ -36,6 +38,8 @@ const register = async (req, res, next) => {
       codeforcesUrl,
       githubUrl,
       bootcampReason,
+      university,
+      universityIdNumber,
     } = req.body;
 
     if (
@@ -46,11 +50,23 @@ const register = async (req, res, next) => {
       !gender ||
       !department ||
       !yearOfStudy ||
-      !bootcampReason
+      !bootcampReason ||
+      !university ||
+      !universityIdNumber
     ) {
       return res.status(400).json({
         success: false,
         message: "Please complete all required registration fields.",
+      });
+    }
+
+    const universityDoc =
+      mongoose.isValidObjectId(university) &&
+      (await University.findOne({ _id: university, status: "active" }));
+    if (!universityDoc) {
+      return res.status(400).json({
+        success: false,
+        message: "Please select a valid university.",
       });
     }
 
@@ -95,6 +111,8 @@ const register = async (req, res, next) => {
       codeforcesUrl: codeforcesUrl?.trim(),
       githubUrl: githubUrl?.trim(),
       bootcampReason: bootcampReason.trim(),
+      university: universityDoc._id,
+      universityIdNumber: universityIdNumber.trim(),
     });
 
     return res.status(201).json({
@@ -113,9 +131,9 @@ const login = async (req, res, next) => {
     const email = req.body.email?.trim().toLowerCase();
     const { password } = req.body;
 
-    const user = await User.findOne({ email }).select(
-      "+password +failedLoginAttempts +loginLockedUntil"
-    );
+    const user = await User.findOne({ email })
+      .select("+password +failedLoginAttempts +loginLockedUntil")
+      .populate("university", "name shortName idLabel color");
 
     if (!user) {
       return res.status(401).json({

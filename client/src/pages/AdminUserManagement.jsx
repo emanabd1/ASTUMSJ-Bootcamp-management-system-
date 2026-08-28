@@ -14,12 +14,16 @@ const empty = {
   leetcodeUrl: "",
   codeforcesUrl: "",
   batchId: "",
+  university: "",
+  universityIdNumber: "",
 };
 export default function AdminUserManagement() {
   const [users, setUsers] = useState([]),
     [mentors, setMentors] = useState([]),
     [pending, setPending] = useState([]),
     [batches, setBatches] = useState([]),
+    [universities, setUniversities] = useState([]),
+    [universityFilter, setUniversityFilter] = useState(""),
     [pendingBatches, setPendingBatches] = useState({}),
     [tab, setTab] = useState("users"),
     [search, setSearch] = useState(""),
@@ -29,16 +33,18 @@ export default function AdminUserManagement() {
     [msg, setMsg] = useState("");
   const load = async () => {
     try {
-      const [u, m, p, b] = await Promise.all([
+      const [u, m, p, b, uni] = await Promise.all([
         axiosInstance.get("/users"),
         axiosInstance.get("/users/mentors"),
         axiosInstance.get("/users/applications/pending"),
         axiosInstance.get("/batches"),
+        axiosInstance.get("/universities"),
       ]);
       setUsers(u.data.users || []);
       setMentors(m.data.mentors || []);
       setPending(p.data.users || []);
       setBatches(b.data.batches || []);
+      setUniversities(uni.data.universities || []);
     } catch (e) {
       setMsg(e.response?.data?.message || "Could not load users.");
     }
@@ -49,21 +55,25 @@ export default function AdminUserManagement() {
       axiosInstance.get("/users/mentors"),
       axiosInstance.get("/users/applications/pending"),
       axiosInstance.get("/batches"),
-    ]).then(([userResponse, mentorResponse, pendingResponse, batchResponse]) => {
+      axiosInstance.get("/universities"),
+    ]).then(([userResponse, mentorResponse, pendingResponse, batchResponse, universityResponse]) => {
       setUsers(userResponse.data.users || []);
       setMentors(mentorResponse.data.mentors || []);
       setPending(pendingResponse.data.users || []);
       setBatches(batchResponse.data.batches || []);
+      setUniversities(universityResponse.data.universities || []);
     }).catch((e) => setMsg(e.response?.data?.message || "Could not load users."));
   }, []);
   const filtered = useMemo(
     () =>
-      users.filter((u) =>
-        `${u.fullName} ${u.email} ${u.role}`
-          .toLowerCase()
-          .includes(search.toLowerCase()),
-      ),
-    [users, search],
+      users
+        .filter((u) =>
+          `${u.fullName} ${u.email} ${u.role}`
+            .toLowerCase()
+            .includes(search.toLowerCase()),
+        )
+        .filter((u) => !universityFilter || u.university?._id === universityFilter),
+    [users, search, universityFilter],
   );
   const update = async (id, data) => {
     try {
@@ -106,7 +116,7 @@ export default function AdminUserManagement() {
   };
   const openEdit = (u) => {
     setSelected(u);
-    setForm({ ...empty, ...u });
+    setForm({ ...empty, ...u, university: u.university?._id || "" });
     setShow("edit");
   };
   const openView = async (id) => {
@@ -124,6 +134,19 @@ export default function AdminUserManagement() {
       <td className="p-4 font-bold">{u.fullName}</td>
       <td className="p-4 text-[#a39081]">{u.email}</td>
       <td className="p-4 uppercase text-[#c89b7b]">{u.role}</td>
+      <td className="p-4">
+        {u.university ? (
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: u.university.color || "#c89b7b" }}
+            />
+            {u.university.shortName || u.university.name}
+          </span>
+        ) : (
+          <span className="text-[#a39081]">—</span>
+        )}
+      </td>
       <td className="p-4">
         {u.status === "approved"
           ? u.isActive
@@ -239,12 +262,26 @@ export default function AdminUserManagement() {
         </button>
       </div>
       {tab !== "mentors" && (
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search name, email or role..."
-          className={field}
-        />
+        <div className="flex flex-wrap gap-3">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search name, email or role..."
+            className={`${field} max-w-xs`}
+          />
+          <select
+            value={universityFilter}
+            onChange={(e) => setUniversityFilter(e.target.value)}
+            className={`${field} max-w-56`}
+          >
+            <option value="">All universities</option>
+            {universities.map((u) => (
+              <option key={u._id} value={u._id}>
+                {u.shortName || u.name}
+              </option>
+            ))}
+          </select>
+        </div>
       )}{" "}
       {tab === "users" && (
         <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] overflow-hidden">
@@ -262,6 +299,7 @@ export default function AdminUserManagement() {
                   <th className="p-4">Name</th>
                   <th className="p-4">Email</th>
                   <th className="p-4">Role</th>
+                  <th className="p-4">University</th>
                   <th className="p-4">State</th>
                   <th className="p-4 text-right">Actions</th>
                 </tr>
@@ -290,6 +328,7 @@ export default function AdminUserManagement() {
                   <th className="p-4">Name</th>
                   <th className="p-4">Email</th>
                   <th className="p-4">Role</th>
+                  <th className="p-4">University</th>
                   <th className="p-4">Status</th>
                   <th className="p-4 text-right">Actions</th>
                 </tr>
@@ -301,6 +340,7 @@ export default function AdminUserManagement() {
                       .toLowerCase()
                       .includes(search.toLowerCase()),
                   )
+                  .filter((u) => !universityFilter || u.university?._id === universityFilter)
                   .map((u) => (
                     <Row key={u._id} u={u} p />
                   ))}
@@ -353,6 +393,8 @@ export default function AdminUserManagement() {
                     ["Gender", selected.gender || "—"],
                     ["Department", selected.department || "—"],
                     ["Year", selected.yearOfStudy || "—"],
+                    ["University", selected.university?.name || "—"],
+                    [selected.university?.idLabel || "University ID", selected.universityIdNumber || "—"],
                     ["Mentor", selected.mentor?.fullName || "Unassigned"],
                     ["GitHub", selected.githubUrl || "—"],
                     ["LeetCode", selected.leetcodeUrl || "—"],
@@ -448,6 +490,24 @@ export default function AdminUserManagement() {
                   <option value="">No batch</option>
                   {batches.map((batch) => <option key={batch._id} value={batch._id}>{batch.name}</option>)}
                 </select>
+                <select
+                  className={field}
+                  value={form.university || ""}
+                  onChange={(e) => setForm({ ...form, university: e.target.value })}
+                  required={form.role === "student"}
+                >
+                  <option value="">{form.role === "student" ? "Select university" : "No university"}</option>
+                  {universities.map((u) => (
+                    <option key={u._id} value={u._id}>{u.shortName ? `${u.name} (${u.shortName})` : u.name}</option>
+                  ))}
+                </select>
+                <input
+                  className={field}
+                  placeholder="University ID number"
+                  value={form.universityIdNumber || ""}
+                  onChange={(e) => setForm({ ...form, universityIdNumber: e.target.value })}
+                  required={form.role === "student"}
+                />
                 <input
                   className={field}
                   placeholder="Department"
@@ -473,6 +533,7 @@ export default function AdminUserManagement() {
                   ["fullName", "Full name"],
                   ["email", "Email"],
                   ["department", "Department"],
+                  ["universityIdNumber", "University ID number"],
                   ["githubUrl", "GitHub URL"],
                   ["leetcodeUrl", "LeetCode URL"],
                   ["codeforcesUrl", "Codeforces URL"],
@@ -485,6 +546,16 @@ export default function AdminUserManagement() {
                     onChange={(e) => setForm({ ...form, [k]: e.target.value })}
                   />
                 ))}
+                <select
+                  className={field}
+                  value={form.university || ""}
+                  onChange={(e) => setForm({ ...form, university: e.target.value })}
+                >
+                  <option value="">No university</option>
+                  {universities.map((u) => (
+                    <option key={u._id} value={u._id}>{u.shortName ? `${u.name} (${u.shortName})` : u.name}</option>
+                  ))}
+                </select>
                 <select
                   className={field}
                   value={form.role}

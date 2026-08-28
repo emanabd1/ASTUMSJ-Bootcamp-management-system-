@@ -37,6 +37,8 @@ router.post(
     department: { required: true },
     yearOfStudy: { required: true },
     bootcampReason: { required: true, maxLength: 3000 },
+    university: { required: true, type: "objectId" },
+    universityIdNumber: { required: true, maxLength: 60 },
     githubUrl: { type: "url" },
     leetcodeUrl: { type: "url" },
     codeforcesUrl: { type: "url" },

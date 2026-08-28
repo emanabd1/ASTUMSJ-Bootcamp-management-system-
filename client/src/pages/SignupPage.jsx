@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 
@@ -8,11 +8,32 @@ export default function SignupPage() {
   const [form, setForm] = useState({
     fullName: "", email: "", password: "", confirmPassword: "", gender: "Male",
     department: "", yearOfStudy: "1st Year", githubUrl: "", leetcodeUrl: "", codeforcesUrl: "", bootcampReason: "",
+    university: "", universityIdNumber: "",
   });
+  const [universities, setUniversities] = useState([]);
+  const [universitiesLoading, setUniversitiesLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState({ type: "", message: "" });
   const navigate = useNavigate();
   const update = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  useEffect(() => {
+    axiosInstance
+      .get("/universities/public")
+      .then((res) => setUniversities(res.data.universities || []))
+      .catch((err) =>
+        setFeedback({
+          type: "error",
+          message:
+            err.response?.data?.message ||
+            "Could not load universities. Please refresh and try again.",
+        })
+      )
+      .finally(() => setUniversitiesLoading(false));
+  }, []);
+
+  const selectedUniversity = universities.find((u) => u._id === form.university);
+  const idLabel = selectedUniversity?.idLabel || "University ID";
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -30,6 +51,7 @@ export default function SignupPage() {
         fullName: form.fullName.trim(),
         email: form.email.trim().toLowerCase(),
         department: form.department.trim(),
+        universityIdNumber: form.universityIdNumber.trim(),
         githubUrl: form.githubUrl.trim(),
         leetcodeUrl: form.leetcodeUrl.trim(),
         codeforcesUrl: form.codeforcesUrl.trim(),
@@ -39,7 +61,7 @@ export default function SignupPage() {
         type: "success",
         message: res.data.message || "Registration submitted. Pending admin approval.",
       });
-      setForm({ fullName: "", email: "", password: "", confirmPassword: "", gender: "Male", department: "", yearOfStudy: "1st Year", githubUrl: "", leetcodeUrl: "", codeforcesUrl: "", bootcampReason: "" });
+      setForm({ fullName: "", email: "", password: "", confirmPassword: "", gender: "Male", department: "", yearOfStudy: "1st Year", githubUrl: "", leetcodeUrl: "", codeforcesUrl: "", bootcampReason: "", university: "", universityIdNumber: "" });
       setTimeout(() => navigate("/login"), 1800);
     } catch (err) {
       setFeedback({ type: "error", message: err.response?.data?.message || "Registration failed." });
@@ -91,6 +113,25 @@ export default function SignupPage() {
               <div><label className="text-xs text-[#a39081]">Year *</label><select required value={form.yearOfStudy} onChange={e => update("yearOfStudy", e.target.value)} className={`${inputClass} bg-[#16110e]`}>{[1,2,3,4,5].map(y => <option key={y}>{y}{y === 1 ? "st" : y === 2 ? "nd" : y === 3 ? "rd" : "th"} Year</option>)}</select></div>
             </div>
             <div><label className="text-xs text-[#a39081]">Department *</label><input required value={form.department} onChange={e => update("department", e.target.value)} className={inputClass} placeholder="e.g. Software Engineering" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-[#a39081]">University *</label>
+                <select required value={form.university} onChange={e => update("university", e.target.value)} className={`${inputClass} bg-[#16110e]`}>
+                  <option value="" disabled>
+                    {universitiesLoading
+                      ? "Loading universities..."
+                      : universities.length
+                        ? "Select your university"
+                        : "No universities available"}
+                  </option>
+                  {universities.map(u => <option key={u._id} value={u._id}>{u.shortName ? `${u.name} (${u.shortName})` : u.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-[#a39081]">{idLabel} *</label>
+                <input required value={form.universityIdNumber} onChange={e => update("universityIdNumber", e.target.value)} className={inputClass} placeholder={`Your ${idLabel.toLowerCase()}`} />
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <input type="url" value={form.githubUrl} onChange={e => update("githubUrl", e.target.value)} className={inputClass} placeholder="GitHub URL" />
               <input type="url" value={form.leetcodeUrl} onChange={e => update("leetcodeUrl", e.target.value)} className={inputClass} placeholder="LeetCode URL" />

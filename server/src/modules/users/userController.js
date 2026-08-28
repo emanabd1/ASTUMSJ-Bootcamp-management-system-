@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const User = require("./userModel");
+const University = require("../universities/universityModel");
 const Batch = require("../batches/batchModel");
 const Attendance = require("../attendance/attendanceModel");
 const Assignment = require("../assignments/assignmentModel");
@@ -29,6 +30,7 @@ const getUsers = async (req, res, next) => {
     const users = await User.find(query)
       .select("-password -passwordResetOtpHash -passwordResetOtpExpiresAt -passwordResetAttempts")
       .populate("mentor", "fullName email role")
+      .populate("university", "name shortName color idLabel")
       .sort({ createdAt: -1 });
     res.json({ success: true, users });
   } catch (error) { next(error); }
@@ -43,6 +45,7 @@ const getPendingApplications = async (req, res, next) => {
       ]
     }).select("-password -passwordResetOtpHash -passwordResetOtpExpiresAt -passwordResetAttempts")
       .populate("mentor", "fullName email role")
+      .populate("university", "name shortName color idLabel")
       .sort({ createdAt: -1 });
     res.json({ success: true, users });
   } catch (error) { next(error); }
@@ -52,7 +55,8 @@ const getUser = async (req, res, next) => {
   try {
     const user = await User.findById(req.params.id)
       .select("-password -passwordResetOtpHash -passwordResetOtpExpiresAt -passwordResetAttempts")
-      .populate("mentor", "fullName email role");
+      .populate("mentor", "fullName email role")
+      .populate("university", "name shortName color idLabel");
     if (!user) return res.status(404).json({ success: false, message: "User not found." });
     res.json({ success: true, user: sanitize(user) });
   } catch (error) { next(error); }
@@ -60,10 +64,13 @@ const getUser = async (req, res, next) => {
 
 const createUser = async (req, res, next) => {
   try {
-    const { fullName, email, role, department, gender, yearOfStudy, githubUrl, leetcodeUrl, codeforcesUrl, batchId } = req.body;
+    const { fullName, email, role, department, gender, yearOfStudy, githubUrl, leetcodeUrl, codeforcesUrl, batchId, university, universityIdNumber } = req.body;
     if (!fullName || !email || !role) return res.status(400).json({ success: false, message: "Name, email and role are required." });
     if (!["student", "mentor", "admin"].includes(role)) return res.status(400).json({ success: false, message: "Invalid role." });
     if (batchId && !await Batch.exists({ _id: batchId })) return res.status(404).json({ success: false, message: "Selected batch not found." });
+    if (role === "student" && !university) return res.status(400).json({ success: false, message: "University is required for students." });
+    if (role === "student" && !universityIdNumber?.trim()) return res.status(400).json({ success: false, message: "University ID number is required for students." });
+    if (university && !await University.exists({ _id: university })) return res.status(404).json({ success: false, message: "Selected university not found." });
     const normalizedEmail = email.trim().toLowerCase();
     if (await User.findOne({ email: normalizedEmail })) return res.status(409).json({ success: false, message: "A user with this email already exists." });
 
@@ -73,6 +80,7 @@ const createUser = async (req, res, next) => {
       fullName: fullName.trim(), email: normalizedEmail, password, role,
       status: "approved", isActive: true, mustChangePassword: true,
       department, gender, yearOfStudy, githubUrl, leetcodeUrl, codeforcesUrl,
+      university: university || null, universityIdNumber: universityIdNumber?.trim() || "",
       bootcampReason: "Account created directly by administrator.",
     });
     if (batchId) {
@@ -111,7 +119,7 @@ const updateUser = async (req, res, next) => {
     }
 
     const previousStatus = user.status || (user.isApproved === false ? "pending" : "approved");
-    const { fullName, email, role, department, gender, yearOfStudy, githubUrl, leetcodeUrl, codeforcesUrl, status, isActive, batchId } = req.body;
+    const { fullName, email, role, department, gender, yearOfStudy, githubUrl, leetcodeUrl, codeforcesUrl, status, isActive, batchId, university, universityIdNumber } = req.body;
 
     if (fullName !== undefined) user.fullName = String(fullName).trim();
     if (email !== undefined) {
@@ -131,11 +139,25 @@ const updateUser = async (req, res, next) => {
     if (githubUrl !== undefined) user.githubUrl = githubUrl;
     if (leetcodeUrl !== undefined) user.leetcodeUrl = leetcodeUrl;
     if (codeforcesUrl !== undefined) user.codeforcesUrl = codeforcesUrl;
+    if (universityIdNumber !== undefined) user.universityIdNumber = String(universityIdNumber).trim();
+    if (university !== undefined) {
+      if (university && !await University.exists({ _id: university })) {
+        return res.status(404).json({ success: false, message: "Selected university not found." });
+      }
+      user.university = university || null;
+    }
     if (status !== undefined) {
       if (!["pending", "approved", "rejected"].includes(status)) return res.status(400).json({ success: false, message: "Invalid account status." });
       user.status = status;
     }
     if (isActive !== undefined) user.isActive = Boolean(isActive);
+
+    if (user.role === "student") {
+      if (!user.university) return res.status(400).json({ success: false, message: "University is required for students." });
+      if (!String(user.universityIdNumber || "").trim()) {
+        return res.status(400).json({ success: false, message: "University ID number is required for students." });
+      }
+    }
 
     if (batchId !== undefined) {
       if (batchId && !await Batch.exists({ _id: batchId })) return res.status(404).json({ success: false, message: "Selected batch not found." });

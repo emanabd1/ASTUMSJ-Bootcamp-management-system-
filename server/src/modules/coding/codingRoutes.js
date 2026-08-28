@@ -7,7 +7,36 @@ const Notification = require('../notifications/notificationModel');
  
 const router = express.Router(); 
  
-router.use(protect); 
+
+router.use(protect);
+
+const PLATFORM_HOSTS = {
+  leetcode: ["leetcode.com"],
+  codeforces: ["codeforces.com"],
+  github: ["github.com"],
+};
+
+function isValidPlatformUrl(platform, value) {
+  if (!value || typeof value !== "string") return false;
+  try {
+    const url = new URL(value.trim());
+    if (!["http:", "https:"].includes(url.protocol)) return false;
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    return PLATFORM_HOSTS[platform]?.includes(host) || false;
+  } catch {
+    return false;
+  }
+}
+
+function platformUrlMessage(platform) {
+  const labels = {
+    leetcode: "LeetCode (leetcode.com)",
+    codeforces: "Codeforces (codeforces.com)",
+    github: "GitHub (github.com)",
+  };
+  return `Invalid URL. A ${labels[platform] || platform} practice must use a ${labels[platform] || platform} URL.`;
+}
+ 
  
 function streak(acts) { 
   const days = [...new Set(acts.map((a) => new Date(a.completedAt).toISOString().slice(0, 10)))] 
@@ -169,10 +198,31 @@ router.post('/challenges', authorize('admin'), async (req, res, next) => {
   try { 
     const { title, platform, problemUrl, description, dueDate, assignedStudents = [] } = req.body; 
  
-    if (!title || !platform) { 
-      return res.status(400).json({ success: false, message: 'Title and platform are required.' }); 
-    } 
- 
+    if (!title || !platform) {
+      return res.status(400).json({ success: false, message: 'Title and platform are required.' });
+    }
+
+    if (!PLATFORM_HOSTS[platform]) {
+      return res.status(400).json({ success: false, message: 'Invalid coding practice source.' });
+    }
+
+    if (!problemUrl || !isValidPlatformUrl(platform, problemUrl)) {
+      return res.status(400).json({ success: false, message: platformUrlMessage(platform) });
+    }
+
+    if (!Array.isArray(assignedStudents) || assignedStudents.length === 0) {
+      return res.status(400).json({ success: false, message: 'Select at least one student.' });
+    }
+
+    const uniqueAssignedStudents = [...new Set(assignedStudents.map(String))];
+    const validStudentCount = await User.countDocuments({
+      _id: { $in: uniqueAssignedStudents },
+      role: 'student',
+    });
+    if (validStudentCount !== uniqueAssignedStudents.length) {
+      return res.status(400).json({ success: false, message: 'Only valid student accounts can receive coding practice.' });
+    }
+
     const c = await CodingChallenge.create({ 
       title, 
       platform, 
@@ -211,13 +261,27 @@ router.post('/activity', authorize('student'), async (req, res, next) => {
       attempts 
     } = req.body; 
  
-    if (!platform) { 
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Platform is required.' 
-      }); 
-    } 
- 
+    if (!platform) {
+      return res.status(400).json({
+        success: false,
+        message: 'Platform is required.'
+      });
+    }
+
+    if (!PLATFORM_HOSTS[platform]) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid coding practice source.'
+      });
+    }
+
+    if (!url || !isValidPlatformUrl(platform, url)) {
+      return res.status(400).json({
+        success: false,
+        message: platformUrlMessage(platform)
+      });
+    }
+
     const parsedTime = 
       timeSpentMinutes === undefined || 
       timeSpentMinutes === null || 

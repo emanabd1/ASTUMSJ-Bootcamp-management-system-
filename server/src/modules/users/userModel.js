@@ -55,6 +55,12 @@ const userSchema = new mongoose.Schema(
       },
     },
     bootcampReason: { type: String, required: true, trim: true },
+    university: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "University",
+      default: null,
+    },
+    universityIdNumber: { type: String, trim: true, default: "" },
     mentor: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -96,6 +102,7 @@ const userSchema = new mongoose.Schema(
 
 userSchema.index({ role: 1, status: 1, isActive: 1 });
 userSchema.index({ mentor: 1 });
+userSchema.index({ university: 1 });
 userSchema.index({ fullName: "text", email: "text" });
 
 module.exports = mongoose.model("User", userSchema);

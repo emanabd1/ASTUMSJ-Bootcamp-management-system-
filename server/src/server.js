@@ -10,6 +10,7 @@ const userRoutes = require("./modules/users/userRoutes");
 const mentorRoutes = require("./modules/mentors/mentorRoutes");
 const batchRoutes = require("./modules/batches/batchRoutes");
 const batchYearRoutes = require("./modules/batchYears/batchYearRoutes");
+const universityRoutes = require("./modules/universities/universityRoutes");
 const settingsRoutes = require("./modules/settings/settingsRoutes");
 const studentRoutes = require("./modules/students/studentRoutes");
 const assignmentRoutes = require("./modules/assignments/assignmentRoutes");
@@ -27,6 +28,7 @@ const chatRoutes = require("./modules/chat/chatRoutes");
 const adminCommitteeRoutes = require("./modules/adminCommittee/adminCommitteeRoutes");
 const errorHandler = require("./middleware/errorHandler");
 const { startNotificationScheduler } = require("./utils/notificationScheduler");
+const seedUniversities = require("./utils/seedUniversities");
 
 const app = express();
 app.use(passport.initialize());
@@ -55,6 +57,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/mentors", mentorRoutes);
 app.use("/api/batches", batchRoutes);
 app.use("/api/batch-years", batchYearRoutes);
+app.use("/api/universities", universityRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/students", studentRoutes);
 app.use("/api/assignments", assignmentRoutes);
@@ -93,6 +96,7 @@ mongoose
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       startNotificationScheduler();
+      seedUniversities();
     })
   )
   .catch((error) => {

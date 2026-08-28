@@ -15,6 +15,7 @@ import ProtectedRoute from "./ProtectedRoute";
 
 import AdminDashboard from "../pages/AdminDashboard";
 import AdminUserManagement from "../pages/AdminUserManagement";
+import AdminUniversitiesPage from "../pages/AdminUniversitiesPage";
 import BatchesPage from "../pages/BatchesPage";
 import AssignmentsPage from "../pages/AssignmentsPage";
 import CodingPage from "../pages/CodingPage";
@@ -120,6 +121,11 @@ export default function AppRoutes() {
           <Route
             path="/admin/users"
             element={<AdminUserManagement />}
+          />
+
+          <Route
+            path="/admin/universities"
+            element={<AdminUniversitiesPage />}
           />
 
           <Route

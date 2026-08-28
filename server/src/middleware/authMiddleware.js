@@ -7,7 +7,7 @@ const protect = async (req, res, next) => {
     if (!header.startsWith("Bearer ")) return res.status(401).json({ success: false, message: "Not authorized. No token provided." });
     const token = header.slice(7);
     const decoded = jwt.verify(token, process.env.JWT_SECRET || "change-this-secret");
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(decoded.id).populate("university", "name shortName color idLabel");
     if (!user) return res.status(401).json({ success: false, message: "User no longer exists." });
     if (user.status !== "approved" || !user.isActive) return res.status(403).json({ success: false, message: "Your account is not active." });
     req.user = user;

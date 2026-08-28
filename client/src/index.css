@@ -1,36 +1,165 @@
 @import "tailwindcss";
 
 :root {
-	--app-font: Georgia, "Times New Roman", serif;
+  --app-font: "Inter", "Poppins", ui-sans-serif, system-ui, sans-serif;
+
+  /* ---- LIGHT MODE (default) ---- */
+  --bg: #ffffff;
+  --surface: #f8f9fa;
+  --surface-alt: #f1f3f5;
+  --surface-hover: #edf1f5;
+  --border: #e2e8f0;
+  --heading: #0a0f1d;
+  --body: #4a5568;
+  --muted: #718096;
+  --accent-solid: #0a0f1d;
+  --accent-hover: #131a2e;
+  --cta-bg: #0a0f1d;
+  --cta-bg-2: #0a0f1d;
+  --cta-text: #ffffff;
+  --glow-1: rgba(226, 135, 67, 0.08);
+  --glow-2: rgba(10, 15, 29, 0.06);
+}
+
+[data-theme="dark"] {
+  /* ---- DARK MODE ---- */
+  --bg: #0b111e;
+  --surface: #131b2e;
+  --surface-alt: #0b111e;
+  --surface-hover: #1b2740;
+  --border: #22304a;
+  --heading: #ffffff;
+  --body: #a0aec0;
+  --muted: #8895ac;
+  --accent-solid: #eea47f;
+  --accent-hover: #c97a4f;
+  --cta-bg: #e28743;
+  --cta-bg-2: #eea47f;
+  --cta-text: #ffffff;
+  --glow-1: rgba(226, 135, 67, 0.18);
+  --glow-2: rgba(238, 164, 127, 0.12);
+}
+
+* {
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
 }
 
 body {
-	font-family: var(--app-font);
-	transition: background-color 180ms ease, color 180ms ease;
+  font-family: var(--app-font);
+  background: var(--bg);
+  color: var(--body);
 }
 
-body[data-theme="light"] {
-	background: #fdf6e3;
-	color: #2c1a11;
+/* ---------------------------------------------------------------------
+ * Structural re-skin: the app was built with hard-coded Tailwind
+ * arbitrary-value classes (the "Warm Stone & Rust" palette). Rather than
+ * touching every file, we re-target those exact classes to the design
+ * tokens above so the whole app follows the light/dark toggle.
+ * ------------------------------------------------------------------- */
+
+/* Page / deepest background layer */
+.bg-\[\#16110e\],
+.hover\:bg-\[\#16110e\]:hover,
+.bg-\[\#120d0a\],
+.bg-\[\#1d1511\] {
+  background-color: var(--surface-alt) !important;
 }
 
-body[data-theme="dark"] {
-	background: #16110e;
-	color: #f5efe6;
+/* Card / container surface */
+.bg-\[\#1e1713\] {
+  background-color: var(--surface) !important;
+}
+.border-\[\#1e1713\] {
+  border-color: var(--surface) !important;
+}
+.ring-\[\#1e1713\] {
+  --tw-ring-color: var(--surface) !important;
+}
+.text-\[\#120d0a\] {
+  color: var(--heading) !important;
 }
 
-body[data-theme="light"] .bg-\[\#16110e\] {
-	background-color: #fdf6e3;
+/* Subtle borders / dividers */
+.border-\[\#4a3b32\],
+.border-\[\#4a3528\] {
+  border-color: var(--border) !important;
+}
+.divide-\[\#4a3b32\] > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border) !important;
 }
 
-body[data-theme="light"] .bg-\[\#1e1713\] {
-	background-color: #fffaf0;
+/* Hover / recessed surface (menu items, list rows) */
+.bg-\[\#2d231d\],
+.hover\:bg-\[\#2d231d\]:hover {
+  background-color: var(--surface-hover) !important;
 }
 
-body[data-theme="light"] .text-\[\#f5efe6\] {
-	color: #2c1a11;
+/* Primary accent surfaces (buttons, active pills, badges) */
+.bg-\[\#c89b7b\] {
+  background-color: var(--cta-bg) !important;
+  background-image: linear-gradient(135deg, var(--cta-bg), var(--cta-bg-2));
+}
+.hover\:bg-\[\#b08567\]:hover {
+  background-color: var(--accent-hover) !important;
+  background-image: none;
+}
+.border-\[\#c89b7b\],
+.focus\:border-\[\#c89b7b\]:focus,
+.hover\:border-\[\#c89b7b\]:hover {
+  border-color: var(--accent-solid) !important;
+}
+.text-\[\#c89b7b\],
+.hover\:text-\[\#c89b7b\]:hover {
+  color: var(--accent-solid) !important;
+}
+.from-\[\#c89b7b\] {
+  --tw-gradient-from: var(--cta-bg) var(--tw-gradient-from-position) !important;
 }
 
-body[data-theme="light"] .text-\[\#a39081\] {
-	color: #705747;
+/* Text painted directly on an accent/gradient surface stays white */
+.text-\[\#1e1713\] {
+  color: var(--cta-text) !important;
+}
+
+/* Heading / primary text on dark surfaces */
+.text-\[\#f5efe6\],
+.hover\:text-\[\#f5efe6\]:hover {
+  color: var(--heading) !important;
+}
+.border-\[\#f5efe6\] {
+  border-color: var(--heading) !important;
+}
+
+/* Muted / secondary text */
+.text-\[\#a39081\],
+.placeholder-\[\#a39081\]::placeholder {
+  color: var(--muted) !important;
+}
+.bg-\[\#a39081\] {
+  background-color: var(--muted) !important;
+}
+
+[data-theme] {
+  color-scheme: light dark;
+}
+
+/* ---------------------------------------------------------------------
+ * Landing-page hero: ambient glow blobs + gradient CTA helper class
+ * ------------------------------------------------------------------- */
+.hero-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  pointer-events: none;
+}
+
+.btn-cta {
+  background-image: linear-gradient(135deg, var(--cta-bg), var(--cta-bg-2));
+  color: var(--cta-text);
+}
+
+.theme-toggle {
+  border: 1px solid var(--border);
+  background-color: var(--surface);
+  color: var(--heading);
 }

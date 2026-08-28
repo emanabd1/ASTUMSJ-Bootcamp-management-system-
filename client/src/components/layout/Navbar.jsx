@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import axiosInstance from "../../api/axiosInstance";
 import { usePreferences } from "../../hooks/usePreferences";
+import ThemeToggle from "../ThemeToggle";
 
 function BellIcon() {
   return (
@@ -126,6 +127,7 @@ export default function Navbar({ setSidebarOpen }) {
           <option value="so">Af-Soomaali</option>
           <option value="ar">العربية</option>
         </select>
+        <ThemeToggle />
         <Link
           to="/notifications"
           title={t("notifications")}
