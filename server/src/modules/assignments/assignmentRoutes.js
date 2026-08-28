@@ -38,7 +38,11 @@ router.get("/", async (req, res, next) => {
     let assignments;
     if (req.user.role === "student") {
       assignments = await Assignment.find({
-        $or: [{ targetStudents: req.user._id }, { targetStudents: { $size: 0 } }],
+        $or: [
+          { targetStudents: req.user._id },
+          { targetStudents: { $size: 0 }, session: null },
+          { targetStudents: { $size: 0 }, session: { $ne: null }, batch: req.user.batch },
+        ],
       }).populate("creator", "fullName role").populate("batch", "name startDate endDate").sort({ deadline: 1 });
     } else if (req.user.role === "mentor") {
       const students = await User.find({ mentor: req.user._id, role: "student", status: "approved", isActive: true }).select("_id");
