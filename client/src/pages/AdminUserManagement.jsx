@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import axiosInstance from "../api/axiosInstance";
+
 const field =
   "w-full rounded-xl border border-[#4a3b32] bg-[#16110e] px-3 py-2 text-sm text-[#f5efe6] focus:border-[#c89b7b] focus:outline-none";
+
 const roles = ["student", "mentor", "admin"];
+
 const empty = {
   fullName: "",
   email: "",
@@ -17,171 +20,415 @@ const empty = {
   university: "",
   universityIdNumber: "",
 };
+
 export default function AdminUserManagement() {
-  const [users, setUsers] = useState([]),
-    [mentors, setMentors] = useState([]),
-    [pending, setPending] = useState([]),
-    [batches, setBatches] = useState([]),
-    [universities, setUniversities] = useState([]),
-    [universityFilter, setUniversityFilter] = useState(""),
-    [pendingBatches, setPendingBatches] = useState({}),
-    [tab, setTab] = useState("users"),
-    [search, setSearch] = useState(""),
-    [selected, setSelected] = useState(null),
-    [form, setForm] = useState(empty),
-    [show, setShow] = useState(""),
-    [msg, setMsg] = useState("");
+  const [users, setUsers] = useState([]);
+  const [mentors, setMentors] = useState([]);
+  const [pending, setPending] = useState([]);
+  const [batches, setBatches] = useState([]);
+  const [universities, setUniversities] = useState([]);
+
+  const [universityFilter, setUniversityFilter] =
+    useState("");
+
+  const [pendingBatches, setPendingBatches] =
+    useState({});
+
+  const [tab, setTab] = useState("users");
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] =
+    useState(null);
+
+  const [form, setForm] =
+    useState(empty);
+
+  const [show, setShow] =
+    useState("");
+
+  const [msg, setMsg] =
+    useState("");
+
   const load = async () => {
     try {
-      const [u, m, p, b, uni] = await Promise.all([
+      const [
+        userResponse,
+        mentorResponse,
+        pendingResponse,
+        batchResponse,
+        universityResponse,
+      ] = await Promise.all([
         axiosInstance.get("/users"),
         axiosInstance.get("/users/mentors"),
-        axiosInstance.get("/users/applications/pending"),
+        axiosInstance.get(
+          "/users/applications/pending"
+        ),
         axiosInstance.get("/batches"),
         axiosInstance.get("/universities"),
       ]);
-      setUsers(u.data.users || []);
-      setMentors(m.data.mentors || []);
-      setPending(p.data.users || []);
-      setBatches(b.data.batches || []);
-      setUniversities(uni.data.universities || []);
-    } catch (e) {
-      setMsg(e.response?.data?.message || "Could not load users.");
+
+      setUsers(
+        userResponse.data.users || []
+      );
+
+      setMentors(
+        mentorResponse.data.mentors || []
+      );
+
+      setPending(
+        pendingResponse.data.users || []
+      );
+
+      setBatches(
+        batchResponse.data.batches || []
+      );
+
+      setUniversities(
+        universityResponse.data.universities ||
+          []
+      );
+    } catch (error) {
+      setMsg(
+        error.response?.data?.message ||
+          "Could not load users."
+      );
     }
   };
+
   useEffect(() => {
-    Promise.all([
-      axiosInstance.get("/users"),
-      axiosInstance.get("/users/mentors"),
-      axiosInstance.get("/users/applications/pending"),
-      axiosInstance.get("/batches"),
-      axiosInstance.get("/universities"),
-    ]).then(([userResponse, mentorResponse, pendingResponse, batchResponse, universityResponse]) => {
-      setUsers(userResponse.data.users || []);
-      setMentors(mentorResponse.data.mentors || []);
-      setPending(pendingResponse.data.users || []);
-      setBatches(batchResponse.data.batches || []);
-      setUniversities(universityResponse.data.universities || []);
-    }).catch((e) => setMsg(e.response?.data?.message || "Could not load users."));
+    load();
   }, []);
-  const filtered = useMemo(
-    () =>
-      users
-        .filter((u) =>
-          `${u.fullName} ${u.email} ${u.role}`
-            .toLowerCase()
-            .includes(search.toLowerCase()),
-        )
-        .filter((u) => !universityFilter || u.university?._id === universityFilter),
-    [users, search, universityFilter],
-  );
-  const update = async (id, data) => {
+
+  const filtered = useMemo(() => {
+    return users
+      .filter((user) =>
+        `${user.fullName} ${user.email} ${user.role}`
+          .toLowerCase()
+          .includes(search.toLowerCase())
+      )
+      .filter(
+        (user) =>
+          !universityFilter ||
+          user.university?._id ===
+            universityFilter
+      );
+  }, [
+    users,
+    search,
+    universityFilter,
+  ]);
+
+  const update = async (
+    id,
+    data
+  ) => {
     try {
-      await axiosInstance.patch(`/users/${id}`, data);
+      await axiosInstance.patch(
+        `/users/${id}`,
+        data
+      );
+
       setMsg("Updated successfully.");
-      load();
-    } catch (e) {
-      setMsg(e.response?.data?.message || "Update failed.");
+
+      await load();
+    } catch (error) {
+      setMsg(
+        error.response?.data?.message ||
+          "Update failed."
+      );
     }
   };
-  const assign = async (studentId, mentorId) => {
+
+  const assign = async (
+    studentId,
+    mentorId
+  ) => {
     try {
-      if (mentorId)
-        await axiosInstance.post(`/users/${studentId}/assign-mentor`, {
-          mentorId,
-        });
-      else await axiosInstance.delete(`/users/${studentId}/assign-mentor`);
-      load();
-    } catch (e) {
-      setMsg(e.response?.data?.message || "Assignment failed.");
+      if (mentorId) {
+        await axiosInstance.post(
+          `/users/${studentId}/assign-mentor`,
+          {
+            mentorId,
+          }
+        );
+      } else {
+        await axiosInstance.delete(
+          `/users/${studentId}/assign-mentor`
+        );
+      }
+
+      await load();
+    } catch (error) {
+      setMsg(
+        error.response?.data?.message ||
+          "Assignment failed."
+      );
     }
   };
-  const create = async (e) => {
-    e.preventDefault();
+
+  const create = async (event) => {
+    event.preventDefault();
+
+    setMsg("");
+
+    if (
+      form.role === "student" &&
+      !form.university
+    ) {
+      setMsg(
+        "Please select a university for the student."
+      );
+      return;
+    }
+
+    if (
+      form.role === "student" &&
+      !form.universityIdNumber.trim()
+    ) {
+      setMsg(
+        "Please enter the student's university ID number."
+      );
+      return;
+    }
+
     try {
-      const r = await axiosInstance.post("/users", form);
-      setMsg(r.data.message);
+      const response =
+        await axiosInstance.post(
+          "/users",
+          {
+            ...form,
+
+            university:
+              form.role === "student"
+                ? form.university
+                : null,
+
+            universityIdNumber:
+              form.role === "student"
+                ? form.universityIdNumber.trim()
+                : "",
+          }
+        );
+
+      setMsg(
+        response.data.message ||
+          "User created successfully."
+      );
+
       setShow("");
       setForm(empty);
-      load();
-    } catch (e) {
-      setMsg(e.response?.data?.message || "Could not create user.");
+
+      await load();
+    } catch (error) {
+      setMsg(
+        error.response?.data?.message ||
+          "Could not create user."
+      );
     }
   };
-  const save = async (e) => {
-    e.preventDefault();
-    await update(selected._id, form);
+
+  const save = async (event) => {
+    event.preventDefault();
+
+    if (
+      form.role === "student" &&
+      !form.university
+    ) {
+      setMsg(
+        "Please select a university for the student."
+      );
+      return;
+    }
+
+    if (
+      form.role === "student" &&
+      !form.universityIdNumber.trim()
+    ) {
+      setMsg(
+        "Please enter the student's university ID number."
+      );
+      return;
+    }
+
+    await update(
+      selected._id,
+      form
+    );
+
     setShow("");
     setSelected(null);
   };
-  const openEdit = (u) => {
-    setSelected(u);
-    setForm({ ...empty, ...u, university: u.university?._id || "" });
+
+  const openEdit = (user) => {
+    setSelected(user);
+
+    setForm({
+      ...empty,
+      ...user,
+
+      university:
+        user.university?._id || "",
+
+      universityIdNumber:
+        user.universityIdNumber || "",
+    });
+
     setShow("edit");
   };
+
   const openView = async (id) => {
-    const r = await axiosInstance.get(`/users/${id}`);
-    setSelected(r.data.user);
-    setShow("view");
+    try {
+      const response =
+        await axiosInstance.get(
+          `/users/${id}`
+        );
+
+      setSelected(
+        response.data.user
+      );
+
+      setShow("view");
+    } catch (error) {
+      setMsg(
+        error.response?.data?.message ||
+          "Could not load user."
+      );
+    }
   };
+
   const remove = async (id) => {
-    if (!confirm("Delete this user permanently?")) return;
-    await axiosInstance.delete(`/users/${id}`);
-    load();
+    if (
+      !confirm(
+        "Delete this user permanently?"
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await axiosInstance.delete(
+        `/users/${id}`
+      );
+
+      await load();
+    } catch (error) {
+      setMsg(
+        error.response?.data?.message ||
+          "Could not delete user."
+      );
+    }
   };
-  const Row = ({ u, p = false }) => (
+
+  const Row = ({
+    user,
+    pendingRow = false,
+  }) => (
     <tr className="border-t border-[#4a3b32] hover:bg-[#2d231d]/40">
-      <td className="p-4 font-bold">{u.fullName}</td>
-      <td className="p-4 text-[#a39081]">{u.email}</td>
-      <td className="p-4 uppercase text-[#c89b7b]">{u.role}</td>
+      <td className="p-4 font-bold">
+        {user.fullName}
+      </td>
+
+      <td className="p-4 text-[#a39081]">
+        {user.email}
+      </td>
+
+      <td className="p-4 uppercase text-[#c89b7b]">
+        {user.role}
+      </td>
+
       <td className="p-4">
-        {u.university ? (
-          <span className="inline-flex items-center gap-1.5">
+        {user.university ? (
+          <span className="inline-flex items-center gap-2">
             <span
               className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: u.university.color || "#c89b7b" }}
+              style={{
+                backgroundColor:
+                  user.university.color ||
+                  "#c89b7b",
+              }}
             />
-            {u.university.shortName || u.university.name}
+
+            {user.university.shortName ||
+              user.university.name}
           </span>
         ) : (
-          <span className="text-[#a39081]">—</span>
+          <span className="text-[#a39081]">
+            —
+          </span>
         )}
       </td>
+
       <td className="p-4">
-        {u.status === "approved"
-          ? u.isActive
+        {user.status === "approved"
+          ? user.isActive
             ? "Active"
             : "Suspended"
-          : u.status}
+          : user.status}
       </td>
-      <td className="p-4 text-right whitespace-nowrap">
+
+      <td className="whitespace-nowrap p-4 text-right">
         <button
-          onClick={() => openView(u._id)}
+          onClick={() =>
+            openView(user._id)
+          }
           className="mr-2 rounded-lg bg-[#4a3b32] px-3 py-1"
         >
           View
         </button>
-        {p ? (
+
+        {pendingRow ? (
           <>
             <select
-              value={pendingBatches[u._id] || ""}
-              onChange={(e) => setPendingBatches({ ...pendingBatches, [u._id]: e.target.value })}
+              value={
+                pendingBatches[user._id] ||
+                ""
+              }
+              onChange={(event) =>
+                setPendingBatches({
+                  ...pendingBatches,
+                  [user._id]:
+                    event.target.value,
+                })
+              }
               className="mr-2 max-w-36 rounded-lg border border-[#4a3b32] bg-[#16110e] px-2 py-1 text-xs"
             >
-              <option value="">No batch</option>
-              {batches.map((batch) => <option key={batch._id} value={batch._id}>{batch.name}</option>)}
+              <option value="">
+                No batch
+              </option>
+
+              {batches.map(
+                (batch) => (
+                  <option
+                    key={batch._id}
+                    value={batch._id}
+                  >
+                    {batch.name}
+                  </option>
+                )
+              )}
             </select>
+
             <button
               onClick={() =>
-                update(u._id, { status: "approved", isActive: true, batchId: pendingBatches[u._id] || undefined })
+                update(user._id, {
+                  status: "approved",
+                  isActive: true,
+                  batchId:
+                    pendingBatches[
+                      user._id
+                    ] || undefined,
+                })
               }
               className="mr-2 rounded-lg bg-emerald-700/70 px-3 py-1"
             >
               Accept
             </button>
+
             <button
               onClick={() =>
-                update(u._id, { status: "rejected", isActive: false })
+                update(user._id, {
+                  status: "rejected",
+                  isActive: false,
+                })
               }
               className="rounded-lg bg-rose-700/70 px-3 py-1"
             >
@@ -191,26 +438,43 @@ export default function AdminUserManagement() {
         ) : (
           <>
             <button
-              onClick={() => openEdit(u)}
+              onClick={() =>
+                openEdit(user)
+              }
               className="mr-2 rounded-lg bg-[#c89b7b] px-3 py-1 text-[#1e1713]"
             >
               Edit
             </button>
+
             <select
-              value={u.isActive ? "active" : "suspended"}
-              onChange={(e) =>
-                update(u._id, {
+              value={
+                user.isActive
+                  ? "active"
+                  : "suspended"
+              }
+              onChange={(event) =>
+                update(user._id, {
                   status: "approved",
-                  isActive: e.target.value === "active",
+                  isActive:
+                    event.target.value ===
+                    "active",
                 })
               }
-              className="mr-2 rounded-lg bg-[#16110e] border border-[#4a3b32] px-2 py-1"
+              className="mr-2 rounded-lg border border-[#4a3b32] bg-[#16110e] px-2 py-1"
             >
-              <option value="active">Active</option>
-              <option value="suspended">Suspended</option>
+              <option value="active">
+                Active
+              </option>
+
+              <option value="suspended">
+                Suspended
+              </option>
             </select>
+
             <button
-              onClick={() => remove(u._id)}
+              onClick={() =>
+                remove(user._id)
+              }
               className="rounded-lg bg-rose-700/70 px-3 py-1"
             >
               Delete
@@ -220,411 +484,919 @@ export default function AdminUserManagement() {
       </td>
     </tr>
   );
+
   return (
     <div className="space-y-7">
       <div className="flex flex-wrap justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-extrabold">User Management</h1>
+          <h1 className="text-3xl font-extrabold">
+            User Management
+          </h1>
+
           <p className="text-xs text-[#a39081]">
-            Users, pending applications and mentor assignments.
+            Users, pending applications,
+            universities and mentor assignments.
           </p>
         </div>
+
         <button
-          onClick={() => setShow("create")}
+          onClick={() => {
+            setForm(empty);
+            setSelected(null);
+            setMsg("");
+            setShow("create");
+          }}
           className="rounded-xl bg-[#c89b7b] px-4 py-2 text-xs font-bold text-[#1e1713]"
         >
           + Create User
         </button>
       </div>
+
       {msg && (
         <p className="rounded-xl border border-[#4a3b32] bg-[#1e1713] p-3 text-sm text-amber-400">
           {msg}
         </p>
       )}
+
       <div className="flex flex-wrap gap-2">
         <button
-          onClick={() => setTab("users")}
-          className={`rounded-xl px-4 py-2 text-xs font-bold ${tab === "users" ? "bg-[#c89b7b] text-[#1e1713]" : "bg-[#1e1713]"}`}
+          onClick={() =>
+            setTab("users")
+          }
+          className={`rounded-xl px-4 py-2 text-xs font-bold ${
+            tab === "users"
+              ? "bg-[#c89b7b] text-[#1e1713]"
+              : "bg-[#1e1713]"
+          }`}
         >
           All Users
         </button>
+
         <button
-          onClick={() => setTab("pending")}
-          className={`rounded-xl px-4 py-2 text-xs font-bold ${tab === "pending" ? "bg-[#c89b7b] text-[#1e1713]" : "bg-[#1e1713]"}`}
+          onClick={() =>
+            setTab("pending")
+          }
+          className={`rounded-xl px-4 py-2 text-xs font-bold ${
+            tab === "pending"
+              ? "bg-[#c89b7b] text-[#1e1713]"
+              : "bg-[#1e1713]"
+          }`}
         >
           Pending ({pending.length})
         </button>
+
         <button
-          onClick={() => setTab("mentors")}
-          className={`rounded-xl px-4 py-2 text-xs font-bold ${tab === "mentors" ? "bg-[#c89b7b] text-[#1e1713]" : "bg-[#1e1713]"}`}
+          onClick={() =>
+            setTab("mentors")
+          }
+          className={`rounded-xl px-4 py-2 text-xs font-bold ${
+            tab === "mentors"
+              ? "bg-[#c89b7b] text-[#1e1713]"
+              : "bg-[#1e1713]"
+          }`}
         >
           Manage Mentors
         </button>
       </div>
+
       {tab !== "mentors" && (
         <div className="flex flex-wrap gap-3">
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) =>
+              setSearch(
+                event.target.value
+              )
+            }
             placeholder="Search name, email or role..."
             className={`${field} max-w-xs`}
           />
+
           <select
             value={universityFilter}
-            onChange={(e) => setUniversityFilter(e.target.value)}
+            onChange={(event) =>
+              setUniversityFilter(
+                event.target.value
+              )
+            }
             className={`${field} max-w-56`}
           >
-            <option value="">All universities</option>
-            {universities.map((u) => (
-              <option key={u._id} value={u._id}>
-                {u.shortName || u.name}
-              </option>
-            ))}
+            <option value="">
+              All universities
+            </option>
+
+            {universities.map(
+              (university) => (
+                <option
+                  key={university._id}
+                  value={university._id}
+                >
+                  {university.shortName ||
+                    university.name}
+                </option>
+              )
+            )}
           </select>
         </div>
-      )}{" "}
+      )}
+
       {tab === "users" && (
-        <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] overflow-hidden">
-          <div className="p-4 border-b border-[#4a3b32]">
-            <h2 className="font-bold">All Users</h2>
-            <p className="text-[11px] text-[#a39081]">
-              Edit profile information and switch between Student, Mentor and
-              Admin.
-            </p>
-          </div>
+        <section className="overflow-hidden rounded-2xl border border-[#4a3b32] bg-[#1e1713]">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-[#16110e] text-[#a39081]">
                 <tr>
-                  <th className="p-4">Name</th>
-                  <th className="p-4">Email</th>
-                  <th className="p-4">Role</th>
-                  <th className="p-4">University</th>
-                  <th className="p-4">State</th>
-                  <th className="p-4 text-right">Actions</th>
+                  <th className="p-4">
+                    Name
+                  </th>
+                  <th className="p-4">
+                    Email
+                  </th>
+                  <th className="p-4">
+                    Role
+                  </th>
+                  <th className="p-4">
+                    University
+                  </th>
+                  <th className="p-4">
+                    State
+                  </th>
+                  <th className="p-4 text-right">
+                    Actions
+                  </th>
                 </tr>
               </thead>
+
               <tbody>
-                {filtered.map((u) => (
-                  <Row key={u._id} u={u} />
-                ))}
+                {filtered.map(
+                  (user) => (
+                    <Row
+                      key={user._id}
+                      user={user}
+                    />
+                  )
+                )}
               </tbody>
             </table>
           </div>
         </section>
       )}
+
       {tab === "pending" && (
-        <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] overflow-hidden">
-          <div className="p-4 border-b border-[#4a3b32]">
-            <h2 className="font-bold">Pending Applications</h2>
+        <section className="overflow-hidden rounded-2xl border border-[#4a3b32] bg-[#1e1713]">
+          <div className="border-b border-[#4a3b32] p-4">
+            <h2 className="font-bold">
+              Pending Applications
+            </h2>
+
             <p className="text-[11px] text-[#a39081]">
-              Review registration data. Passwords are never shown.
+              Review registration data.
+              Passwords are never shown.
             </p>
           </div>
+
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="bg-[#16110e] text-[#a39081]">
                 <tr>
-                  <th className="p-4">Name</th>
-                  <th className="p-4">Email</th>
-                  <th className="p-4">Role</th>
-                  <th className="p-4">University</th>
-                  <th className="p-4">Status</th>
-                  <th className="p-4 text-right">Actions</th>
+                  <th className="p-4">
+                    Name
+                  </th>
+                  <th className="p-4">
+                    Email
+                  </th>
+                  <th className="p-4">
+                    Role
+                  </th>
+                  <th className="p-4">
+                    University
+                  </th>
+                  <th className="p-4">
+                    Status
+                  </th>
+                  <th className="p-4 text-right">
+                    Actions
+                  </th>
                 </tr>
               </thead>
+
               <tbody>
                 {pending
-                  .filter((u) =>
-                    `${u.fullName} ${u.email}`
+                  .filter((user) =>
+                    `${user.fullName} ${user.email}`
                       .toLowerCase()
-                      .includes(search.toLowerCase()),
+                      .includes(
+                        search.toLowerCase()
+                      )
                   )
-                  .filter((u) => !universityFilter || u.university?._id === universityFilter)
-                  .map((u) => (
-                    <Row key={u._id} u={u} p />
+                  .filter(
+                    (user) =>
+                      !universityFilter ||
+                      user.university?._id ===
+                        universityFilter
+                  )
+                  .map((user) => (
+                    <Row
+                      key={user._id}
+                      user={user}
+                      pendingRow
+                    />
                   ))}
               </tbody>
             </table>
           </div>
         </section>
       )}
+
       {tab === "mentors" && (
         <section className="space-y-4">
           <p className="text-xs text-[#a39081]">
-            Choose a mentor first, then select students from the complete active
-            student list. Students are stored with the selected mentor.
+            Choose a mentor first, then select
+            students from the complete active
+            student list.
           </p>
-          {mentors.map((m) => (
-            <MentorCard
-              key={m._id}
-              mentor={m}
-              students={users.filter(
-                (u) =>
-                  u.role === "student" && u.status === "approved" && u.isActive,
-              )}
-              assign={assign}
-            />
-          ))}
+
+          {mentors.map(
+            (mentor) => (
+              <MentorCard
+                key={mentor._id}
+                mentor={mentor}
+                students={users.filter(
+                  (user) =>
+                    user.role ===
+                      "student" &&
+                    user.status ===
+                      "approved" &&
+                    user.isActive
+                )}
+                assign={assign}
+              />
+            )
+          )}
         </section>
       )}
+
       {show && (
         <div
-          className="fixed inset-0 z-50 bg-black/70 p-4 flex items-center justify-center"
-          onClick={() => setShow("")}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() =>
+            setShow("")
+          }
         >
           <div
-            onClick={(e) => e.stopPropagation()}
+            onClick={(event) =>
+              event.stopPropagation()
+            }
             className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-[#4a3b32] bg-[#1e1713] p-6"
           >
-            {show === "view" && selected && (
-              <>
-                <div className="flex justify-between">
-                  <h2 className="text-2xl font-bold">User Details</h2>
-                  <button onClick={() => setShow("")}>✕</button>
-                </div>
-                <div className="mt-5 grid md:grid-cols-2 gap-3 text-sm">
-                  {[
-                    ["Full Name", selected.fullName],
-                    ["Email", selected.email],
-                    ["Role", selected.role],
-                    ["Status", selected.status],
-                    ["Active", selected.isActive ? "Yes" : "No"],
-                    ["Gender", selected.gender || "—"],
-                    ["Department", selected.department || "—"],
-                    ["Year", selected.yearOfStudy || "—"],
-                    ["University", selected.university?.name || "—"],
-                    [selected.university?.idLabel || "University ID", selected.universityIdNumber || "—"],
-                    ["Mentor", selected.mentor?.fullName || "Unassigned"],
-                    ["GitHub", selected.githubUrl || "—"],
-                    ["LeetCode", selected.leetcodeUrl || "—"],
-                    ["Codeforces", selected.codeforcesUrl || "—"],
-                    ["Why Join", selected.bootcampReason || "—"],
-                  ].map(([k, v]) => (
-                    <div
-                      key={k}
-                      className="rounded-xl border border-[#4a3b32] p-3"
+            {show === "view" &&
+              selected && (
+                <>
+                  <div className="flex justify-between">
+                    <h2 className="text-2xl font-bold">
+                      User Details
+                    </h2>
+
+                    <button
+                      onClick={() =>
+                        setShow("")
+                      }
                     >
-                      <p className="text-[10px] uppercase text-[#a39081]">
-                        {k}
-                      </p>
-                      <p className="break-words mt-1">{v}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-5 flex gap-3">
-                  <button
-                    onClick={() => openEdit(selected)}
-                    className="rounded-xl bg-[#c89b7b] px-4 py-2 text-xs font-bold text-[#1e1713]"
-                  >
-                    Edit User
-                  </button>
-                  {selected.status === "pending" && (
-                    <>
-                      <button
-                        onClick={() => {
-                          update(selected._id, {
-                            status: "approved",
-                            isActive: true,
-                          });
-                          setShow("");
-                        }}
-                        className="rounded-xl bg-emerald-700 px-4 py-2 text-xs"
-                      >
-                        Accept
-                      </button>
-                      <button
-                        onClick={() => {
-                          update(selected._id, {
-                            status: "rejected",
-                            isActive: false,
-                          });
-                          setShow("");
-                        }}
-                        className="rounded-xl bg-rose-700 px-4 py-2 text-xs"
-                      >
-                        Reject
-                      </button>
-                    </>
-                  )}
-                </div>
-              </>
-            )}
+                      ✕
+                    </button>
+                  </div>
+
+                  <div className="mt-5 grid gap-3 md:grid-cols-2">
+                    {[
+                      [
+                        "Full Name",
+                        selected.fullName,
+                      ],
+                      [
+                        "Email",
+                        selected.email,
+                      ],
+                      [
+                        "Role",
+                        selected.role,
+                      ],
+                      [
+                        "Status",
+                        selected.status,
+                      ],
+                      [
+                        "Active",
+                        selected.isActive
+                          ? "Yes"
+                          : "No",
+                      ],
+                      [
+                        "Gender",
+                        selected.gender ||
+                          "—",
+                      ],
+                      [
+                        "Department",
+                        selected.department ||
+                          "—",
+                      ],
+                      [
+                        "Year",
+                        selected.yearOfStudy ||
+                          "—",
+                      ],
+                      [
+                        "University",
+                        selected.university
+                          ?.name ||
+                          "—",
+                      ],
+                      [
+                        selected.university
+                          ?.idLabel ||
+                          "University ID",
+                        selected.universityIdNumber ||
+                          "—",
+                      ],
+                      [
+                        "Mentor",
+                        selected.mentor
+                          ?.fullName ||
+                          "Unassigned",
+                      ],
+                      [
+                        "GitHub",
+                        selected.githubUrl ||
+                          "—",
+                      ],
+                      [
+                        "LeetCode",
+                        selected.leetcodeUrl ||
+                          "—",
+                      ],
+                      [
+                        "Codeforces",
+                        selected.codeforcesUrl ||
+                          "—",
+                      ],
+                      [
+                        "Why Join",
+                        selected.bootcampReason ||
+                          "—",
+                      ],
+                    ].map(
+                      ([label, value]) => (
+                        <div
+                          key={label}
+                          className="rounded-xl border border-[#4a3b32] p-3"
+                        >
+                          <p className="text-[10px] uppercase text-[#a39081]">
+                            {label}
+                          </p>
+
+                          <p className="mt-1 break-words">
+                            {value}
+                          </p>
+                        </div>
+                      )
+                    )}
+                  </div>
+
+                  <div className="mt-5 flex gap-3">
+                    <button
+                      onClick={() =>
+                        openEdit(
+                          selected
+                        )
+                      }
+                      className="rounded-xl bg-[#c89b7b] px-4 py-2 text-xs font-bold text-[#1e1713]"
+                    >
+                      Edit User
+                    </button>
+
+                    {selected.status ===
+                      "pending" && (
+                      <>
+                        <button
+                          onClick={() => {
+                            update(
+                              selected._id,
+                              {
+                                status:
+                                  "approved",
+                                isActive:
+                                  true,
+                              }
+                            );
+                            setShow("");
+                          }}
+                          className="rounded-xl bg-emerald-700 px-4 py-2 text-xs"
+                        >
+                          Accept
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            update(
+                              selected._id,
+                              {
+                                status:
+                                  "rejected",
+                                isActive:
+                                  false,
+                              }
+                            );
+                            setShow("");
+                          }}
+                          className="rounded-xl bg-rose-700 px-4 py-2 text-xs"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+
             {show === "create" && (
-              <form onSubmit={create} className="space-y-3">
-                <h2 className="text-2xl font-bold">Create User</h2>
+              <form
+                onSubmit={create}
+                className="space-y-3"
+              >
+                <h2 className="text-2xl font-bold">
+                  Create User
+                </h2>
+
                 <p className="text-xs text-[#a39081]">
-                  A temporary password will be generated and emailed.
+                  A temporary password will
+                  be generated and emailed.
                 </p>
+
                 <input
                   className={field}
                   placeholder="Full name"
                   value={form.fullName}
-                  onChange={(e) =>
-                    setForm({ ...form, fullName: e.target.value })
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      fullName:
+                        event.target.value,
+                    })
                   }
                   required
                 />
+
                 <input
                   className={field}
                   type="email"
                   placeholder="Email"
                   value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      email:
+                        event.target.value,
+                    })
+                  }
                   required
                 />
+
                 <select
                   className={field}
                   value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value })}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      role:
+                        event.target.value,
+                      university:
+                        event.target.value ===
+                        "student"
+                          ? form.university
+                          : "",
+                      universityIdNumber:
+                        event.target.value ===
+                        "student"
+                          ? form.universityIdNumber
+                          : "",
+                    })
+                  }
                 >
-                  {roles.map((r) => (
-                    <option key={r}>{r}</option>
-                  ))}
+                  {roles.map(
+                    (role) => (
+                      <option
+                        key={role}
+                        value={role}
+                      >
+                        {role}
+                      </option>
+                    )
+                  )}
                 </select>
+
                 <select
                   className={field}
-                  value={form.batchId || ""}
-                  onChange={(e) => setForm({ ...form, batchId: e.target.value })}
+                  value={
+                    form.batchId || ""
+                  }
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      batchId:
+                        event.target.value,
+                    })
+                  }
                 >
-                  <option value="">No batch</option>
-                  {batches.map((batch) => <option key={batch._id} value={batch._id}>{batch.name}</option>)}
+                  <option value="">
+                    No batch
+                  </option>
+
+                  {batches.map(
+                    (batch) => (
+                      <option
+                        key={batch._id}
+                        value={batch._id}
+                      >
+                        {batch.name}
+                      </option>
+                    )
+                  )}
                 </select>
+
+                {/* UNIVERSITY */}
                 <select
                   className={field}
-                  value={form.university || ""}
-                  onChange={(e) => setForm({ ...form, university: e.target.value })}
-                  required={form.role === "student"}
+                  required={
+                    form.role ===
+                    "student"
+                  }
+                  value={
+                    form.university || ""
+                  }
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      university:
+                        event.target.value,
+                    })
+                  }
                 >
-                  <option value="">{form.role === "student" ? "Select university" : "No university"}</option>
-                  {universities.map((u) => (
-                    <option key={u._id} value={u._id}>{u.shortName ? `${u.name} (${u.shortName})` : u.name}</option>
-                  ))}
+                  <option value="">
+                    {form.role ===
+                    "student"
+                      ? "Select university"
+                      : "No university"}
+                  </option>
+
+                  {universities.map(
+                    (university) => (
+                      <option
+                        key={
+                          university._id
+                        }
+                        value={
+                          university._id
+                        }
+                      >
+                        {university.shortName
+                          ? `${university.name} (${university.shortName})`
+                          : university.name}
+                      </option>
+                    )
+                  )}
                 </select>
+
+                {/* UNIVERSITY ID */}
                 <input
                   className={field}
-                  placeholder="University ID number"
-                  value={form.universityIdNumber || ""}
-                  onChange={(e) => setForm({ ...form, universityIdNumber: e.target.value })}
-                  required={form.role === "student"}
+                  required={
+                    form.role ===
+                    "student"
+                  }
+                  placeholder={
+                    form.role ===
+                    "student"
+                      ? "University ID number *"
+                      : "University ID number (optional)"
+                  }
+                  value={
+                    form.universityIdNumber ||
+                    ""
+                  }
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      universityIdNumber:
+                        event.target.value,
+                    })
+                  }
                 />
+
                 <input
                   className={field}
                   placeholder="Department"
-                  value={form.department}
-                  onChange={(e) =>
-                    setForm({ ...form, department: e.target.value })
+                  value={
+                    form.department
+                  }
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      department:
+                        event.target.value,
+                    })
                   }
                 />
+
                 <button className="w-full rounded-xl bg-[#c89b7b] py-3 font-bold text-[#1e1713]">
                   Create
                 </button>
               </form>
             )}
-            {show === "edit" && selected && (
-              <form onSubmit={save} className="space-y-3">
-                <div className="flex justify-between">
-                  <h2 className="text-2xl font-bold">Edit User</h2>
-                  <button type="button" onClick={() => setShow("")}>
-                    ✕
-                  </button>
-                </div>
-                {[
-                  ["fullName", "Full name"],
-                  ["email", "Email"],
-                  ["department", "Department"],
-                  ["universityIdNumber", "University ID number"],
-                  ["githubUrl", "GitHub URL"],
-                  ["leetcodeUrl", "LeetCode URL"],
-                  ["codeforcesUrl", "Codeforces URL"],
-                ].map(([k, l]) => (
-                  <input
-                    key={k}
-                    className={field}
-                    placeholder={l}
-                    value={form[k] || ""}
-                    onChange={(e) => setForm({ ...form, [k]: e.target.value })}
-                  />
-                ))}
-                <select
-                  className={field}
-                  value={form.university || ""}
-                  onChange={(e) => setForm({ ...form, university: e.target.value })}
+
+            {show === "edit" &&
+              selected && (
+                <form
+                  onSubmit={save}
+                  className="space-y-3"
                 >
-                  <option value="">No university</option>
-                  {universities.map((u) => (
-                    <option key={u._id} value={u._id}>{u.shortName ? `${u.name} (${u.shortName})` : u.name}</option>
-                  ))}
-                </select>
-                <select
-                  className={field}
-                  value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value })}
-                >
-                  {roles.map((r) => (
-                    <option key={r}>{r}</option>
-                  ))}
-                </select>
-                <select
-                  className={field}
-                  value={form.gender}
-                  onChange={(e) => setForm({ ...form, gender: e.target.value })}
-                >
-                  <option>Male</option>
-                  <option>Female</option>
-                  <option>Other</option>
-                </select>
-                <select
-                  className={field}
-                  value={form.yearOfStudy}
-                  onChange={(e) =>
-                    setForm({ ...form, yearOfStudy: e.target.value })
-                  }
-                >
+                  <div className="flex justify-between">
+                    <h2 className="text-2xl font-bold">
+                      Edit User
+                    </h2>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShow("")
+                      }
+                    >
+                      ✕
+                    </button>
+                  </div>
+
                   {[
-                    "1st Year",
-                    "2nd Year",
-                    "3rd Year",
-                    "4th Year",
-                    "5th Year",
-                  ].map((y) => (
-                    <option key={y}>{y}</option>
-                  ))}
-                </select>
-                <button className="w-full rounded-xl bg-[#c89b7b] py-3 font-bold text-[#1e1713]">
-                  Save Changes
-                </button>
-              </form>
-            )}
+                    [
+                      "fullName",
+                      "Full name",
+                    ],
+                    [
+                      "email",
+                      "Email",
+                    ],
+                    [
+                      "department",
+                      "Department",
+                    ],
+                    [
+                      "universityIdNumber",
+                      "University ID number",
+                    ],
+                    [
+                      "githubUrl",
+                      "GitHub URL",
+                    ],
+                    [
+                      "leetcodeUrl",
+                      "LeetCode URL",
+                    ],
+                    [
+                      "codeforcesUrl",
+                      "Codeforces URL",
+                    ],
+                  ].map(
+                    ([key, label]) => (
+                      <input
+                        key={key}
+                        className={field}
+                        placeholder={
+                          label
+                        }
+                        value={
+                          form[key] || ""
+                        }
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            [key]:
+                              event.target
+                                .value,
+                          })
+                        }
+                      />
+                    )
+                  )}
+
+                  <select
+                    className={field}
+                    required={
+                      form.role ===
+                      "student"
+                    }
+                    value={
+                      form.university ||
+                      ""
+                    }
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        university:
+                          event.target
+                            .value,
+                      })
+                    }
+                  >
+                    <option value="">
+                      {form.role ===
+                      "student"
+                        ? "Select university"
+                        : "No university"}
+                    </option>
+
+                    {universities.map(
+                      (university) => (
+                        <option
+                          key={
+                            university._id
+                          }
+                          value={
+                            university._id
+                          }
+                        >
+                          {university.shortName
+                            ? `${university.name} (${university.shortName})`
+                            : university.name}
+                        </option>
+                      )
+                    )}
+                  </select>
+
+                  <select
+                    className={field}
+                    value={form.role}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        role:
+                          event.target
+                            .value,
+                      })
+                    }
+                  >
+                    {roles.map(
+                      (role) => (
+                        <option
+                          key={role}
+                          value={role}
+                        >
+                          {role}
+                        </option>
+                      )
+                    )}
+                  </select>
+
+                  <select
+                    className={field}
+                    value={form.gender}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        gender:
+                          event.target
+                            .value,
+                      })
+                    }
+                  >
+                    <option>
+                      Male
+                    </option>
+                    <option>
+                      Female
+                    </option>
+                    <option>
+                      Other
+                    </option>
+                  </select>
+
+                  <select
+                    className={field}
+                    value={
+                      form.yearOfStudy
+                    }
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        yearOfStudy:
+                          event.target
+                            .value,
+                      })
+                    }
+                  >
+                    {[
+                      "1st Year",
+                      "2nd Year",
+                      "3rd Year",
+                      "4th Year",
+                      "5th Year",
+                    ].map(
+                      (year) => (
+                        <option
+                          key={year}
+                        >
+                          {year}
+                        </option>
+                      )
+                    )}
+                  </select>
+
+                  <button className="w-full rounded-xl bg-[#c89b7b] py-3 font-bold text-[#1e1713]">
+                    Save Changes
+                  </button>
+                </form>
+              )}
           </div>
         </div>
       )}
     </div>
   );
 }
-function MentorCard({ mentor, students, assign }) {
-  const [selected, setSelected] = useState(
-    students.filter((s) => s.mentor?._id === mentor._id).map((s) => s._id),
-  );
-  const toggle = (id) =>
-    setSelected((v) =>
-      v.includes(id) ? v.filter((x) => x !== id) : [...v, id],
+
+function MentorCard({
+  mentor,
+  students,
+  assign,
+}) {
+  const [selectedStudents, setSelectedStudents] =
+    useState(
+      students
+        .filter(
+          (student) =>
+            student.mentor?._id ===
+            mentor._id
+        )
+        .map(
+          (student) =>
+            student._id
+        )
     );
+
+  const toggle = (id) => {
+    setSelectedStudents(
+      (current) =>
+        current.includes(id)
+          ? current.filter(
+              (item) =>
+                item !== id
+            )
+          : [...current, id]
+    );
+  };
+
   const save = async () => {
-    for (const s of students) {
-      const should = selected.includes(s._id);
-      const has = s.mentor?._id === mentor._id;
-      if (should && !has) await assign(s._id, mentor._id);
-      if (!should && has) await assign(s._id, "");
+    for (const student of students) {
+      const shouldBeAssigned =
+        selectedStudents.includes(
+          student._id
+        );
+
+      const currentlyAssigned =
+        student.mentor?._id ===
+        mentor._id;
+
+      if (
+        shouldBeAssigned &&
+        !currentlyAssigned
+      ) {
+        await assign(
+          student._id,
+          mentor._id
+        );
+      }
+
+      if (
+        !shouldBeAssigned &&
+        currentlyAssigned
+      ) {
+        await assign(
+          student._id,
+          ""
+        );
+      }
     }
   };
+
   return (
     <div className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5">
       <div className="flex justify-between gap-3">
         <div>
-          <h2 className="font-bold">{mentor.fullName}</h2>
-          <p className="text-xs text-[#a39081]">{mentor.email}</p>
+          <h2 className="font-bold">
+            {mentor.fullName}
+          </h2>
+
+          <p className="text-xs text-[#a39081]">
+            {mentor.email}
+          </p>
         </div>
+
         <button
           onClick={save}
           className="rounded-xl bg-[#c89b7b] px-4 py-2 text-xs font-bold text-[#1e1713]"
@@ -632,26 +1404,44 @@ function MentorCard({ mentor, students, assign }) {
           Save Students
         </button>
       </div>
-      <div className="mt-4 grid md:grid-cols-2 gap-2">
-        {students.map((s) => (
-          <label
-            key={s._id}
-            className="flex items-center gap-3 rounded-xl border border-[#4a3b32] p-3 text-xs"
-          >
-            <input
-              type="checkbox"
-              checked={selected.includes(s._id)}
-              onChange={() => toggle(s._id)}
-            />
-            <span>
-              <b>{s.fullName}</b>
-              <br />
-              <span className="text-[#a39081]">
-                {s.email} · Current: {s.mentor?.fullName || "Unassigned"}
+
+      <div className="mt-4 grid gap-2 md:grid-cols-2">
+        {students.map(
+          (student) => (
+            <label
+              key={student._id}
+              className="flex items-center gap-3 rounded-xl border border-[#4a3b32] p-3 text-xs"
+            >
+              <input
+                type="checkbox"
+                checked={selectedStudents.includes(
+                  student._id
+                )}
+                onChange={() =>
+                  toggle(
+                    student._id
+                  )
+                }
+              />
+
+              <span>
+                <b>
+                  {student.fullName}
+                </b>
+
+                <br />
+
+                <span className="text-[#a39081]">
+                  {student.email} ·
+                  Current:{" "}
+                  {student.mentor
+                    ?.fullName ||
+                    "Unassigned"}
+                </span>
               </span>
-            </span>
-          </label>
-        ))}
+            </label>
+          )
+        )}
       </div>
     </div>
   );
