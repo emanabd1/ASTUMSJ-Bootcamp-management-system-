@@ -76,11 +76,13 @@ export default function AdminUserManagement() {
   };
   const assign = async (studentId, mentorId) => {
     try {
+      let response;
       if (mentorId)
-        await axiosInstance.post(`/users/${studentId}/assign-mentor`, {
+        response = await axiosInstance.post(`/users/${studentId}/assign-mentor`, {
           mentorId,
         });
-      else await axiosInstance.delete(`/users/${studentId}/assign-mentor`);
+      else response = await axiosInstance.delete(`/users/${studentId}/assign-mentor`);
+      setMsg(response.data.message || "Mentor assignment updated successfully.");
       load();
     } catch (e) {
       setMsg(e.response?.data?.message || "Assignment failed.");
