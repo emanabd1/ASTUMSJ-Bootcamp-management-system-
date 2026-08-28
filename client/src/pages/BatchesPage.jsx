@@ -756,6 +756,7 @@ export default function BatchesPage() {
                 <IconClose className="h-4 w-4" />
               </button>
             </div>
+            {message?.type === 'error' && <p className="rounded-xl border border-rose-700/40 bg-rose-950/30 p-3 text-sm text-rose-300">{message.text}</p>}
             <input
               className={field}
               placeholder="Group name"
@@ -810,6 +811,7 @@ export default function BatchesPage() {
                 <IconClose className="h-5 w-5" />
               </button>
             </div>
+            {message?.type === 'error' && <p className="mx-5 mt-4 rounded-xl border border-rose-700/40 bg-rose-950/30 p-3 text-sm text-rose-300">{message.text}</p>}
 
             <div className="flex gap-2 border-b border-[#4a3b32] px-5 pt-3">
               {[
@@ -959,6 +961,7 @@ export default function BatchesPage() {
               <div><h2 className="text-xl font-bold text-[#f5efe6]">Manage {batchRoster.name}</h2><p className="text-xs text-[#a39081]">Choose the mentors and students who can be added to groups in this batch.</p></div>
               <button type="button" onClick={closeBatchRoster} className="text-[#a39081] hover:text-[#f5efe6]"><IconClose className="h-5 w-5" /></button>
             </div>
+            {message?.type === 'error' && <p className="mx-5 mt-4 rounded-xl border border-rose-700/40 bg-rose-950/30 p-3 text-sm text-rose-300">{message.text}</p>}
             <div className="flex gap-2 border-b border-[#4a3b32] px-5 pt-3">
               {['mentors', 'students'].map((tab) => <button key={tab} type="button" onClick={() => { setBatchRosterTab(tab); setBatchRosterSearch(''); }} className={`rounded-t-lg px-4 py-2 text-xs font-bold ${batchRosterTab === tab ? 'border border-b-0 border-[#4a3b32] bg-[#16110e] text-[#c89b7b]' : 'text-[#a39081]'}`}>{tab === 'mentors' ? `Mentors (${batchRosterMentorIds.length})` : `Students (${batchRosterStudentIds.length})`}</button>)}
             </div>

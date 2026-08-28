@@ -339,6 +339,7 @@ export default function AdminUserManagement() {
             onClick={(e) => e.stopPropagation()}
             className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-[#4a3b32] bg-[#1e1713] p-6"
           >
+            {msg && <p className="mb-4 rounded-xl border border-rose-700/40 bg-rose-950/30 p-3 text-sm text-rose-300">{msg}</p>}
             {show === "view" && selected && (
               <>
                 <div className="flex justify-between">
