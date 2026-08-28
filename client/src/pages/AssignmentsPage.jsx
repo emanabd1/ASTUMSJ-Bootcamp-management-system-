@@ -21,7 +21,7 @@ export default function AssignmentsPage(){
   </div>
   {message && <p className="rounded-xl border border-[#4a3b32] bg-[#1e1713] p-3 text-sm text-amber-400">{message}</p>}
   <div className="grid gap-4">
-   {items.map(a=><button key={a._id} onClick={()=>open(a._id)} className="text-left rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5 hover:border-[#c89b7b] transition"><div className="flex flex-wrap justify-between gap-3"><div><h2 className="font-bold text-lg">{a.title}</h2><p className="mt-1 text-xs text-[#a39081]">{a.description}</p></div><div className="text-right text-xs"><p className="text-[#c89b7b]">{a.maximumScore} points</p><p className="text-[#a39081]">Due {new Date(a.deadline).toLocaleString()}</p></div></div></button>)}
+  {items.map(a=><button key={a._id} type="button" onClick={()=>open(a._id)} aria-label={`View assignment details for ${a.title}`} className="text-left rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5 hover:border-[#c89b7b] transition"><div className="flex flex-wrap justify-between gap-3"><div><h2 className="font-bold text-lg">{a.title}</h2><p className="mt-1 text-xs text-[#a39081]">{a.description}</p><p className="mt-3 text-xs text-[#c89b7b]">View assignment details</p></div><div className="text-right text-xs"><p className="text-[#c89b7b]">{a.maximumScore} points</p><p className="text-[#a39081]">Due {new Date(a.deadline).toLocaleString()}</p></div></div></button>)}
   </div>
   {showCreate && <div className="fixed inset-0 z-50 bg-black/70 p-4 flex items-center justify-center" onClick={()=>setShowCreate(false)}>
    <form onSubmit={create} onClick={e=>e.stopPropagation()} className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-[#4a3b32] bg-[#1e1713] p-6 space-y-3">
