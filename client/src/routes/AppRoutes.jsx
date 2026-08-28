@@ -258,6 +258,9 @@ export default function AppRoutes() {
             element={<StudentProgressPage />}
           />
         </Route>
+              <Route path="/signup" element={<SignupPage />} />
+      {/* /register is a legacy link; it now redirects to the single canonical signup page */}
+      <Route path="/register" element={<Navigate to="/signup" replace />} />
 
       <Route
         path="*"

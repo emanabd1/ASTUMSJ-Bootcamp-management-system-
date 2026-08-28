@@ -2,38 +2,94 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 
+/*
+|--------------------------------------------------------------------------
+| THIS IS THE ONLY SIGNUP PAGE
+|--------------------------------------------------------------------------
+| Both /signup and /register route here (see AppRoutes.jsx). The old
+| second signup flow that used to live inside LoginPage.jsx has been
+| removed so there is exactly one place applicants fill out the form.
+|
+| Theme: blue & white, matching the Landing Page and the Login Page.
+*/
+
 const inputClass =
-  "w-full rounded-3xl border border-[#334155] bg-transparent px-4 py-3 text-sm focus:border-[#2563eb] focus:outline-none";
+  "w-full rounded-xl border border-[#B8CBE3] bg-white px-4 py-2.5 text-sm text-[#102A43] placeholder:text-[#7c93ad] focus:border-[#1E4D8C] focus:outline-none focus:ring-2 focus:ring-[#1E4D8C]/20";
+
+const labelClass = "text-xs font-semibold text-[#315f91]";
+
+const emptyForm = {
+  fullName: "",
+  email: "",
+  password: "",
+  confirmPassword: "",
+  gender: "Male",
+  department: "",
+  yearOfStudy: "1st Year",
+  githubUrl: "",
+  leetcodeUrl: "",
+  codeforcesUrl: "",
+  bootcampReason: "",
+  university: "",
+  universityIdNumber: "",
+};
 
 export default function SignupPage() {
-  const [form, setForm] = useState({
-    fullName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-    gender: "Male",
-    department: "",
-    yearOfStudy: "1st Year",
-    githubUrl: "",
-    leetcodeUrl: "",
-    codeforcesUrl: "",
-    bootcampReason: "",
-    university: "",
-    universityIdNumber: "",
-  });
+  const [form, setForm] = useState(emptyForm);
 
   const [universities, setUniversities] = useState([]);
   const [universitiesLoading, setUniversitiesLoading] = useState(true);
+  const [universitiesError, setUniversitiesError] = useState("");
+
   const [loading, setLoading] = useState(false);
-  const [feedback, setFeedback] = useState({
-    type: "",
-    message: "",
-  });
+  const [feedback, setFeedback] = useState({ type: "", message: "" });
 
   const navigate = useNavigate();
 
   const update = (key, value) =>
     setForm((prev) => ({ ...prev, [key]: value }));
+
+  // Load the list of active universities for the dropdown. This is the
+  // public endpoint, so it works before the applicant has an account.
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadUniversities = async () => {
+      setUniversitiesLoading(true);
+      setUniversitiesError("");
+
+      try {
+        const response = await axiosInstance.get("/universities/public");
+
+        if (isMounted) {
+          setUniversities(response.data.universities || []);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setUniversitiesError(
+            error.response?.data?.message ||
+              "Could not load the list of universities."
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setUniversitiesLoading(false);
+        }
+      }
+    };
+
+    loadUniversities();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const selectedUniversity = universities.find(
+    (university) => university._id === form.university
+  );
+
+  const idLabel = selectedUniversity?.idLabel || "Student ID";
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -43,6 +99,14 @@ export default function SignupPage() {
       setFeedback({
         type: "error",
         message: "Passwords do not match.",
+      });
+      return;
+    }
+
+    if (!form.university) {
+      setFeedback({
+        type: "error",
+        message: "Please select your university.",
       });
       return;
     }
@@ -65,25 +129,11 @@ export default function SignupPage() {
       setFeedback({
         type: "success",
         message:
-          res.data.message ||
+          response.data.message ||
           "Registration submitted. Pending admin approval.",
       });
 
-      setForm({
-        fullName: "",
-        email: "",
-        password: "",
-        confirmPassword: "",
-        gender: "Male",
-        department: "",
-        yearOfStudy: "1st Year",
-        githubUrl: "",
-        leetcodeUrl: "",
-        codeforcesUrl: "",
-        bootcampReason: "",
-        university: "",
-        universityIdNumber: "",
-      });
+      setForm(emptyForm);
 
       setTimeout(() => {
         navigate("/login");
@@ -91,8 +141,7 @@ export default function SignupPage() {
     } catch (error) {
       setFeedback({
         type: "error",
-        message:
-          error.response?.data?.message || "Registration failed.",
+        message: error.response?.data?.message || "Registration failed.",
       });
     } finally {
       setLoading(false);
@@ -100,43 +149,42 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f5f7fa] p-4">
-      <div className="flex w-full max-w-4xl overflow-hidden rounded-2xl bg-[#0b1f3a] shadow-2xl">
-
-        {/* LEFT LOGO SECTION */}
-        <div className="hidden w-1/2 flex-col items-center justify-center bg-[#0b1f3a] p-8 text-center text-white md:flex">
-
-          <span className="mb-2 text-3xl font-extrabold uppercase tracking-wider text-white">
-            ASTUMSJ SUMMER BOOTCAMP
+    <div className="flex min-h-screen items-center justify-center bg-[#f4f8ff] p-4">
+      <div className="flex w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+        {/* LEFT BRAND PANEL */}
+        <div className="hidden w-1/2 flex-col items-center justify-center bg-[#061426] p-8 text-center text-white md:flex">
+          <span className="mb-2 text-3xl font-extrabold uppercase tracking-wider">
+            ASTUMSJ Summer Bootcamp
           </span>
 
-          <div className="my-2">
-            <div className="mx-auto flex h-110 w-110 items-center justify-center">
-              <img
-                src="/logo.png"
-                alt="ASTUMSJ Logo"
-                className="h-full w-full object-contain"
-              />
-            </div>
+          <div className="my-4 flex h-40 w-40 items-center justify-center">
+            <img
+              src="/logo.png"
+              alt="ASTUMSJ Logo"
+              className="h-full w-full object-contain"
+            />
           </div>
 
-          <h1 className="font-serif text-4xl font-bold tracking-tight text-white">
+          <h1 className="font-serif text-4xl font-bold tracking-tight">
             Step Bold,
           </h1>
 
-          <h1 className="text-4xl font-bold tracking-tight text-white">
+          <h1 className="text-4xl font-bold tracking-tight text-[#b9d7ff]">
             Stay Iconic
           </h1>
+
+          <p className="mt-6 max-w-xs text-sm text-[#b9d7ff]">
+            Driven by Faith, Empowered by Knowledge.
+          </p>
         </div>
 
-        {/* RIGHT FORM SECTION */}
-        <div className="flex w-full flex-col justify-center bg-[#ffffff] px-7 py-8 text-[#0b1f3a] md:w-1/2 md:px-12">
-
-          <h2 className="mb-2 text-3xl font-bold tracking-wide text-[#0b1f3a]">
+        {/* RIGHT FORM PANEL */}
+        <div className="flex w-full flex-col justify-center bg-white px-7 py-8 text-[#071a33] md:w-1/2 md:px-12">
+          <h2 className="mb-2 text-3xl font-bold tracking-wide text-[#071a33]">
             Create Account
           </h2>
 
-          <p className="mb-5 text-xs text-[#64748b]">
+          <p className="mb-5 text-xs text-[#40566f]">
             Your application will be reviewed by an administrator before you
             can log in.
           </p>
@@ -146,8 +194,8 @@ export default function SignupPage() {
               role="alert"
               className={`mb-4 rounded-xl border p-3 text-sm ${
                 feedback.type === "success"
-                  ? "border-emerald-700 bg-emerald-50 text-emerald-700"
-                  : "border-red-700 bg-red-50 text-red-700"
+                  ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                  : "border-red-300 bg-red-50 text-red-700"
               }`}
             >
               {feedback.message}
@@ -156,33 +204,23 @@ export default function SignupPage() {
 
           <form onSubmit={handleSignup} className="space-y-3">
             <div>
-              <label className="text-xs text-[#a39081]">
-                Full Name *
-              </label>
-
+              <label className={labelClass}>Full Name *</label>
               <input
                 required
                 value={form.fullName}
-                onChange={(event) =>
-                  update("fullName", event.target.value)
-                }
+                onChange={(event) => update("fullName", event.target.value)}
                 className={inputClass}
                 placeholder="Enter your full name"
               />
             </div>
 
             <div>
-              <label className="text-xs text-[#a39081]">
-                Email *
-              </label>
-
+              <label className={labelClass}>Email *</label>
               <input
                 required
                 type="email"
                 value={form.email}
-                onChange={(event) =>
-                  update("email", event.target.value)
-                }
+                onChange={(event) => update("email", event.target.value)}
                 className={inputClass}
                 placeholder="Enter your email"
               />
@@ -190,10 +228,7 @@ export default function SignupPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-[#a39081]">
-                  Password *
-                </label>
-
+                <label className={labelClass}>Password *</label>
                 <input
                   required
                   minLength={6}
@@ -203,14 +238,12 @@ export default function SignupPage() {
                     update("password", event.target.value)
                   }
                   className={inputClass}
+                  placeholder="Min 6 characters"
                 />
               </div>
 
               <div>
-                <label className="text-xs text-[#a39081]">
-                  Confirm Password *
-                </label>
-
+                <label className={labelClass}>Confirm Password *</label>
                 <input
                   required
                   minLength={6}
@@ -220,23 +253,19 @@ export default function SignupPage() {
                     update("confirmPassword", event.target.value)
                   }
                   className={inputClass}
+                  placeholder="Re-enter password"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-[#a39081]">
-                  Gender *
-                </label>
-
+                <label className={labelClass}>Gender *</label>
                 <select
                   required
                   value={form.gender}
-                  onChange={(event) =>
-                    update("gender", event.target.value)
-                  }
-                  className={`${inputClass} bg-[#16110e]`}
+                  onChange={(event) => update("gender", event.target.value)}
+                  className={inputClass}
                 >
                   <option>Male</option>
                   <option>Female</option>
@@ -245,17 +274,14 @@ export default function SignupPage() {
               </div>
 
               <div>
-                <label className="text-xs text-[#a39081]">
-                  Year *
-                </label>
-
+                <label className={labelClass}>Year *</label>
                 <select
                   required
                   value={form.yearOfStudy}
                   onChange={(event) =>
                     update("yearOfStudy", event.target.value)
                   }
-                  className={`${inputClass} bg-[#16110e]`}
+                  className={inputClass}
                 >
                   {[1, 2, 3, 4, 5].map((year) => (
                     <option key={year}>
@@ -275,10 +301,7 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label className="text-xs text-[#a39081]">
-                Department *
-              </label>
-
+              <label className={labelClass}>Department *</label>
               <input
                 required
                 value={form.department}
@@ -293,18 +316,15 @@ export default function SignupPage() {
             {/* UNIVERSITY + UNIVERSITY ID */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-[#a39081]">
-                  University *
-                </label>
-
+                <label className={labelClass}>University *</label>
                 <select
                   required
                   value={form.university}
-                  disabled={universitiesLoading}
+                  disabled={universitiesLoading || !universities.length}
                   onChange={(event) =>
                     update("university", event.target.value)
                   }
-                  className={`${inputClass} bg-[#16110e]`}
+                  className={inputClass}
                 >
                   <option value="">
                     {universitiesLoading
@@ -315,31 +335,28 @@ export default function SignupPage() {
                   </option>
 
                   {universities.map((university) => (
-                    <option
-                      key={university._id}
-                      value={university._id}
-                    >
+                    <option key={university._id} value={university._id}>
                       {university.shortName
                         ? `${university.name} (${university.shortName})`
                         : university.name}
                     </option>
                   ))}
                 </select>
+
+                {universitiesError && (
+                  <p className="mt-1 text-[11px] text-red-600">
+                    {universitiesError}
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="text-xs text-[#a39081]">
-                  {idLabel} *
-                </label>
-
+                <label className={labelClass}>{idLabel} *</label>
                 <input
                   required
                   value={form.universityIdNumber}
                   onChange={(event) =>
-                    update(
-                      "universityIdNumber",
-                      event.target.value
-                    )
+                    update("universityIdNumber", event.target.value)
                   }
                   className={inputClass}
                   placeholder={`Your ${idLabel.toLowerCase()}`}
@@ -380,10 +397,9 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label className="text-xs text-[#a39081]">
+              <label className={labelClass}>
                 Why do you want to join this bootcamp? *
               </label>
-
               <textarea
                 required
                 rows="3"
@@ -398,17 +414,17 @@ export default function SignupPage() {
 
             <button
               disabled={loading || universitiesLoading}
-              className="w-full rounded-3xl bg-[#c89b7b] py-3 text-sm font-semibold text-[#1e1713] transition hover:bg-[#b08567] disabled:opacity-60"
+              className="w-full rounded-xl bg-[#061426] py-3 text-sm font-semibold text-white transition hover:bg-[#1E4D8C] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {loading ? "Submitting..." : "Submit Application"}
             </button>
           </form>
 
-          <div className="mt-5 text-center text-xs text-[#a39081]">
+          <div className="mt-5 text-center text-xs text-[#40566f]">
             Already have an account?{" "}
             <Link
               to="/login"
-              className="font-bold text-[#c89b7b] underline hover:text-white"
+              className="font-bold text-[#1E4D8C] underline hover:text-[#061426]"
             >
               Login
             </Link>

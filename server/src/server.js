@@ -30,6 +30,7 @@ const adminCommitteeRoutes = require("./modules/adminCommittee/adminCommitteeRou
 const errorHandler = require("./middleware/errorHandler");
 const { startNotificationScheduler } = require("./utils/notificationScheduler");
 const seedUniversities = require("./utils/seedUniversities");
+const fixUserIndexes = require("./utils/fixUserIndexes");
 
 const app = express();
 app.use(passport.initialize());
@@ -94,13 +95,18 @@ app.use(errorHandler);
 
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() =>
+  .then(async () => {
+    // Must run before the server starts accepting traffic: repairs the
+    // stale unique index on users.university that causes the false
+    // "A record with this university already exists." error.
+    await fixUserIndexes();
+
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       startNotificationScheduler();
       seedUniversities();
-    })
-  )
+    });
+  })
   .catch((error) => {
     console.error("Database connection error:", error);
     process.exit(1);
