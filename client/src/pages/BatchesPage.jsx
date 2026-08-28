@@ -220,7 +220,8 @@ export default function BatchesPage() {
     e.preventDefault();
     try {
       if (editingYear) {
-        await axiosInstance.patch(`/batch-years/${editingYear._id}`, yearForm);
+        const response = await axiosInstance.patch(`/batch-years/${editingYear._id}`, yearForm);
+        setBatchYears((current) => current.map((batchYear) => batchYear._id === editingYear._id ? response.data.batchYear : batchYear));
         flash('success', 'Batch updated.');
       } else {
         await axiosInstance.post('/batch-years', yearForm);
@@ -229,7 +230,7 @@ export default function BatchesPage() {
       setYearForm(emptyYearForm);
       setCreatingYear(false);
       setEditingYear(null);
-      load();
+      if (!editingYear) await load();
     } catch (e) {
       flash('error', e.response?.data?.message || 'Could not save the batch.');
     }
@@ -295,10 +296,10 @@ export default function BatchesPage() {
   const submitEditGroup = async (e) => {
     e.preventDefault();
     try {
-      await axiosInstance.patch(`/batches/${editingGroup._id}`, editGroupForm);
+      const response = await axiosInstance.patch(`/batches/${editingGroup._id}`, editGroupForm);
+      setGroups((current) => current.map((group) => group._id === editingGroup._id ? response.data.batch : group));
       flash('success', 'Group updated.');
       setEditingGroup(null);
-      load();
     } catch (e) {
       flash('error', e.response?.data?.message || 'Could not update the group.');
     }
