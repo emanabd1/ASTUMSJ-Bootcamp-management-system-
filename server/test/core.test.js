@@ -95,12 +95,14 @@ test("announcement visibility respects role audience", () => {
 });
 
 test("session access is limited to batch members", () => {
-  const session = { batch: { mentors: ["mentor-1"], students: ["student-1"] } };
+  const session = { batch: { mentors: ["mentor-1"], students: ["student-1"], batchYear: { mentors: ["mentor-3"], students: ["student-3"] } } };
   assert.equal(canAccessSession({ role: "admin", _id: "admin-1" }, session), true);
   assert.equal(canAccessSession({ role: "mentor", _id: "mentor-1" }, session), true);
   assert.equal(canAccessSession({ role: "mentor", _id: "mentor-2" }, session), false);
   assert.equal(canAccessSession({ role: "student", _id: "student-1" }, session), true);
   assert.equal(canAccessSession({ role: "student", _id: "student-2" }, session), false);
+  assert.equal(canAccessSession({ role: "mentor", _id: "mentor-3" }, session), true);
+  assert.equal(canAccessSession({ role: "student", _id: "student-3" }, session), true);
 });
 
 test("only admins or the assignment owner can grade mentor submissions", () => {
