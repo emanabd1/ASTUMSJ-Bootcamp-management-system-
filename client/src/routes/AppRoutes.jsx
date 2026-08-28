@@ -26,6 +26,7 @@ import MentorAnnouncements from "../pages/MentorAnnouncements";
 import MentorAssignments from "../pages/MentorAssignments";
 import MentorAttendance from "../pages/MentorAttendance";
 import MentorProgress from "../pages/MentorProgress";
+import MentorStudentDetailPage from "../pages/MentorStudentDetailPage";
 
 import StudentDashboard from "../pages/StudentDashboard";
 import StudentAttendancePage from "../pages/StudentAttendancePage";
@@ -177,6 +178,11 @@ export default function AppRoutes() {
           <Route
             path="/mentor/progress"
             element={<MentorProgress />}
+          />
+
+          <Route
+            path="/mentor/students/:studentId"
+            element={<MentorStudentDetailPage />}
           />
 
           <Route

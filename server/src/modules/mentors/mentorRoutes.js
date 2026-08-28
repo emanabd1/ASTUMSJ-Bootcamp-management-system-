@@ -19,7 +19,7 @@ const ensureAssignedStudent = async (mentorId, studentId) => {
     mentor: mentorId,
     status: "approved",
     isActive: true
-  });
+  }).select("-password -passwordResetOtpHash -passwordResetOtpExpiresAt -passwordResetAttempts");
 };
 
 router.get("/dashboard", async (req, res, next) => {
