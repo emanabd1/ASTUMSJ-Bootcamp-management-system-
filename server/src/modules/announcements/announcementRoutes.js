@@ -22,7 +22,10 @@ router.get("/", async (req,res,next)=>{
     else if (req.user.role === "mentor") {
       const mentorBatches = await Batch.find({ mentors: req.user._id }).select("_id");
       query = { publishDate: { $lte: now }, $or: [{ targetAudience: "all", targetRole: { $in: ["all", "mentors", null] } }, { targetAudience: "mentors" }, { author: req.user._id }, { targetAudience: "batch", batch: { $in: mentorBatches.map(b=>b._id) }, targetRole: { $in: ["all", "mentors", null] } }] };
-    } else query = { publishDate: { $lte: now }, $or: [{ targetAudience: "all", targetRole: { $in: ["all", "students", null] } }, { targetAudience: "students" }, { targetAudience: "batch", batch: req.user.batch, targetRole: { $in: ["all", "students", null] } }, { author: req.user.mentor, targetAudience: "students" }, { author: req.user.mentor, targetAudience: "batch", batch: req.user.batch, targetRole: { $in: ["all", "students", null] } }] };
+    } else {
+      const adminIds = await User.find({ role: "admin" }).select("_id");
+      query = { publishDate: { $lte: now }, $or: [{ targetAudience: "all", targetRole: { $in: ["all", "students", null] } }, { targetAudience: "students", author: { $in: adminIds.map((admin) => admin._id) } }, { targetAudience: "batch", batch: req.user.batch, targetRole: { $in: ["all", "students", null] }, author: { $in: adminIds.map((admin) => admin._id) } }, { author: req.user.mentor, targetAudience: "students", targetRole: "students" }, { author: req.user.mentor, targetAudience: "batch", batch: req.user.batch, targetRole: { $in: ["all", "students", null] } }] };
+    }
     const items = await Announcement.find(query).populate("author","fullName role").populate("batch","name").sort({publishDate:-1}).limit(100);
     res.json({success:true,announcements:items});
   } catch(e){next(e);}
