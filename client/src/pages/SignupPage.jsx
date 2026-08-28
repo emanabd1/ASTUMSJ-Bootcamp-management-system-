@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 
 const inputClass =
-  "w-full rounded-3xl border border-[#4a3b32] bg-transparent px-4 py-3 text-sm focus:border-[#c89b7b] focus:outline-none";
+  "w-full rounded-3xl border border-[#334155] bg-transparent px-4 py-3 text-sm focus:border-[#2563eb] focus:outline-none";
 
 export default function SignupPage() {
   const [form, setForm] = useState({
@@ -32,66 +32,12 @@ export default function SignupPage() {
 
   const navigate = useNavigate();
 
-  const update = (key, value) => {
-    setForm((previous) => ({
-      ...previous,
-      [key]: value,
-    }));
-  };
+  const update = (key, value) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
 
-  useEffect(() => {
-    const loadUniversities = async () => {
-      try {
-        setUniversitiesLoading(true);
-
-        const response = await axiosInstance.get("/universities/public");
-
-        setUniversities(response.data.universities || []);
-      } catch (error) {
-        setUniversities([]);
-        setFeedback({
-          type: "error",
-          message:
-            error.response?.data?.message ||
-            "Could not load the university list.",
-        });
-      } finally {
-        setUniversitiesLoading(false);
-      }
-    };
-
-    loadUniversities();
-  }, []);
-
-  const selectedUniversity = universities.find(
-    (university) => university._id === form.university
-  );
-
-  const idLabel = selectedUniversity?.idLabel || "University ID";
-
-  const handleSignup = async (event) => {
-    event.preventDefault();
-
-    setFeedback({
-      type: "",
-      message: "",
-    });
-
-    if (!form.university) {
-      setFeedback({
-        type: "error",
-        message: "Please select your university.",
-      });
-      return;
-    }
-
-    if (!form.universityIdNumber.trim()) {
-      setFeedback({
-        type: "error",
-        message: `Please enter your ${idLabel}.`,
-      });
-      return;
-    }
+  const handleSignup = async (e) => {
+    e.preventDefault();
+    setFeedback({ type: "", message: "" });
 
     if (form.password !== form.confirmPassword) {
       setFeedback({
@@ -119,7 +65,7 @@ export default function SignupPage() {
       setFeedback({
         type: "success",
         message:
-          response.data.message ||
+          res.data.message ||
           "Registration submitted. Pending admin approval.",
       });
 
@@ -154,15 +100,18 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#c89b7b] p-4">
-      <div className="flex w-full max-w-4xl overflow-hidden rounded-2xl bg-[#1e1713] shadow-2xl">
-        <div className="hidden w-1/2 flex-col items-center justify-center bg-[#c89b7b] p-8 text-center text-[#1e1713] md:flex">
-          <span className="mb-2 text-xl font-extrabold uppercase tracking-wider">
+    <div className="flex min-h-screen items-center justify-center bg-[#f5f7fa] p-4">
+      <div className="flex w-full max-w-4xl overflow-hidden rounded-2xl bg-[#0b1f3a] shadow-2xl">
+
+        {/* LEFT LOGO SECTION */}
+        <div className="hidden w-1/2 flex-col items-center justify-center bg-[#0b1f3a] p-8 text-center text-white md:flex">
+
+          <span className="mb-2 text-3xl font-extrabold uppercase tracking-wider text-white">
             ASTUMSJ SUMMER BOOTCAMP
           </span>
 
           <div className="my-2">
-            <div className="mx-auto flex h-48 w-48 items-center justify-center">
+            <div className="mx-auto flex h-110 w-110 items-center justify-center">
               <img
                 src="/logo.png"
                 alt="ASTUMSJ Logo"
@@ -171,21 +120,23 @@ export default function SignupPage() {
             </div>
           </div>
 
-          <h1 className="font-serif text-4xl font-bold tracking-tight">
+          <h1 className="font-serif text-4xl font-bold tracking-tight text-white">
             Step Bold,
           </h1>
 
-          <h1 className="text-4xl font-bold tracking-tight">
+          <h1 className="text-4xl font-bold tracking-tight text-white">
             Stay Iconic
           </h1>
         </div>
 
-        <div className="flex w-full flex-col justify-center px-7 py-8 text-[#f5efe6] md:w-1/2 md:px-12">
-          <h2 className="mb-2 text-3xl font-bold tracking-wide">
+        {/* RIGHT FORM SECTION */}
+        <div className="flex w-full flex-col justify-center bg-[#ffffff] px-7 py-8 text-[#0b1f3a] md:w-1/2 md:px-12">
+
+          <h2 className="mb-2 text-3xl font-bold tracking-wide text-[#0b1f3a]">
             Create Account
           </h2>
 
-          <p className="mb-5 text-xs text-[#a39081]">
+          <p className="mb-5 text-xs text-[#64748b]">
             Your application will be reviewed by an administrator before you
             can log in.
           </p>
@@ -195,8 +146,8 @@ export default function SignupPage() {
               role="alert"
               className={`mb-4 rounded-xl border p-3 text-sm ${
                 feedback.type === "success"
-                  ? "border-emerald-700 bg-emerald-950 text-emerald-300"
-                  : "border-red-800 bg-red-950 text-red-300"
+                  ? "border-emerald-700 bg-emerald-50 text-emerald-700"
+                  : "border-red-700 bg-red-50 text-red-700"
               }`}
             >
               {feedback.message}
