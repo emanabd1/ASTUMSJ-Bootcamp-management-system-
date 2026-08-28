@@ -10,6 +10,8 @@ const batchYearSchema = new mongoose.Schema(
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
     status: { type: String, enum: ['upcoming', 'active', 'completed'], default: 'upcoming' },
+    mentors: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    students: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   },
   { timestamps: true }
 );

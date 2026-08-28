@@ -138,6 +138,12 @@ export default function BatchesPage() {
   const [rosterTab, setRosterTab] = useState('mentors');
   const [rosterSearch, setRosterSearch] = useState('');
   const [rosterBusy, setRosterBusy] = useState(false);
+  const [batchRoster, setBatchRoster] = useState(null);
+  const [batchRosterMentorIds, setBatchRosterMentorIds] = useState([]);
+  const [batchRosterStudentIds, setBatchRosterStudentIds] = useState([]);
+  const [batchRosterTab, setBatchRosterTab] = useState('mentors');
+  const [batchRosterSearch, setBatchRosterSearch] = useState('');
+  const [batchRosterBusy, setBatchRosterBusy] = useState(false);
 
   const flash = (type, text) => {
     setMessage({ type, text });
@@ -325,6 +331,31 @@ export default function BatchesPage() {
   };
   const closeRoster = () => setRoster(null);
 
+  const openBatchRoster = (batchYear) => {
+    setBatchRoster(batchYear);
+    setBatchRosterTab('mentors');
+    setBatchRosterSearch('');
+    setBatchRosterMentorIds((batchYear.mentors || []).map((user) => typeof user === 'string' ? user : user._id));
+    setBatchRosterStudentIds((batchYear.students || []).map((user) => typeof user === 'string' ? user : user._id));
+  };
+
+  const closeBatchRoster = () => setBatchRoster(null);
+  const toggleBatchMentor = (id) => setBatchRosterMentorIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  const toggleBatchStudent = (id) => setBatchRosterStudentIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  const saveBatchRoster = async () => {
+    setBatchRosterBusy(true);
+    try {
+      const response = await axiosInstance.patch(`/batch-years/${batchRoster._id}/roster`, { mentorIds: batchRosterMentorIds, studentIds: batchRosterStudentIds });
+      setBatchYears((current) => current.map((batchYear) => batchYear._id === batchRoster._id ? response.data.batchYear : batchYear));
+      flash('success', `Roster saved for “${batchRoster.name}”.`);
+      closeBatchRoster();
+    } catch (e) {
+      flash('error', e.response?.data?.message || 'Could not save the batch roster.');
+    } finally {
+      setBatchRosterBusy(false);
+    }
+  };
+
   const rosterDirty = useMemo(() => {
     if (!roster) return false;
     const before = new Set((roster.mentors || []).map((x) => (typeof x === 'string' ? x : x?._id || x)));
@@ -358,10 +389,15 @@ export default function BatchesPage() {
     (m) => !rosterMentorIds.includes(m._id) && `${m.fullName} ${m.email}`.toLowerCase().includes(q),
   );
   const studentCandidates = students.filter(
-    (s) => !rosterStudentIds.includes(s._id) && `${s.fullName} ${s.email}`.toLowerCase().includes(q),
+    (s) => !rosterStudentIds.includes(s._id) && `${s.fullName} ${s.email}`.toLowerCase().includes(q) && (!roster?.batchYear?.students || roster.batchYear.students.some((member) => (typeof member === 'string' ? member : member?._id) === s._id)),
   );
   const selectedMentors = rosterMentorIds.map((id) => mentors.find((m) => m._id === id)).filter(Boolean);
   const selectedStudents = rosterStudentIds.map((id) => students.find((s) => s._id === id)).filter(Boolean);
+  const parentBatch = batchYears.find((batchYear) => (batchYear._id === (roster?.batchYear?._id || roster?.batchYear)));
+  const parentMentorIds = new Set((parentBatch?.mentors || []).map((user) => typeof user === 'string' ? user : user._id));
+  const parentStudentIds = new Set((parentBatch?.students || []).map((user) => typeof user === 'string' ? user : user._id));
+  const filteredMentorCandidates = mentorCandidates.filter((mentor) => parentMentorIds.has(mentor._id));
+  const filteredStudentCandidates = studentCandidates.filter((student) => parentStudentIds.has(student._id));
 
   const dateRange = (y) =>
     y ? `${new Date(y.startDate).toLocaleDateString()} → ${new Date(y.endDate).toLocaleDateString()}` : '';
@@ -489,6 +525,13 @@ export default function BatchesPage() {
                     <p className="text-[11px] text-[#a39081]">{dateRange(y)}</p>
                   </div>
                   <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => openBatchRoster(y)}
+                      className="rounded-lg border border-[#4a3b32] px-2.5 py-1.5 text-[11px] font-bold text-[#a39081] hover:text-[#f5efe6] cursor-pointer"
+                    >
+                      Manage Members
+                    </button>
                     <button
                       type="button"
                       onClick={() => openCreateGroup(y._id)}
@@ -823,12 +866,12 @@ export default function BatchesPage() {
 
               <div className="space-y-1.5">
                 {rosterTab === 'mentors' &&
-                  (mentorCandidates.length === 0 ? (
+                  (filteredMentorCandidates.length === 0 ? (
                     <p className="p-3 text-center text-xs text-[#a39081]">
                       {q ? 'No mentors match your search.' : 'Every available mentor is already in this group.'}
                     </p>
                   ) : (
-                    mentorCandidates.map((m) => {
+                    filteredMentorCandidates.map((m) => {
                       const load = mentorLoad[m._id] || 0;
                       return (
                         <button
@@ -852,12 +895,12 @@ export default function BatchesPage() {
                   ))}
 
                 {rosterTab === 'students' &&
-                  (studentCandidates.length === 0 ? (
+                  (filteredStudentCandidates.length === 0 ? (
                     <p className="p-3 text-center text-xs text-[#a39081]">
                       {q ? 'No students match your search.' : 'Every available student is already in this group.'}
                     </p>
                   ) : (
-                    studentCandidates.map((s) => {
+                    filteredStudentCandidates.map((s) => {
                       const home = studentHomeGroup[s._id];
                       const elsewhere = home && home._id !== roster._id;
                       return (
@@ -906,6 +949,30 @@ export default function BatchesPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {batchRoster && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={closeBatchRoster}>
+          <div onClick={(e) => e.stopPropagation()} className={`${panel} flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden`}>
+            <div className="flex items-start justify-between gap-3 border-b border-[#4a3b32] p-5">
+              <div><h2 className="text-xl font-bold text-[#f5efe6]">Manage {batchRoster.name}</h2><p className="text-xs text-[#a39081]">Choose the mentors and students who can be added to groups in this batch.</p></div>
+              <button type="button" onClick={closeBatchRoster} className="text-[#a39081] hover:text-[#f5efe6]"><IconClose className="h-5 w-5" /></button>
+            </div>
+            <div className="flex gap-2 border-b border-[#4a3b32] px-5 pt-3">
+              {['mentors', 'students'].map((tab) => <button key={tab} type="button" onClick={() => { setBatchRosterTab(tab); setBatchRosterSearch(''); }} className={`rounded-t-lg px-4 py-2 text-xs font-bold ${batchRosterTab === tab ? 'border border-b-0 border-[#4a3b32] bg-[#16110e] text-[#c89b7b]' : 'text-[#a39081]'}`}>{tab === 'mentors' ? `Mentors (${batchRosterMentorIds.length})` : `Students (${batchRosterStudentIds.length})`}</button>)}
+            </div>
+            <div className="flex-1 overflow-y-auto p-5">
+              <input value={batchRosterSearch} onChange={(e) => setBatchRosterSearch(e.target.value)} placeholder={`Search ${batchRosterTab}…`} className={field} />
+              <div className="mt-4 space-y-2">
+                {(batchRosterTab === 'mentors' ? mentors : students).filter((person) => `${person.fullName} ${person.email}`.toLowerCase().includes(batchRosterSearch.toLowerCase())).map((person) => {
+                  const ids = batchRosterTab === 'mentors' ? batchRosterMentorIds : batchRosterStudentIds;
+                  const checked = ids.includes(person._id);
+                  return <label key={person._id} className="flex items-center gap-3 rounded-xl border border-[#4a3b32] p-3 text-xs"><input type="checkbox" checked={checked} onChange={() => batchRosterTab === 'mentors' ? toggleBatchMentor(person._id) : toggleBatchStudent(person._id)} /><span><b>{person.fullName}</b><br /><span className="text-[#a39081]">{person.email}</span></span></label>;
+                })}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-[#4a3b32] p-5"><button type="button" onClick={closeBatchRoster} className="rounded-xl border border-[#4a3b32] px-4 py-2 text-xs font-bold text-[#a39081]">Cancel</button><button type="button" disabled={batchRosterBusy} onClick={saveBatchRoster} className="rounded-xl bg-[#c89b7b] px-4 py-2 text-xs font-bold text-[#1e1713] disabled:opacity-50">{batchRosterBusy ? 'Saving…' : 'Save Members'}</button></div>
           </div>
         </div>
       )}
