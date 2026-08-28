@@ -1275,4 +1275,4 @@ function MentorCard({ mentor, students, assign }) {
 
     </div>
   );
-}
+}}
