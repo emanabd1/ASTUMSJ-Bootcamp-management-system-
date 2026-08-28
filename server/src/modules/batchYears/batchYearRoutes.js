@@ -1,6 +1,8 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const BatchYear = require("./batchYearModel");
 const Batch = require("../batches/batchModel");
+const User = require("../users/userModel");
 const protect = require("../../middleware/authMiddleware");
 const authorize = require("../../middleware/roleMiddleware");
 const { body } = require("../../validation");
@@ -24,7 +26,7 @@ const validDates = (startDate, endDate) => {
 // Admins and mentors can both see the list of batches (years), same as groups
 router.get("/", authorize("admin", "mentor"), async (req, res, next) => {
   try {
-    const batchYears = await BatchYear.find().sort({ startDate: -1 });
+    const batchYears = await BatchYear.find().populate('mentors', 'fullName email').populate('students', 'fullName email department yearOfStudy').sort({ startDate: -1 });
     res.json({ success: true, batchYears });
   } catch (e) {
     next(e);
@@ -136,6 +138,24 @@ router.delete("/:id", async (req, res, next) => {
   } catch (e) {
     next(e);
   }
+});
+
+router.patch("/:id/roster", async (req, res, next) => {
+  try {
+    const batchYear = await BatchYear.findById(req.params.id);
+    if (!batchYear) return res.status(404).json({ success: false, message: "Batch not found." });
+    const mentorIds = Array.isArray(req.body.mentorIds) ? req.body.mentorIds.filter((id) => mongoose.isValidObjectId(id)) : [];
+    const studentIds = Array.isArray(req.body.studentIds) ? req.body.studentIds.filter((id) => mongoose.isValidObjectId(id)) : [];
+    const [validMentors, validStudents] = await Promise.all([
+      User.find({ _id: { $in: mentorIds }, role: "mentor", status: "approved", isActive: true }).select("_id"),
+      User.find({ _id: { $in: studentIds }, role: "student", status: "approved", isActive: true }).select("_id"),
+    ]);
+    batchYear.mentors = validMentors.map((user) => user._id);
+    batchYear.students = validStudents.map((user) => user._id);
+    await batchYear.save();
+    const populated = await BatchYear.findById(batchYear._id).populate('mentors', 'fullName email').populate('students', 'fullName email department yearOfStudy');
+    res.json({ success: true, batchYear: populated });
+  } catch (e) { next(e); }
 });
 
 module.exports = router;

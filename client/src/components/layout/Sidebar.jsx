@@ -41,7 +41,6 @@ export default function Sidebar({ open, onClose }) {
                   : "text-[#a39081] hover:bg-[#2d231d] hover:text-[#f5efe6]"
               }`
             }
-            onClick={onClose}
           >
             <span>{link.name}</span>
           </NavLink>

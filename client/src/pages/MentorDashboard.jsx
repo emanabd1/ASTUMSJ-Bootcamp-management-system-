@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { Link } from "react-router-dom";
 
 import {
   ResponsiveContainer,
@@ -355,6 +356,23 @@ export default function MentorDashboard() {
           <p className="mt-1 text-xs text-[#a39081]">Assignments created by you</p>
         </section>
       </div>
+
+      <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5">
+        <h2 className="font-bold text-[#c89b7b]">Assigned Students</h2>
+        {assignedStudents.length === 0 ? (
+          <p className="mt-3 text-sm text-[#a39081]">No students assigned.</p>
+        ) : (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {assignedStudents.map((student) => (
+              <div key={student._id} className="rounded-xl border border-[#4a3b32] p-4">
+                <Link to={`/mentor/students/${student._id}`} className="font-semibold text-[#c89b7b] hover:underline">{getStudentName(student)}</Link>
+                <p className="mt-1 text-xs text-[#a39081]">{student.email || "No email available"}</p>
+                {student.department && <p className="mt-2 text-xs text-[#a39081]">{student.department}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {dashboardMetrics.pendingGrading.length > 0 && (
         <section className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5">

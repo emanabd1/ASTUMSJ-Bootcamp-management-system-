@@ -143,25 +143,20 @@ export default function AdminUserManagement() {
     mentorId
   ) => {
     try {
+            let response;
       if (mentorId) {
-        await axiosInstance.post(
-          `/users/${studentId}/assign-mentor`,
-          {
-            mentorId,
-          }
-        );
+        response = await axiosInstance.post(`/users/${studentId}/assign-mentor`, {
+          mentorId,
+        });
       } else {
-        await axiosInstance.delete(
-          `/users/${studentId}/assign-mentor`
-        );
+        response = await axiosInstance.delete(`/users/${studentId}/assign-mentor`);
       }
-
+      
+      setMsg(response.data.message || "Mentor assignment updated successfully.");
       await load();
     } catch (error) {
-      setMsg(
-        error.response?.data?.message ||
-          "Assignment failed."
-      );
+      setMsg(error.response?.data?.message || "Assignment failed.");
+
     }
   };
 
@@ -749,174 +744,37 @@ export default function AdminUserManagement() {
             }
             className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-[#4a3b32] bg-[#1e1713] p-6"
           >
-            {show === "view" &&
-              selected && (
-                <>
-                  <div className="flex justify-between">
-                    <h2 className="text-2xl font-bold">
-                      User Details
-                    </h2>
-
-                    <button
-                      onClick={() =>
-                        setShow("")
-                      }
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  <div className="mt-5 grid gap-3 md:grid-cols-2">
-                    {[
-                      [
-                        "Full Name",
-                        selected.fullName,
-                      ],
-                      [
-                        "Email",
-                        selected.email,
-                      ],
-                      [
-                        "Role",
-                        selected.role,
-                      ],
-                      [
-                        "Status",
-                        selected.status,
-                      ],
-                      [
-                        "Active",
-                        selected.isActive
-                          ? "Yes"
-                          : "No",
-                      ],
-                      [
-                        "Gender",
-                        selected.gender ||
-                          "—",
-                      ],
-                      [
-                        "Department",
-                        selected.department ||
-                          "—",
-                      ],
-                      [
-                        "Year",
-                        selected.yearOfStudy ||
-                          "—",
-                      ],
-                      [
-                        "University",
-                        selected.university
-                          ?.name ||
-                          "—",
-                      ],
-                      [
-                        selected.university
-                          ?.idLabel ||
-                          "University ID",
-                        selected.universityIdNumber ||
-                          "—",
-                      ],
-                      [
-                        "Mentor",
-                        selected.mentor
-                          ?.fullName ||
-                          "Unassigned",
-                      ],
-                      [
-                        "GitHub",
-                        selected.githubUrl ||
-                          "—",
-                      ],
-                      [
-                        "LeetCode",
-                        selected.leetcodeUrl ||
-                          "—",
-                      ],
-                      [
-                        "Codeforces",
-                        selected.codeforcesUrl ||
-                          "—",
-                      ],
-                      [
-                        "Why Join",
-                        selected.bootcampReason ||
-                          "—",
-                      ],
-                    ].map(
-                      ([label, value]) => (
-                        <div
-                          key={label}
-                          className="rounded-xl border border-[#4a3b32] p-3"
-                        >
-                          <p className="text-[10px] uppercase text-[#a39081]">
-                            {label}
-                          </p>
-
-                          <p className="mt-1 break-words">
-                            {value}
-                          </p>
-                        </div>
-                      )
-                    )}
-                  </div>
-
-                  <div className="mt-5 flex gap-3">
-                    <button
-                      onClick={() =>
-                        openEdit(
-                          selected
-                        )
-                      }
-                      className="rounded-xl bg-[#c89b7b] px-4 py-2 text-xs font-bold text-[#1e1713]"
-                    >
-                      Edit User
-                    </button>
-
-                    {selected.status ===
-                      "pending" && (
-                      <>
-                        <button
-                          onClick={() => {
-                            update(
-                              selected._id,
-                              {
-                                status:
-                                  "approved",
-                                isActive:
-                                  true,
-                              }
-                            );
-                            setShow("");
-                          }}
-                          className="rounded-xl bg-emerald-700 px-4 py-2 text-xs"
-                        >
-                          Accept
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            update(
-                              selected._id,
-                              {
-                                status:
-                                  "rejected",
-                                isActive:
-                                  false,
-                              }
-                            );
-                            setShow("");
-                          }}
-                          className="rounded-xl bg-rose-700 px-4 py-2 text-xs"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </>
-              )}
+                       {msg && <p className="mb-4 rounded-xl border border-rose-700/40 bg-rose-950/30 p-3 text-sm text-rose-300">{msg}</p>}
+            {show === "view" && selected && (
+              <>
+                <div className="flex justify-between">
+                  <h2 className="text-2xl font-bold">User Details</h2>
+                  <button onClick={() => setShow("")}>✕</button>
+                </div>
+                <div className="mt-5 grid md:grid-cols-2 gap-3 text-sm">
+                  {[
+                    ["Full Name", selected.fullName],
+                    ["Email", selected.email],
+                    ["Role", selected.role],
+                    ["Status", selected.status],
+                    ["Active", selected.isActive ? "Yes" : "No"],
+                    ["Gender", selected.gender || "—"],
+                    ["Department", selected.department || "—"],
+                    ["Year", selected.yearOfStudy || "—"],
+                    ["Mentor", selected.mentor?.fullName || "Unassigned"],
+                    ["GitHub", selected.githubUrl || "—"],
+                    ["LeetCode", selected.leetcodeUrl || "—"],
+                    ["Codeforces", selected.codeforcesUrl || "—"],
+                    ["Why Join", selected.bootcampReason || "—"],
+                  ].map(([k, v]) => (
+                    <div key={k} className="rounded-xl border border-[#4a3b32] p-3">
+                      <span className="font-semibold block text-gray-400">{k}</span>
+                      <span>{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
 
             {show === "create" && (
               <form
@@ -1319,70 +1177,41 @@ export default function AdminUserManagement() {
     </div>
   );
 }
+function MentorCard({ mentor, students, assign }) {
+  // Initializes state with an array of IDs for students currently assigned to this mentor
+  const [selectedStudents, setSelectedStudents] = useState(() =>
+    students
+      .filter((student) => student.mentor?._id === mentor._id)
+      .map((student) => student._id)
+  );
 
-function MentorCard({
-  mentor,
-  students,
-  assign,
-}) {
-  const [selectedStudents, setSelectedStudents] =
-    useState(
-      students
-        .filter(
-          (student) =>
-            student.mentor?._id ===
-            mentor._id
-        )
-        .map(
-          (student) =>
-            student._id
-        )
-    );
-
+  // Toggles student assignment state locally before saving
   const toggle = (id) => {
-    setSelectedStudents(
-      (current) =>
-        current.includes(id)
-          ? current.filter(
-              (item) =>
-                item !== id
-            )
-          : [...current, id]
+    setSelectedStudents((current) =>
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id]
     );
   };
 
   const save = async () => {
+     const handleSave = async () => {
     for (const student of students) {
-      const shouldBeAssigned =
-        selectedStudents.includes(
-          student._id
-        );
+      const shouldBeAssigned = selectedStudents.includes(student._id);
+      const currentlyAssigned = student.mentor?._id === mentor._id;
 
-      const currentlyAssigned =
-        student.mentor?._id ===
-        mentor._id;
-
-      if (
-        shouldBeAssigned &&
-        !currentlyAssigned
-      ) {
-        await assign(
-          student._id,
-          mentor._id
-        );
+      // Case 1: Checked in UI, but not yet assigned to this mentor in DB
+      if (shouldBeAssigned && !currentlyAssigned) {
+        await assign(student._id, mentor._id);
       }
 
-      if (
-        !shouldBeAssigned &&
-        currentlyAssigned
-      ) {
-        await assign(
-          student._id,
-          ""
-        );
+      // Case 2: Unchecked in UI, but still assigned to this mentor in DB
+      if (!shouldBeAssigned && currentlyAssigned) {
+        await assign(student._id, "");
       }
     }
   };
+
 
   return (
     <div className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5">
@@ -1398,51 +1227,52 @@ function MentorCard({
         </div>
 
         <button
-          onClick={save}
+          type="button"
+          onClick={() => setManaged((value) => !value)}
           className="rounded-xl bg-[#c89b7b] px-4 py-2 text-xs font-bold text-[#1e1713]"
         >
-          Save Students
+          {managed ? "Close" : "Manage"}
         </button>
       </div>
-
-      <div className="mt-4 grid gap-2 md:grid-cols-2">
-        {students.map(
-          (student) => (
-            <label
-              key={student._id}
-              className="flex items-center gap-3 rounded-xl border border-[#4a3b32] p-3 text-xs"
-            >
-              <input
-                type="checkbox"
-                checked={selectedStudents.includes(
-                  student._id
-                )}
-                onChange={() =>
-                  toggle(
-                    student._id
-                  )
-                }
-              />
-
-              <span>
-                <b>
-                  {student.fullName}
-                </b>
-
-                <br />
-
-                <span className="text-[#a39081]">
-                  {student.email} ·
-                  Current:{" "}
-                  {student.mentor
-                    ?.fullName ||
-                    "Unassigned"}
+            {managed && (
+        <div className="mt-4 space-y-4">
+          {/* Multi-select student assignment grid */}
+          <div className="mt-4 grid gap-2 md:grid-cols-2">
+            {students.map((student) => (
+              <label
+                key={student._id}
+                className="flex items-center gap-3 rounded-xl border border-[#4a3b32] p-3 text-xs cursor-pointer hover:bg-[#16110e]"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedStudents.includes(student._id)}
+                  onChange={() => toggle(student._id)}
+                  className="rounded border-[#4a3b32] text-[#c89b7b] focus:ring-[#c89b7b]"
+                />
+                <span>
+                  <b>{student.fullName}</b>
+                  <br />
+                  <span className="text-[#a39081]">
+                    {student.email} · Current: {student.mentor?.fullName || "Unassigned"}
+                  </span>
                 </span>
-              </span>
-            </label>
-          )
-        )}
-      </div>
+              </label>
+            ))}
+          </div>
+
+          {/* Action button to commit all checkbox changes */}
+          <div className="flex justify-end mt-4">
+            <button
+              type="button"
+              onClick={handleSave}
+              className="rounded-xl bg-[#c89b7b] px-5 py-2.5 text-xs font-bold text-[#1e1713] transition hover:bg-[#b08463]"
+            >
+              Save Changes
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

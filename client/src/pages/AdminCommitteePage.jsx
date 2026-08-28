@@ -68,7 +68,7 @@ export default function AdminCommitteePage() {
   return (
     <div className="space-y-5">
       <header>
-        <p className="text-xs uppercase tracking-widest text-[#d20a2e]">Administration</p>
+        <p className="text-xs uppercase tracking-widest text-[#2563eb]">Administration</p>
         <h1 className="mt-2 text-3xl font-extrabold text-[#12284a]">Admin Committee</h1>
         <p className="mt-1 text-sm text-[#697386]">Private group chat • Administrators only{adminCount ? ` • ${adminCount} administrators` : ""}</p>
       </header>
@@ -84,13 +84,13 @@ export default function AdminCommitteePage() {
                 <time className="text-[#697386]">{timeText(item.createdAt)}{item.edited ? " • edited" : ""}</time>
               </div>
               <p className="mt-2 whitespace-pre-wrap wrap-break-word text-sm text-[#12284a]">{item.message}</p>
-              {mine && <div className="mt-3 flex gap-3 text-xs"><button type="button" className="text-[#d20a2e]" onClick={() => { setEditing(item); setDraft(item.message); }}>Edit</button><button type="button" className="text-[#dc2626]" onClick={() => remove(item._id)}>Delete</button></div>}
+              {mine && <div className="mt-3 flex gap-2"><button type="button" className="rounded-md text-[#2563eb] hover:bg-blue-100 p-1.5 transition" title="Edit message" onClick={() => { setEditing(item); setDraft(item.message); }}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button><button type="button" className="rounded-md text-[#dc2626] hover:bg-red-100 p-1.5 transition" title="Delete message" onClick={() => remove(item._id)}><svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div>}
             </article>;
           })}
         </div>
         <form onSubmit={submit} className="border-t border-[#e5eaf2] p-4">
           {editing && <button type="button" className="mb-2 text-xs text-[#697386]" onClick={() => { setEditing(null); setDraft(""); }}>Cancel editing</button>}
-          <div className="flex gap-2"><input className={field} value={draft} maxLength={2000} onChange={(event) => setDraft(event.target.value)} placeholder="Write a message..." aria-label="Write a message" /><button disabled={busy || !draft.trim()} className="rounded-lg bg-[#d20a2e] px-4 py-2 text-sm font-bold text-white disabled:opacity-60">{editing ? "Save" : "Send"}</button></div>
+          <div className="flex gap-2"><input className={field} value={draft} maxLength={2000} onChange={(event) => setDraft(event.target.value)} placeholder="Write a message..." aria-label="Write a message" /><button disabled={busy || !draft.trim()} className="rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-bold text-white disabled:opacity-60">{editing ? "Save" : "Send"}</button></div>
         </form>
       </section>
     </div>

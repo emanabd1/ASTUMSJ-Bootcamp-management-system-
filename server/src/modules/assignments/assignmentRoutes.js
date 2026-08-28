@@ -38,7 +38,11 @@ router.get("/", async (req, res, next) => {
     let assignments;
     if (req.user.role === "student") {
       assignments = await Assignment.find({
-        $or: [{ targetStudents: req.user._id }, { targetStudents: { $size: 0 } }],
+        $or: [
+          { targetStudents: req.user._id },
+          { targetStudents: { $size: 0 }, session: null },
+          { targetStudents: { $size: 0 }, session: { $ne: null }, batch: req.user.batch },
+        ],
       }).populate("creator", "fullName role").populate("batch", "name startDate endDate").sort({ deadline: 1 });
     } else if (req.user.role === "mentor") {
       const students = await User.find({ mentor: req.user._id, role: "student", status: "approved", isActive: true }).select("_id");
@@ -109,7 +113,7 @@ router.post("/", authorize("admin", "mentor"), upload.array("resourceFiles", 50)
       title: "New assignment",
       message: `${assignment.title} has been assigned to you.`,
       type: "assignment",
-      link: "/student/assignments",
+      link: `/assignments/${submission.assignment._id}`,
       meta: { assignmentId: String(assignment._id) },
     })));
     const assignmentRecipients = await User.find({ _id: { $in: students } }).select("email");
@@ -211,7 +215,7 @@ router.patch("/:assignmentId/submissions/:submissionId/grade", authorize("admin"
     const submission = await Submission.findById(req.params.submissionId).populate("assignment").populate("student", "fullName email mentor");
     if (!submission || String(submission.assignment?._id) !== String(req.params.assignmentId)) return res.status(404).json({ success: false, message: "Submission not found." });
     if (req.user.role === "mentor" && String(submission.student.mentor) !== String(req.user._id)) return res.status(403).json({ success: false, message: "You can only grade your assigned students." });
-    if (req.user.role === "mentor" && String(submission.assignment.creator?._id || submission.assignment.creator) !== String(req.user._id)) return res.status(403).json({ success: false, message: "Mentors can only grade tasks they created." });
+    if (req.user.role === "mentor" && !submission.assignment.session && String(submission.assignment.creator?._id || submission.assignment.creator) !== String(req.user._id)) return res.status(403).json({ success: false, message: "Mentors can only grade tasks they created." });
 
     const { score, feedback = "", status = "graded" } = req.body;
     const normalizedStatus = status;

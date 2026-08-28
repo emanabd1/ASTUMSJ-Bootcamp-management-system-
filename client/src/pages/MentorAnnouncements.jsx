@@ -1,5 +1,5 @@
 // client/src/pages/MentorAnnouncements.jsx
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axiosInstance from "../api/axiosInstance";
 import { useAuth } from "../hooks/useAuth";
 
@@ -47,6 +47,7 @@ export default function MentorAnnouncements() {
         title: title.trim(),
         content: message.trim(),
         targetAudience: "students",
+        targetRole: "students",
       });
 
       setTitle("");

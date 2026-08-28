@@ -71,7 +71,7 @@ router.get("/:id", async (req, res, next) => {
     const taskQuery = req.user.role === "student"
       ? { session: session._id, $or: [{ targetStudents: req.user._id }, { targetStudents: { $size: 0 } }] }
       : req.user.role === "mentor"
-        ? { session: session._id, creator: req.user._id }
+        ? { session: session._id, $or: [{ creator: req.user._id }, { targetStudents: { $in: assignedStudents.map((student) => student._id) } }, { targetStudents: { $size: 0 } }] }
         : { session: session._id };
     const attendanceQuery = req.user.role === "mentor"
       ? { session: session._id, student: { $in: assignedStudents.map((student) => student._id) } }

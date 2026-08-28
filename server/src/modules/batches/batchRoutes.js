@@ -175,6 +175,11 @@ router.patch("/:id/mentors", async (req, res, next) => {
     }
 
     const mentorIds = ids(req.body.mentorIds);
+    if (batch.batchYear) {
+      const batchYear = await BatchYear.findById(batch.batchYear).select("mentors");
+      const allowedMentors = new Set((batchYear?.mentors || []).map((id) => String(id)));
+      if (mentorIds.some((id) => !allowedMentors.has(String(id)))) return res.status(400).json({ success: false, message: "Choose mentors from this batch's roster." });
+    }
     const mentors = await User.find({
       _id: { $in: mentorIds },
       role: "mentor",
@@ -199,6 +204,11 @@ router.patch("/:id/students", async (req, res, next) => {
     }
 
     const studentIds = ids(req.body.studentIds);
+    if (batch.batchYear) {
+      const batchYear = await BatchYear.findById(batch.batchYear).select("students");
+      const allowedStudents = new Set((batchYear?.students || []).map((id) => String(id)));
+      if (studentIds.some((id) => !allowedStudents.has(String(id)))) return res.status(400).json({ success: false, message: "Choose students from this batch's roster." });
+    }
     const students = await User.find({
       _id: { $in: studentIds },
       role: "student",
