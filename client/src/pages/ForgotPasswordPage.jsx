@@ -1,7 +1,12 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-const API_URL = import.meta.env.VITE_API_URL || "https://astumsj-bootcamp-management-system.onrender.com/api";
+
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+const normalizedApiUrl = configuredApiUrl?.replace(/\/$/, "");
+const API_URL = configuredApiUrl
+  ? `${normalizedApiUrl}${normalizedApiUrl.endsWith("/api") ? "" : "/api"}`
+  : "https://astumsj-bootcamp-management-system.onrender.com/api";
 const input = "w-full rounded-xl border border-[#4a3b32] bg-transparent px-4 py-3 text-sm focus:border-[#c89b7b] focus:outline-none";
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState(""); const [sent, setSent] = useState(false); const [loading, setLoading] = useState(false); const [message, setMessage] = useState(""); const navigate = useNavigate();
