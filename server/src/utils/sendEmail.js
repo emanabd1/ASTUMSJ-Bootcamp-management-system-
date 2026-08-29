@@ -4,10 +4,22 @@ const nodemailer = require("nodemailer");
 dns.setDefaultResultOrder("ipv4first");
 let transporter;
 let verified = false;
-function getTransporter() {
-if (transporter) return transporter;
+const getEmailPorts = () => {
+  const configuredPorts = (process.env.EMAIL_PORTS || [
+    process.env.EMAIL_PORT || 465,
+    465,
+    587,
+    2525,
+  ].join(","))
+    .split(",")
+    .map((value) => Number(value.trim()))
+    .filter((value) => Number.isInteger(value) && value > 0);
+
+  return [...new Set(configuredPorts.length ? configuredPorts : [465, 587, 2525])];
+};
+
+function createTransporter(port) {
 const host = process.env.EMAIL_HOST || "smtp.gmail.com";
-const port = Number(process.env.EMAIL_PORT || 587);
 const user = process.env.EMAIL_USER;
 const pass = process.env.EMAIL_PASS;
 if (!user || !pass) {
@@ -20,9 +32,8 @@ throw error;
 transporter = nodemailer.createTransport({
 host,
 port,
-// Gmail port configuration
 secure: port === 465,
-requireTLS: port === 587,
+requireTLS: port !== 465,
 
 // Force IPv4
 family: 4,
@@ -32,9 +43,9 @@ auth: {
   pass,
 },
 
-connectionTimeout: 20000,
-greetingTimeout: 20000,
-socketTimeout: 30000,
+connectionTimeout: 10000,
+greetingTimeout: 10000,
+socketTimeout: 15000,
 
 tls: {
   minVersion: "TLSv1.2",
@@ -42,28 +53,37 @@ tls: {
 });
 return transporter;
 }
+function getTransporter() {
+  if (transporter) return transporter;
+  return createTransporter(getEmailPorts()[0]);
+}
 async function ensureVerified(mailer) {
 if (verified) return;
-try {
-await mailer.verify();
-verified = true;
-console.log(
-  `SMTP email service verified successfully for ${process.env.EMAIL_USER}`
-);
-} catch (cause) {
-transporter = null;
-verified = false;
-console.error("SMTP verification error:", cause);
+let lastError;
+for (const port of getEmailPorts()) {
+  const candidate = createTransporter(port);
+  try {
+    await candidate.verify();
+    transporter = candidate;
+    verified = true;
+    console.log(
+      `SMTP email service verified successfully on port ${port} for ${process.env.EMAIL_USER}`
+    );
+    return;
+  } catch (cause) {
+    lastError = cause;
+    transporter = null;
+    verified = false;
+    console.error(`SMTP verification failed on port ${port}:`, cause.message);
+  }
+}
 
 const error = new Error(
-  `SMTP verification failed: ${cause.message}`
+  `SMTP verification failed: ${lastError?.message || "Unable to connect to the email service."}`
 );
-
 error.code = "EMAIL_SMTP_FAILED";
-error.cause = cause;
-
+error.cause = lastError;
 throw error;
-}
 }
 const sendEmail = async ({ email, subject, message, html }) => {
 if (!email) {
