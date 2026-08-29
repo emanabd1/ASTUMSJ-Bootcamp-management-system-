@@ -87,10 +87,21 @@ router.get("/:id", async (req, res, next) => {
     const assignedStudents = req.user.role === "mentor"
       ? await User.find({ _id: { $in: session.batch.students.map((student) => student._id || student) }, mentor: req.user._id, role: "student", status: "approved", isActive: true }).select("_id")
       : session.batch.students;
+    const sessionBatchId = session.batch?._id || session.batch;
     const taskQuery = req.user.role === "student"
-      ? { session: session._id, $or: [{ targetStudents: req.user._id }, { targetStudents: { $size: 0 } }] }
+      ? {
+          $and: [
+            { $or: [{ session: session._id }, { batch: sessionBatchId, session: null }] },
+            { $or: [{ targetStudents: req.user._id }, { targetStudents: { $size: 0 } }, { targetStudents: { $exists: false } }] },
+          ],
+        }
       : req.user.role === "mentor"
-        ? { session: session._id, $or: [{ creator: req.user._id }, { targetStudents: { $in: assignedStudents.map((student) => student._id) } }, { targetStudents: { $size: 0 } }] }
+        ? {
+            $and: [
+              { $or: [{ session: session._id }, { batch: sessionBatchId, session: null }] },
+              { $or: [{ creator: req.user._id }, { targetStudents: { $in: assignedStudents.map((student) => student._id) } }, { targetStudents: { $size: 0 } }, { targetStudents: { $exists: false } }] },
+            ],
+          }
         : { session: session._id };
     const attendanceQuery = req.user.role === "mentor"
       ? { session: session._id, student: { $in: assignedStudents.map((student) => student._id) } }

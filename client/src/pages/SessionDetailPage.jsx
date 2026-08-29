@@ -8,8 +8,17 @@ const field =
 
 const tabs = ["resources", "tasks", "attendance", "feedback"];
 
-const fileUrl = (path) =>
-  `${axiosInstance.defaults.baseURL.replace("/api", "")}${path}`;
+const fileUrl = (path) => {
+  const raw = typeof path === "string" ? path : "";
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw)) return raw;
+
+  const base = (axiosInstance.defaults.baseURL || "")
+    .replace(/\/api\/?$/, "")
+    .replace(/\/$/, "");
+
+  return `${base}${raw.startsWith("/") ? raw : `/${raw}`}`;
+};
 
 export default function SessionDetailPage() {
   const { id } = useParams();

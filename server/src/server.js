@@ -87,6 +87,7 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/admin-committee", adminCommitteeRoutes);
 
 app.use("/uploads", express.static(require("path").join(__dirname, "../uploads")));
+app.use("/api/uploads", express.static(require("path").join(__dirname, "../uploads")));
 
 app.get("/api/health", (req, res) =>
   res.json({ success: true, message: "Bootcamp Management API is running." })
