@@ -4,6 +4,12 @@ const crypto = require("crypto");
 
 const googleClientID = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+const backendBaseUrl =
+  process.env.BACKEND_URL ||
+  process.env.SERVER_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "https://astumsj-bootcamp-management-system.onrender.com"
+    : "http://localhost:5000");
 
 const githubClientID = process.env.GITHUB_CLIENT_ID;
 const githubClientSecret = process.env.GITHUB_CLIENT_SECRET;
@@ -21,7 +27,9 @@ if (googleClientID && googleClientSecret) {
       {
         clientID: googleClientID,
         clientSecret: googleClientSecret,
-        callbackURL: "/api/auth/google/callback",
+        callbackURL:
+          process.env.GOOGLE_CALLBACK_URL ||
+          `${backendBaseUrl}/api/auth/google/callback`,
       },
 
       async (accessToken, refreshToken, profile, done) => {
@@ -77,7 +85,9 @@ if (githubClientID && githubClientSecret) {
       {
         clientID: githubClientID,
         clientSecret: githubClientSecret,
-        callbackURL: "/api/auth/github/callback",
+        callbackURL:
+          process.env.GITHUB_CALLBACK_URL ||
+          `${backendBaseUrl}/api/auth/github/callback`,
         scope: ["user:email"],
       },
 
