@@ -13,7 +13,7 @@ export default function MentorAssignments() {
   
   const [grades, setGrades] = useState({});
   const [feedbacks, setFeedbacks] = useState({});
-  const fileBaseUrl = "http://localhost:5000";
+  const fileBaseUrl = "https://astumsj-bootcamp-management-system.onrender.com";
 
   const [form, setForm] = useState({
     title: "",
@@ -32,14 +32,14 @@ export default function MentorAssignments() {
         setLoading(true);
         setError("");
 
-        const batchRes = await axios.get("http://localhost:5000/api/batches", { headers });
+        const batchRes = await axios.get("https://astumsj-bootcamp-management-system.onrender.com/api/batches", { headers });
         const fetchedBatches = batchRes.data.batches || [];
         setBatches(fetchedBatches);
         if (fetchedBatches.length > 0) {
           setBatchId(fetchedBatches[0]._id);
         }
 
-        const assignmentRes = await axios.get("http://localhost:5000/api/assignments", { headers });
+        const assignmentRes = await axios.get("https://astumsj-bootcamp-management-system.onrender.com/api/assignments", { headers });
         const assignmentData = assignmentRes.data.assignments || assignmentRes.data.data || assignmentRes.data || [];
         setAssignments(Array.isArray(assignmentData) ? assignmentData : []);
       } catch (err) {
@@ -57,7 +57,7 @@ export default function MentorAssignments() {
     setSelectedAssignment(assignment);
     setLoading(true);
     try {
-      const res = await axios.get("http://localhost:5000/api/submissions", { headers });
+      const res = await axios.get("https://astumsj-bootcamp-management-system.onrender.com/api/submissions", { headers });
       const allSubmissions = res.data.submissions || res.data.data || res.data || [];
       
       const filtered = allSubmissions.filter((sub) => {
@@ -91,7 +91,7 @@ export default function MentorAssignments() {
       };
 
       const response = await axios.post(
-        "http://localhost:5000/api/assignments",
+        "https://astumsj-bootcamp-management-system.onrender.com/api/assignments",
         payload,
         { headers: { ...headers, "Content-Type": "application/json" } }
       );
@@ -118,7 +118,7 @@ export default function MentorAssignments() {
 
     try {
       await axios.patch(
-        `http://localhost:5000/api/submissions/${submissionId}/grade`,
+        `https://astumsj-bootcamp-management-system.onrender.com/api/submissions/${submissionId}/grade`,
         { 
           score: score !== undefined && score !== "" ? Number(score) : 0, 
           feedback, 

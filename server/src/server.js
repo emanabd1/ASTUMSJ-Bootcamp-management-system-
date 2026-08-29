@@ -48,7 +48,20 @@ const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173")
   .map((v) => v.trim())
   .filter(Boolean);
 
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  // Common preview/production frontend hosts. Configure CLIENT_URL on Render for stricter production control.
+  return /^https:\/\/[^/]+\.(vercel\.app|netlify\.app)$/.test(origin) || /^http:\/\/localhost(:\d+)?$/.test(origin);
+};
+
+app.use(cors({
+  origin(origin, callback) {
+    if (isAllowedOrigin(origin)) return callback(null, true);
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: "1mb" }));
 
 app.use("/api/auth", authRoutes);

@@ -28,7 +28,7 @@ export default function MentorDashboard() {
         const token = localStorage.getItem("token");
 
         const response = await axios.get(
-          "http://localhost:5000/api/mentors/dashboard",
+          "https://astumsj-bootcamp-management-system.onrender.com/api/mentors/dashboard",
           {
             headers: {
               Authorization: `Bearer ${token}`,

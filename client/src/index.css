@@ -1,117 +1,271 @@
 @import "tailwindcss";
 
+/* Centralized color themes. Layout, spacing, typography and components are intentionally untouched. */
 :root {
-	--app-font: Georgia, "Times New Roman", serif;
+  --app-font: Georgia, "Times New Roman", serif;
+  --surface: #ffffff;
+  --surface-soft: #f6f8fc;
+  --text: #12284a;
+  --muted: #697386;
+  --border: #e5eaf2;
+  --accent: #d20a2e;
 }
 
-body {
-	font-family: var(--app-font);
-	transition: background-color 180ms ease, color 180ms ease;
+body { font-family: var(--app-font); transition: background-color 180ms ease, color 180ms ease; }
+
+/* ==================================================
+   LIGHT MODE — ASTU enterprise navy + white + crimson
+   ================================================== */
+body[data-theme="light"] { background: #f6f8fc; color: #12284a; }
+body[data-theme="light"] #root { background: #f6f8fc; color: #12284a; }
+
+/* Main workspace / surfaces */
+body[data-theme="light"] .bg-\[\#16110e\],
+body[data-theme="light"] .bg-\[\#1e1713\],
+body[data-theme="light"] .bg-\[\#120d0a\],
+body[data-theme="light"] .bg-\[\#1d1511\] { background-color: #ffffff !important; }
+body[data-theme="light"] .bg-\[\#2a1f19\],
+body[data-theme="light"] .bg-\[\#2d231d\],
+body[data-theme="light"] .bg-\[\#241c17\],
+body[data-theme="light"] .bg-\[\#3a2e26\],
+body[data-theme="light"] .bg-\[\#4a3b32\] { background-color: #f6f8fc !important; }
+
+/* Institutional navigation remains navy in light mode */
+body[data-theme="light"] aside { background-color: #10264d !important; border-color: #0b1f3f !important; color: #ffffff !important; }
+body[data-theme="light"] header.h-16 { background-color: #10264d !important; border-color: #0b1f3f !important; color: #ffffff !important; }
+body[data-theme="light"] aside .bg-\[\#2d231d\],
+body[data-theme="light"] aside .hover\:bg-\[\#2d231d\]:hover,
+body[data-theme="light"] header.h-16 .bg-\[\#2d231d\],
+body[data-theme="light"] header.h-16 .hover\:bg-\[\#2d231d\]:hover { background-color: #0b1f3f !important; }
+body[data-theme="light"] aside .bg-\[\#c89b7b\] { background-color: #d20a2e !important; color: #ffffff !important; }
+
+/* Text hierarchy */
+body[data-theme="light"] .text-\[\#f5efe6\],
+body[data-theme="light"] .text-\[\#F5F8FC\] { color: #12284a !important; }
+body[data-theme="light"] .text-\[\#a39081\],
+body[data-theme="light"] .text-\[\#d8c5b7\],
+body[data-theme="light"] .text-\[\#d8b493\],
+body[data-theme="light"] .text-\[\#7c6d5f\],
+body[data-theme="light"] .text-\[\#806b5d\] { color: #697386 !important; }
+body[data-theme="light"] .text-\[\#c89b7b\],
+body[data-theme="light"] .text-\[\#c99d78\],
+body[data-theme="light"] .text-\[\#a98a72\] { color: #d20a2e !important; }
+body[data-theme="light"] .text-\[\#102A43\],
+body[data-theme="light"] .text-\[\#102a43\],
+body[data-theme="light"] .text-\[\#12284a\] { color: #12284a !important; }
+
+/* Borders */
+body[data-theme="light"] .border-\[\#4a3b32\],
+body[data-theme="light"] .border-\[\#B8CBE3\],
+body[data-theme="light"] .border-\[\#cbd5e1\] { border-color: #e5eaf2 !important; }
+body[data-theme="light"] .border-\[\#c89b7b\],
+body[data-theme="light"] .border-\[\#c99d78\] { border-color: #d20a2e !important; }
+
+/* Crimson actions and active states */
+body[data-theme="light"] .bg-\[\#c89b7b\],
+body[data-theme="light"] .bg-\[\#c99d78\],
+body[data-theme="light"] .bg-\[\#d8ae8b\] { background-color: #d20a2e !important; }
+body[data-theme="light"] .bg-\[\#c89b7b\].text-\[\#1e1713\],
+body[data-theme="light"] .bg-\[\#c99d78\].text-\[\#1e1713\] { color: #ffffff !important; }
+body[data-theme="light"] .hover\:bg-\[\#b08567\]:hover,
+body[data-theme="light"] .hover\:bg-\[\#3a2e26\]:hover { background-color: #b20827 !important; color: #ffffff !important; }
+body[data-theme="light"] .focus\:border-\[\#c89b7b\]:focus { border-color: #d20a2e !important; }
+
+/* Existing authentication/landing navy colors become the same enterprise system in light mode */
+body[data-theme="light"] .bg-\[\#102A43\],
+body[data-theme="light"] .bg-\[\#102a43\] { background-color: #10264d !important; }
+body[data-theme="light"] .bg-\[\#1E4D8C\],
+body[data-theme="light"] .bg-\[\#1e4d8c\] { background-color: #d20a2e !important; }
+body[data-theme="light"] .hover\:bg-\[\#1E4D8C\]:hover,
+body[data-theme="light"] .hover\:bg-\[\#1e4d8c\]:hover { background-color: #b20827 !important; }
+body[data-theme="light"] .hover\:text-\[\#1E4D8C\]:hover,
+body[data-theme="light"] .hover\:text-\[\#1e4d8c\]:hover { color: #d20a2e !important; }
+body[data-theme="light"] .focus\:border-\[\#102A43\]:focus,
+body[data-theme="light"] .focus\:border-\[\#102a43\]:focus { border-color: #d20a2e !important; }
+
+/* Inputs and placeholders */
+body[data-theme="light"] input,
+body[data-theme="light"] select,
+body[data-theme="light"] textarea { color: #12284a; }
+body[data-theme="light"] input::placeholder,
+body[data-theme="light"] textarea::placeholder { color: #94a3b8; }
+
+/* Keep navigation text readable on navy */
+body[data-theme="light"] aside .text-\[\#a39081\],
+body[data-theme="light"] header.h-16 .text-\[\#a39081\] { color: #cbd5e1 !important; }
+body[data-theme="light"] aside .text-\[\#f5efe6\],
+body[data-theme="light"] header.h-16 .text-\[\#f5efe6\] { color: #ffffff !important; }
+body[data-theme="light"] aside .text-\[\#c89b7b\],
+body[data-theme="light"] header.h-16 .text-\[\#c89b7b\] { color: #ffffff !important; }
+
+/* ==================================================
+   DARK MODE — preserve the existing warm brown system
+   ================================================== */
+body[data-theme="dark"] { background: #16110e; color: #f5efe6; }
+body[data-theme="dark"] #root { background: #16110e; color: #f5efe6; }
+
+/* Authentication and landing pages previously used navy hardcodes; map only colors to the existing brown dark theme. */
+body[data-theme="dark"] .bg-\[\#102A43\],
+body[data-theme="dark"] .bg-\[\#102a43\] { background-color: #1e1713 !important; }
+body[data-theme="dark"] .bg-\[\#1E4D8C\],
+body[data-theme="dark"] .bg-\[\#1e4d8c\] { background-color: #2d231d !important; }
+body[data-theme="dark"] .text-\[\#102A43\],
+body[data-theme="dark"] .text-\[\#102a43\],
+body[data-theme="dark"] .text-\[\#12284a\] { color: #f5efe6 !important; }
+body[data-theme="dark"] .border-\[\#B8CBE3\] { border-color: #4a3b32 !important; }
+body[data-theme="dark"] .hover\:bg-\[\#1E4D8C\]:hover,
+body[data-theme="dark"] .hover\:bg-\[\#1e4d8c\]:hover { background-color: #3a2e26 !important; }
+body[data-theme="dark"] .hover\:text-\[\#1E4D8C\]:hover,
+body[data-theme="dark"] .hover\:text-\[\#1e4d8c\]:hover { color: #c89b7b !important; }
+body[data-theme="dark"] .focus\:border-\[\#102A43\]:focus,
+body[data-theme="dark"] .focus\:border-\[\#102a43\]:focus { border-color: #c89b7b !important; }
+body[data-theme="dark"] input,
+body[data-theme="dark"] select,
+body[data-theme="dark"] textarea { color: #f5efe6; }
+body[data-theme="dark"] input::placeholder,
+body[data-theme="dark"] textarea::placeholder { color: #806b5d; }
+
+.toast-viewport { position: fixed; top: 1.25rem; right: 1.25rem; z-index: 100; width: min(24rem, calc(100vw - 2rem)); pointer-events: none; }
+.modern-error-toast { display:flex; align-items:flex-start; gap:.75rem; padding:.9rem .85rem; border:1px solid color-mix(in srgb,#ef4444 45%,transparent); border-left:4px solid #ef4444; border-radius:.85rem; background:color-mix(in srgb,#111c2e 94%,#ef4444 6%); box-shadow:0 1rem 2.5rem rgb(0 0 0 / 28%); color:#f8fafc; pointer-events:auto; animation:toast-in 220ms ease-out; }
+.modern-error-toast__icon { display:grid; flex:0 0 auto; place-items:center; width:2rem; height:2rem; border-radius:999px; background:rgb(239 68 68 / 16%); color:#f87171; }
+.modern-error-toast__title { font-family:var(--app-font); font-size:.8rem; font-weight:700; line-height:1.2; }
+.modern-error-toast__message { margin-top:.2rem; color:#cbd5e1; font-family:var(--app-font); font-size:.75rem; line-height:1.45; overflow-wrap:anywhere; }
+.modern-error-toast__close { flex:0 0 auto; margin:-.25rem -.25rem 0 0; width:1.75rem; height:1.75rem; border-radius:.45rem; color:#94a3b8; font-size:1.25rem; line-height:1; }
+.modern-error-toast__close:hover { background:rgb(255 255 255 / 8%); color:#f8fafc; }
+@keyframes toast-in { from { opacity:0; transform:translateY(-.5rem) scale(.98); } to { opacity:1; transform:translateY(0) scale(1); } }
+@media (max-width:640px) { .toast-viewport { top:.75rem; right:.75rem; width:calc(100vw - 1.5rem); } }
+
+/* ==================================================
+   LIGHT MODE READABILITY FIX — color contrast only
+   Keep text readable on existing navy controls/navigation.
+   ================================================== */
+body[data-theme="light"] .bg-\[\#102A43\].text-\[\#F5F8FC\],
+body[data-theme="light"] .bg-\[\#102a43\].text-\[\#F5F8FC\],
+body[data-theme="light"] .bg-\[\#102A43\].text-\[\#f5efe6\],
+body[data-theme="light"] .bg-\[\#102a43\].text-\[\#f5efe6\],
+body[data-theme="light"] .bg-\[\#1E4D8C\].text-\[\#F5F8FC\],
+body[data-theme="light"] .bg-\[\#1e4d8c\].text-\[\#F5F8FC\],
+body[data-theme="light"] .bg-\[\#1E4D8C\].text-\[\#f5efe6\],
+body[data-theme="light"] .bg-\[\#1e4d8c\].text-\[\#f5efe6\] { color: #ffffff !important; }
+
+/* Login/signup social buttons and other existing navy controls: white text stays readable. */
+body[data-theme="light"] button.bg-\[\#102A43\],
+body[data-theme="light"] button.bg-\[\#102a43\],
+body[data-theme="light"] button.bg-\[\#1E4D8C\],
+body[data-theme="light"] button.bg-\[\#1e4d8c\] { color: #ffffff !important; }
+
+/* Keep language selectors readable without changing their layout or structure. */
+body[data-theme="light"] header select,
+body[data-theme="light"] aside select {
+  background-color: #0b1f3f !important;
+  color: #ffffff !important;
+  border-color: #e5eaf2 !important;
+}
+body[data-theme="light"] header select option,
+body[data-theme="light"] aside select option { color: #12284a; background-color: #ffffff; }
+
+/* Existing navigation text remains high-contrast on navy. */
+body[data-theme="light"] aside a,
+body[data-theme="light"] aside button,
+body[data-theme="light"] header.h-16 a,
+body[data-theme="light"] header.h-16 button { color: inherit; }
+body[data-theme="light"] aside .text-white,
+body[data-theme="light"] header.h-16 .text-white { color: #ffffff !important; }
+
+/* ==================================================
+   FINAL LIGHT MODE CONTRAST — colors only
+   Keep the existing layout intact while making every
+   navy surface and white form/surface readable.
+   ================================================== */
+body[data-theme="light"] aside.bg-\[\#1e1713\],
+body[data-theme="light"] aside.bg-\[\#16110e\],
+body[data-theme="light"] aside.bg-\[\#120d0a\] {
+  background-color: #10264d !important;
+  border-color: #0b1f3f !important;
+  color: #ffffff !important;
 }
 
-body[data-theme="light"] {
-	background: #fdf6e3;
-	color: #2c1a11;
+body[data-theme="light"] header.h-16.bg-\[\#1e1713\],
+body[data-theme="light"] header.h-16.bg-\[\#16110e\],
+body[data-theme="light"] header.h-16.bg-\[\#120d0a\] {
+  background-color: #10264d !important;
+  border-color: #0b1f3f !important;
+  color: #ffffff !important;
 }
 
-body[data-theme="dark"] {
-	background: #16110e;
-	color: #f5efe6;
-}
+/* Sidebar: high contrast text on the navy institutional navigation. */
+body[data-theme="light"] aside h1,
+body[data-theme="light"] aside h2,
+body[data-theme="light"] aside h3,
+body[data-theme="light"] aside p,
+body[data-theme="light"] aside span,
+body[data-theme="light"] aside a,
+body[data-theme="light"] aside button { color: #ffffff !important; }
 
-.toast-viewport {
-	position: fixed;
-	top: 1.25rem;
-	right: 1.25rem;
-	z-index: 100;
-	width: min(24rem, calc(100vw - 2rem));
-	pointer-events: none;
-}
+body[data-theme="light"] aside .text-\[\#a39081\],
+body[data-theme="light"] aside .text-\[\#d8c5b7\],
+body[data-theme="light"] aside .text-\[\#7c6d5f\] { color: #cbd5e1 !important; }
 
-.modern-error-toast {
-	display: flex;
-	align-items: flex-start;
-	gap: 0.75rem;
-	padding: 0.9rem 0.85rem;
-	border: 1px solid color-mix(in srgb, #ef4444 45%, transparent);
-	border-left: 4px solid #ef4444;
-	border-radius: 0.85rem;
-	background: color-mix(in srgb, #111c2e 94%, #ef4444 6%);
-	box-shadow: 0 1rem 2.5rem rgb(0 0 0 / 28%), 0 0 0 1px rgb(255 255 255 / 4%);
-	color: #f8fafc;
-	pointer-events: auto;
-	animation: toast-in 220ms ease-out;
+body[data-theme="light"] aside a:not(.bg-\[\#c89b7b\]) { color: #dbe5f1 !important; }
+body[data-theme="light"] aside a:hover { background-color: #0b1f3f !important; color: #ffffff !important; }
+body[data-theme="light"] aside a.bg-\[\#c89b7b\] {
+  background-color: #d20a2e !important;
+  color: #ffffff !important;
 }
+body[data-theme="light"] aside a.bg-\[\#c89b7b\] span { color: #ffffff !important; }
 
-.modern-error-toast__icon {
-	display: grid;
-	flex: 0 0 auto;
-	place-items: center;
-	width: 2rem;
-	height: 2rem;
-	border-radius: 999px;
-	background: rgb(239 68 68 / 16%);
-	color: #f87171;
+/* Top navigation: readable white icons/text on navy, with a white language control. */
+body[data-theme="light"] header.h-16 a,
+body[data-theme="light"] header.h-16 button,
+body[data-theme="light"] header.h-16 svg { color: #ffffff !important; }
+body[data-theme="light"] header.h-16 .text-\[\#c89b7b\] { color: #ffffff !important; }
+body[data-theme="light"] header.h-16 select {
+  background-color: #ffffff !important;
+  color: #12284a !important;
+  border-color: #e5eaf2 !important;
 }
+body[data-theme="light"] header.h-16 select option { background-color: #ffffff !important; color: #12284a !important; }
 
-.modern-error-toast__title {
-	font-family: var(--app-font);
-	font-size: 0.8rem;
-	font-weight: 700;
-	line-height: 1.2;
+/* Profile dropdown is a white surface, so its text must be dark and readable. */
+body[data-theme="light"] header.h-16 .absolute.bg-\[\#1e1713\],
+body[data-theme="light"] header.h-16 .absolute.bg-\[\#16110e\] {
+  background-color: #ffffff !important;
+  border-color: #e5eaf2 !important;
 }
+body[data-theme="light"] header.h-16 .absolute.bg-\[\#1e1713\] p,
+body[data-theme="light"] header.h-16 .absolute.bg-\[\#1e1713\] a,
+body[data-theme="light"] header.h-16 .absolute.bg-\[\#16110e\] p,
+body[data-theme="light"] header.h-16 .absolute.bg-\[\#16110e\] a { color: #12284a !important; }
+body[data-theme="light"] header.h-16 .absolute a:hover { background-color: #f6f8fc !important; color: #12284a !important; }
 
-.modern-error-toast__message {
-	margin-top: 0.2rem;
-	color: #cbd5e1;
-	font-family: var(--app-font);
-	font-size: 0.75rem;
-	line-height: 1.45;
-	overflow-wrap: anywhere;
+/* White forms and cards: labels and entered values stay dark. */
+body[data-theme="light"] input,
+body[data-theme="light"] textarea,
+body[data-theme="light"] select {
+  color: #12284a !important;
+  caret-color: #12284a;
 }
+body[data-theme="light"] input.text-\[\#f5efe6\],
+body[data-theme="light"] input.text-\[\#F5F8FC\],
+body[data-theme="light"] textarea.text-\[\#f5efe6\],
+body[data-theme="light"] textarea.text-\[\#F5F8FC\] { color: #12284a !important; }
+body[data-theme="light"] input::placeholder,
+body[data-theme="light"] textarea::placeholder { color: #94a3b8 !important; opacity: 1; }
 
-.modern-error-toast__close {
-	flex: 0 0 auto;
-	margin: -0.25rem -0.25rem 0 0;
-	width: 1.75rem;
-	height: 1.75rem;
-	border-radius: 0.45rem;
-	color: #94a3b8;
-	font-size: 1.25rem;
-	line-height: 1;
-	transition: background-color 150ms ease, color 150ms ease;
-}
-
-.modern-error-toast__close:hover {
-	background: rgb(255 255 255 / 8%);
-	color: #f8fafc;
-}
-
-@keyframes toast-in {
-	from { opacity: 0; transform: translateY(-0.5rem) scale(0.98); }
-	to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-@media (max-width: 640px) {
-	.toast-viewport {
-		top: 0.75rem;
-		right: 0.75rem;
-		width: calc(100vw - 1.5rem);
-	}
-}
-
-body[data-theme="light"] .bg-\[\#16110e\] {
-	background-color: #fdf6e3;
-}
-
-body[data-theme="light"] .bg-\[\#1e1713\] {
-	background-color: #fffaf0;
-}
-
-body[data-theme="light"] .text-\[\#f5efe6\] {
-	color: #2c1a11;
-}
-
-body[data-theme="light"] .text-\[\#a39081\] {
-	color: #705747;
-}
+/* Existing navy/crimson buttons keep white labels. */
+body[data-theme="light"] .bg-\[\#102A43\],
+body[data-theme="light"] .bg-\[\#102a43\],
+body[data-theme="light"] .bg-\[\#1E4D8C\],
+body[data-theme="light"] .bg-\[\#1e4d8c\],
+body[data-theme="light"] .bg-\[\#c89b7b\],
+body[data-theme="light"] .bg-\[\#c99d78\] { color: #ffffff; }
+body[data-theme="light"] button.bg-\[\#102A43\],
+body[data-theme="light"] button.bg-\[\#102a43\],
+body[data-theme="light"] button.bg-\[\#1E4D8C\],
+body[data-theme="light"] button.bg-\[\#1e4d8c\],
+body[data-theme="light"] button.bg-\[\#c89b7b\],
+body[data-theme="light"] button.bg-\[\#c99d78\] { color: #ffffff !important; }
+body[data-theme="light"] button.bg-\[\#102A43\] *,
+body[data-theme="light"] button.bg-\[\#102a43\] *,
+body[data-theme="light"] button.bg-\[\#1E4D8C\] *,
+body[data-theme="light"] button.bg-\[\#1e4d8c\] * { color: #ffffff !important; }

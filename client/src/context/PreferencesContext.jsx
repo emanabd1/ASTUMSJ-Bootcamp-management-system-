@@ -1,7 +1,7 @@
 import { createContext, useEffect, useState } from "react";
 
 const STORAGE_KEY = "astumsj-preferences";
-const defaults = { fontSize: "medium", fontFamily: "serif", theme: "dark", language: "en" };
+const defaults = { fontSize: "medium", fontFamily: "serif", theme: "light", language: "en" };
 
 const translations = {
   en: { about: "About", tracks: "Tracks", mentors: "Mentors", faq: "FAQ", alumni: "Alumni", login: "Login", join: "Join Now", notifications: "Notifications", settings: "Settings", accountSettings: "Account Settings", logout: "Logout", language: "Language" },

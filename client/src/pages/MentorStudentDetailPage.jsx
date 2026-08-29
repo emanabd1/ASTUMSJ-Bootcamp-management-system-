@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+const API_URL = import.meta.env.VITE_API_URL || "https://astumsj-bootcamp-management-system.onrender.com/api";
 
 export default function MentorStudentDetailPage() {
   const { studentId } = useParams();
