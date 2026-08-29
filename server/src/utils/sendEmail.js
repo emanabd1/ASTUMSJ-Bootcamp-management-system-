@@ -115,13 +115,9 @@ throw new Error("A recipient email address is required.");
 }
 
 if (process.env.RESEND_API_KEY) {
-  try {
-    const info = await sendViaResend({ email, subject, message, html });
-    console.log(`EMAIL SENT SUCCESSFULLY via Resend to ${email}`);
-    return info;
-  } catch (cause) {
-    console.error("RESEND EMAIL FAILED:", cause);
-  }
+  const info = await sendViaResend({ email, subject, message, html });
+  console.log(`EMAIL SENT SUCCESSFULLY via Resend to ${email}`);
+  return info;
 }
 
 const mailer = getTransporter();
