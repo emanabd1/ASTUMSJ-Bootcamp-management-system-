@@ -154,8 +154,8 @@ export default function BatchesPage() {
   const load = async () => {
     try {
       const [y, b, u, m] = await Promise.all([
-        axiosInstance.get('/batch-years'),
-        axiosInstance.get('/batches'),
+        axiosInstance.get('/batch-years', { params: { _t: Date.now() } }),
+        axiosInstance.get('/batches', { params: { _t: Date.now() } }),
         axiosInstance.get('/users?role=student&status=approved'),
         axiosInstance.get('/users/mentors'),
       ]);

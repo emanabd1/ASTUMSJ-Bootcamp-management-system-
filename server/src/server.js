@@ -63,6 +63,11 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json({ limit: "1mb" }));
+app.disable("etag");
+app.use((req, res, next) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  next();
+});
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);

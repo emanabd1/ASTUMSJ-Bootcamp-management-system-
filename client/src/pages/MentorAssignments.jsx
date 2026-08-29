@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+
+import axiosInstance from "../api/axiosInstance";
 
 export default function MentorAssignments() {
   const [batches, setBatches] = useState([]);
@@ -32,14 +33,14 @@ export default function MentorAssignments() {
         setLoading(true);
         setError("");
 
-        const batchRes = await axios.get("https://astumsj-bootcamp-management-system.onrender.com/api/batches", { headers });
+        const batchRes = await axiosInstance.get("/batches", { headers, params: { _t: Date.now() } });
         const fetchedBatches = batchRes.data.batches || [];
         setBatches(fetchedBatches);
         if (fetchedBatches.length > 0) {
           setBatchId(fetchedBatches[0]._id);
         }
 
-        const assignmentRes = await axios.get("https://astumsj-bootcamp-management-system.onrender.com/api/assignments", { headers });
+        const assignmentRes = await axiosInstance.get("/assignments", { headers, params: { _t: Date.now() } });
         const assignmentData = assignmentRes.data.assignments || assignmentRes.data.data || assignmentRes.data || [];
         setAssignments(Array.isArray(assignmentData) ? assignmentData : []);
       } catch (err) {
@@ -57,7 +58,7 @@ export default function MentorAssignments() {
     setSelectedAssignment(assignment);
     setLoading(true);
     try {
-      const res = await axios.get("https://astumsj-bootcamp-management-system.onrender.com/api/submissions", { headers });
+      const res = await axiosInstance.get("/submissions", { headers, params: { _t: Date.now() } });
       const allSubmissions = res.data.submissions || res.data.data || res.data || [];
       
       const filtered = allSubmissions.filter((sub) => {

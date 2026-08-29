@@ -14,6 +14,23 @@ const { body } = require("../../validation");
 
 const router = express.Router();
 
+const clientUrl = () => (process.env.CLIENT_URL || "http://localhost:5173")
+  .split(",")
+  .map((url) => url.trim())
+  .find(Boolean) || "http://localhost:5173";
+
+const oauthConfigured = (provider) => provider === "google"
+  ? Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
+  : Boolean(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET);
+
+const requireOAuthConfig = (provider) => (req, res, next) => {
+  if (oauthConfigured(provider)) return next();
+  return res.status(503).json({
+    success: false,
+    message: `${provider === "google" ? "Google" : "GitHub"} sign-in is not configured on the server yet.`,
+  });
+};
+
 const createOAuthToken = (user) =>
   jwt.sign(
     {
@@ -87,6 +104,7 @@ router.get("/me", protect, me);
 
 router.get(
   "/google",
+  requireOAuthConfig("google"),
   passport.authenticate("google", {
     scope: ["profile", "email"],
     session: false,
@@ -98,31 +116,31 @@ router.get(
   "/google/callback",
   passport.authenticate("google", {
     session: false,
-    failureRedirect: `${process.env.CLIENT_URL}/login?oauth=google-failed`,
+    failureRedirect: `${clientUrl()}/login?oauth=google-failed`,
   }),
   (req, res) => {
     if (req.user.status === "pending") {
       return res.redirect(
-        `${process.env.CLIENT_URL}/login?oauth=pending`
+        `${clientUrl()}/login?oauth=pending`
       );
     }
 
     if (req.user.status === "rejected") {
       return res.redirect(
-        `${process.env.CLIENT_URL}/login?oauth=rejected`
+        `${clientUrl()}/login?oauth=rejected`
       );
     }
 
     if (!req.user.isActive) {
       return res.redirect(
-        `${process.env.CLIENT_URL}/login?oauth=inactive`
+        `${clientUrl()}/login?oauth=inactive`
       );
     }
 
     const token = createOAuthToken(req.user);
 
     return res.redirect(
-      `${process.env.CLIENT_URL}/oauth-success?token=${encodeURIComponent(
+      `${clientUrl()}/oauth-success?token=${encodeURIComponent(
         token
       )}`
     );
@@ -131,6 +149,7 @@ router.get(
 
 router.get(
   "/github",
+  requireOAuthConfig("github"),
   passport.authenticate("github", {
     scope: ["user:email"],
     session: false,
@@ -141,31 +160,31 @@ router.get(
   "/github/callback",
   passport.authenticate("github", {
     session: false,
-    failureRedirect: `${process.env.CLIENT_URL}/login?oauth=github-failed`,
+    failureRedirect: `${clientUrl()}/login?oauth=github-failed`,
   }),
   (req, res) => {
     if (req.user.status === "pending") {
       return res.redirect(
-        `${process.env.CLIENT_URL}/login?oauth=pending`
+        `${clientUrl()}/login?oauth=pending`
       );
     }
 
     if (req.user.status === "rejected") {
       return res.redirect(
-        `${process.env.CLIENT_URL}/login?oauth=rejected`
+        `${clientUrl()}/login?oauth=rejected`
       );
     }
 
     if (!req.user.isActive) {
       return res.redirect(
-        `${process.env.CLIENT_URL}/login?oauth=inactive`
+        `${clientUrl()}/login?oauth=inactive`
       );
     }
 
     const token = createOAuthToken(req.user);
 
     return res.redirect(
-      `${process.env.CLIENT_URL}/oauth-success?token=${encodeURIComponent(
+      `${clientUrl()}/oauth-success?token=${encodeURIComponent(
         token
       )}`
     );

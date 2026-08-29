@@ -22,7 +22,17 @@ const normalizeAndToastError = (error) => {
 };
 
 axios.interceptors.response.use((response) => response, normalizeAndToastError);
-axiosInstance.interceptors.request.use((config) => { const token = localStorage.getItem("token"); if (token) config.headers.Authorization = `Bearer ${token}`; return config; });
+axiosInstance.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  config.headers = config.headers || {};
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  // Avoid stale API lists after creating sessions/batches on deployed hosts/CDNs.
+  if (String(config.method || "get").toLowerCase() === "get") {
+    config.headers["Cache-Control"] = "no-cache";
+    config.headers.Pragma = "no-cache";
+  }
+  return config;
+});
 axiosInstance.interceptors.response.use(
 	(response) => response,
 	normalizeAndToastError,

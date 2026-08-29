@@ -28,10 +28,26 @@ async function canAccess(user, batch) {
   return user.role === "admin" || members.some((member) => String(member._id || member) === String(user._id)) || parentMembers?.some((member) => String(member._id || member) === String(user._id));
 }
 
-async function notifyUsers(users, title, message, link, meta) {
-  const recipients = users.filter((user, index, all) => all.findIndex((item) => String(item._id) === String(user._id)) === index);
-  await Notification.insertMany(recipients.map((user) => ({ user: user._id, title, message, type: "session", link, meta })));
-  await Promise.allSettled(recipients.filter((user) => user.email).map((user) => sendEmail({ email: user.email, subject: title, message })));
+async function notifyUsers(users = [], title, message, link, meta) {
+  const recipients = users
+    .filter(Boolean)
+    .filter((user, index, all) => all.findIndex((item) => String(item._id) === String(user._id)) === index);
+
+  // Notifications/emails must never make a successful session or resource operation fail.
+  if (recipients.length) {
+    try {
+      await Notification.insertMany(recipients.map((user) => ({ user: user._id, title, message, type: "session", link, meta })));
+    } catch (error) {
+      console.error("Notification creation failed:", error.message);
+    }
+
+    const emailResults = await Promise.allSettled(
+      recipients.filter((user) => user.email).map((user) => sendEmail({ email: user.email, subject: title, message }))
+    );
+    emailResults.forEach((result) => {
+      if (result.status === "rejected") console.error("Notification email failed:", result.reason?.message || result.reason);
+    });
+  }
 }
 
 router.get("/", async (req, res, next) => {
@@ -75,7 +91,10 @@ router.post("/", async (req, res, next) => {
     const users = [...batch.students, ...batch.mentors, ...parentUsers];
     const message = `${session.title} is scheduled for ${start.toLocaleString()} to ${end.toLocaleString()} for batch ${batch.name}.${session.meetLink ? ` Join: ${session.meetLink}` : ""}`;
     await notifyUsers(users, "New learning session", message, "/sessions", { sessionId: String(session._id), batchId: String(batch._id) });
-    res.status(201).json({ success: true, session });
+    const populatedSession = await Session.findById(session._id)
+      .populate("batch", "name")
+      .populate("createdBy", "fullName role");
+    res.status(201).json({ success: true, session: populatedSession });
   } catch (error) { next(error); }
 });
 
@@ -84,9 +103,23 @@ router.get("/:id", async (req, res, next) => {
     const session = await Session.findById(req.params.id).populate("batch", "name students mentors batchYear").populate("batch.students", "fullName email").populate("batch.mentors", "fullName email").populate("batch.batchYear", "students mentors").populate("createdBy", "fullName role");
     if (!session) return res.status(404).json({ success: false, message: "Session not found." });
     if (!(await canAccess(req.user, session.batch))) return res.status(403).json({ success: false, message: "You cannot access this session." });
+
+    // Students may be attached directly to a Batch or inherited from its BatchYear.
+    // Merge both sources so attendance always shows the actual student names.
+    const directStudentIds = (session.batch.students || []).map((student) => student._id || student);
+    const parentBatchYear = session.batch.batchYear || await BatchYear.findOne({ name: session.batch.name }).select("students");
+    const parentStudentIds = (parentBatchYear?.students || []).map((student) => student._id || student);
+    const allStudentIds = [...new Set([...directStudentIds, ...parentStudentIds].map(String))];
+    const allStudents = await User.find({
+      _id: { $in: allStudentIds },
+      role: "student",
+      status: "approved",
+      isActive: true,
+    }).select("fullName email mentor");
+
     const assignedStudents = req.user.role === "mentor"
-      ? await User.find({ _id: { $in: session.batch.students.map((student) => student._id || student) }, mentor: req.user._id, role: "student", status: "approved", isActive: true }).select("_id")
-      : session.batch.students;
+      ? allStudents.filter((student) => String(student.mentor || "") === String(req.user._id))
+      : allStudents;
     const sessionBatchId = session.batch?._id || session.batch;
     const taskQuery = req.user.role === "student"
       ? {
@@ -110,6 +143,8 @@ router.get("/:id", async (req, res, next) => {
     const submissions = await Submission.find({ assignment: { $in: tasks.map((task) => task._id) }, ...(req.user.role === "student" ? { student: req.user._id } : {}) }).populate("student", "fullName email").populate("gradedBy", "fullName role");
     const tasksWithSubmissions = tasks.map((task) => ({ ...task.toObject(), submissions: submissions.filter((submission) => String(submission.assignment) === String(task._id)) }));
     const safeSession = session.toObject();
+    // Always return the merged student list with populated names for attendance.
+    safeSession.batch.students = allStudents.map((student) => student.toObject());
     if (req.user.role === "mentor") safeSession.batch.students = safeSession.batch.students.filter((student) => assignedStudents.some((assigned) => String(assigned._id) === String(student._id)));
     safeSession.feedback = req.user.role === "student"
       ? safeSession.feedback.filter((item) => String(item.student) === String(req.user._id)).map(({ student, ...item }) => item)
