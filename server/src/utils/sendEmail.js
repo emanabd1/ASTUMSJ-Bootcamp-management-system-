@@ -18,30 +18,6 @@ const getEmailPorts = () => {
   return [...new Set([...configuredPorts, 465, 587, 2525])];
 };
 
-async function sendViaResend({ email, subject, message, html }) {
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev",
-      to: [email],
-      subject,
-      text: message || "",
-      ...(html ? { html } : {}),
-    }),
-  });
-
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(`Resend rejected the email (${response.status}): ${details}`);
-  }
-
-  return response.json();
-}
-
 function createTransporter(port) {
 const host = process.env.EMAIL_HOST || "smtp.gmail.com";
 const user = process.env.EMAIL_USER;
@@ -113,13 +89,6 @@ const sendEmail = async ({ email, subject, message, html }) => {
 if (!email) {
 throw new Error("A recipient email address is required.");
 }
-
-if (process.env.RESEND_API_KEY) {
-  const info = await sendViaResend({ email, subject, message, html });
-  console.log(`EMAIL SENT SUCCESSFULLY via Resend to ${email}`);
-  return info;
-}
-
 const mailer = getTransporter();
 await ensureVerified(mailer);
 const fromEmail =
