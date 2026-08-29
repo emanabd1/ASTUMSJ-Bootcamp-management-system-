@@ -90,6 +90,11 @@ export default function NotificationsPage() {
 
     if (n.link) {
       navigate(n.link);
+      return;
+    }
+
+    if (n.meta?.announcementId) {
+      navigate(`/announcements?announcementId=${encodeURIComponent(n.meta.announcementId)}`);
     }
   };
 

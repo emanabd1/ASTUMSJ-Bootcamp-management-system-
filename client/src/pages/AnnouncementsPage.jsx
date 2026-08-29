@@ -1,12 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import axiosInstance from "../api/axiosInstance";
 import { useAuth } from "../hooks/useAuth";
 const field =
   "w-full rounded-xl border border-[#4a3b32] bg-[#16110e] px-3 py-2 text-sm text-[#f5efe6] focus:border-[#c89b7b] focus:outline-none";
 export default function AnnouncementsPage() {
   const { user } = useAuth();
+  const location = useLocation();
+  const selectedIdRef = useRef(null);
   const [items, setItems] = useState([]),
     [batches, setBatches] = useState([]),
+    [selectedId, setSelectedId] = useState(null),
     [form, setForm] = useState({
       title: "",
       content: "",
@@ -28,10 +32,21 @@ export default function AnnouncementsPage() {
       );
   useEffect(() => {
     Promise.all([axiosInstance.get("/announcements"), axiosInstance.get("/batches")]).then(([announcementResponse, batchResponse]) => {
-      setItems(announcementResponse.data.announcements || []);
+      const announcements = announcementResponse.data.announcements || [];
+      setItems(announcements);
       setBatches(batchResponse.data.batches || []);
+
+      const params = new URLSearchParams(location.search);
+      const announcementId = params.get("announcementId");
+      if (announcementId) {
+        setSelectedId(announcementId);
+        selectedIdRef.current = announcementId;
+      } else {
+        setSelectedId(null);
+        selectedIdRef.current = null;
+      }
     }).catch((e) => setMessage(e.response?.data?.message || "Could not load announcements."));
-  }, []);
+  }, [location.search]);
   const save = async (e) => {
     e.preventDefault();
     try {
@@ -129,7 +144,7 @@ export default function AnnouncementsPage() {
         {items.map((a) => (
           <article
             key={a._id}
-            className="rounded-2xl border border-[#4a3b32] bg-[#1e1713] p-5"
+            className={`rounded-2xl border p-5 ${selectedId === a._id ? "border-[#c89b7b] bg-[#2d231d]" : "border-[#4a3b32] bg-[#1e1713]"}`}
           >
             <div className="flex flex-wrap justify-between gap-3">
               <div>

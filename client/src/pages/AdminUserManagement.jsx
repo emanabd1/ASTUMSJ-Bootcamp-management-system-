@@ -88,13 +88,20 @@ export default function AdminUserManagement() {
       setMsg(e.response?.data?.message || "Assignment failed.");
     }
   };
+  const resetUserForm = () => {
+    setSelected(null);
+    setForm(empty);
+  };
+  const closeUserModal = () => {
+    setShow("");
+    resetUserForm();
+  };
   const create = async (e) => {
     e.preventDefault();
     try {
       const r = await axiosInstance.post("/users", form);
       setMsg(r.data.message);
-      setShow("");
-      setForm(empty);
+      closeUserModal();
       load();
     } catch (e) {
       setMsg(e.response?.data?.message || "Could not create user.");
@@ -110,6 +117,10 @@ export default function AdminUserManagement() {
     setSelected(u);
     setForm({ ...empty, ...u });
     setShow("edit");
+  };
+  const openCreate = () => {
+    resetUserForm();
+    setShow("create");
   };
   const openView = async (id) => {
     const r = await axiosInstance.get(`/users/${id}`);
@@ -209,7 +220,7 @@ export default function AdminUserManagement() {
           </p>
         </div>
         <button
-          onClick={() => setShow("create")}
+          onClick={openCreate}
           className="rounded-xl bg-[#c89b7b] px-4 py-2 text-xs font-bold text-[#1e1713]"
         >
           + Create User
@@ -333,7 +344,7 @@ export default function AdminUserManagement() {
       {show && (
         <div
           className="fixed inset-0 z-50 bg-black/70 p-4 flex items-center justify-center"
-          onClick={() => setShow("")}
+          onClick={closeUserModal}
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -344,7 +355,7 @@ export default function AdminUserManagement() {
               <>
                 <div className="flex justify-between">
                   <h2 className="text-2xl font-bold">User Details</h2>
-                  <button onClick={() => setShow("")}>✕</button>
+                  <button onClick={closeUserModal}>✕</button>
                 </div>
                 <div className="mt-5 grid md:grid-cols-2 gap-3 text-sm">
                   {[
@@ -468,7 +479,7 @@ export default function AdminUserManagement() {
               <form onSubmit={save} className="space-y-3">
                 <div className="flex justify-between">
                   <h2 className="text-2xl font-bold">Edit User</h2>
-                  <button type="button" onClick={() => setShow("")}>
+                  <button type="button" onClick={closeUserModal}>
                     ✕
                   </button>
                 </div>

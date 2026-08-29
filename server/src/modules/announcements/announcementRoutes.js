@@ -44,7 +44,7 @@ router.post("/", authorize("admin","mentor"), body({title:{required:true,maxLeng
     const scope = batch ? "batch" : targetAudience === "batch" ? "batch" : targetAudience;
     const a=await Announcement.create({title:title.trim(),content:content.trim(),targetAudience:scope,targetRole,batch:batch||null,publishDate:publishDate?new Date(publishDate):new Date(),author:req.user._id});
     const recipients=await recipientsFor(req.user,scope,batch,targetRole);
-    if(recipients.length) await Notification.insertMany(recipients.map(r=>({user:r._id,title:"New announcement",message:a.title,type:"announcement",link:"/notifications",meta:{announcementId:String(a._id)}})));
+    if(recipients.length) await Notification.insertMany(recipients.map(r=>({user:r._id,title:"New announcement",message:a.title,type:"announcement",link:`/announcements?announcementId=${encodeURIComponent(String(a._id))}`,meta:{announcementId:String(a._id)}})));
     const populated=await Announcement.findById(a._id).populate("author","fullName role").populate("batch","name");
     res.status(201).json({success:true,announcement:populated,recipientCount:recipients.length});
   }catch(e){next(e);}
@@ -67,7 +67,7 @@ router.patch("/:id", authorize("admin","mentor"), async(req,res,next)=>{
     await a.save();
     await Notification.deleteMany({type:"announcement","meta.announcementId":String(a._id)});
     const recipients=await recipientsFor(req.user,a.targetAudience,a.batch,a.targetRole || (a.targetAudience === "students" ? "students" : a.targetAudience === "mentors" ? "mentors" : "all"));
-    if(recipients.length) await Notification.insertMany(recipients.map(r=>({user:r._id,title:"Announcement updated",message:a.title,type:"announcement",link:"/notifications",meta:{announcementId:String(a._id)}})));
+    if(recipients.length) await Notification.insertMany(recipients.map(r=>({user:r._id,title:"Announcement updated",message:a.title,type:"announcement",link:`/announcements?announcementId=${encodeURIComponent(String(a._id))}`,meta:{announcementId:String(a._id)}})));
     const populated=await Announcement.findById(a._id).populate("author","fullName role").populate("batch","name");
     res.json({success:true,announcement:populated,recipientCount:recipients.length});
   }catch(e){next(e);}
