@@ -181,7 +181,7 @@ export default function LoginPage() {
 
           {/* LEFT BACKGROUND */}
           <div className="flex w-1/2 flex-col items-center justify-center bg-[#0B1F3A] p-8 text-center px-6 py-4">
-            <span className="mb-2 text-4xl font-extrabold uppercase tracking-wider text-[#F5F8FC]">
+            <span className="mb-2 text-4xl font-extrabold uppercase tracking-wider text-[#F5F7FC]">
               ASTUMSJ SUMMER BOOTCAMP
             </span>
 
@@ -195,18 +195,18 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <h1 className="text-4xl font-extrabold tracking-tight">
+            <h1 className="text-4xl font-extrabold tracking-tight text-[#F5F7FA]">
               Step Bold,
             </h1>
 
-            <h1 className="text-4xl font-extrabold tracking-tight">
+            <h1 className="text-4xl font-extrabold tracking-tight text-[#F5F7FA]">
               Stay Iconic
             </h1>
           </div>
 
           {/* RIGHT BACKGROUND */}
           <div className="flex w-1/2 flex-col items-center justify-center bg-[#0B1F3A] p-8 text-center px-6 py-4">
-            <span className="mb-2 text-4xl font-extrabold uppercase tracking-wider text-[#F5F8FC]">
+            <span className="mb-2 text-4xl font-extrabold uppercase tracking-wider text-[#F5F7FC]">
               ASTUMSJ SUMMER BOOTCAMP
             </span>
 
@@ -220,11 +220,11 @@ export default function LoginPage() {
                 </div>
              </div>
 
-            <h1 className="text-4xl font-bold text-[#F5F8FC] font-serif tracking-tight">
+            <h1 className="text-4xl font-bold text-[#F5F7FC] font-serif tracking-tight">
               Step Bold,
             </h1>
 
-            <h1 className="text-4xl font-bold text-[#F5F8FC] tracking-tight">
+            <h1 className="text-4xl font-bold text-[#F5F7FC] tracking-tight">
               Stay Iconic
             </h1>
           </div>
@@ -414,7 +414,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={handleGoogleLogin}
-                  className="flex items-center justify-center gap-3 rounded-xl border border-[#B8CBE3] bg-[#102A43] py-3 text-sm font-semibold text-[#f5efe6] transition hover:border-[#c89b7b] hover:bg-[#1E4D8C]"
+                  className="flex items-center justify-center gap-3 rounded-xl border border-[#B8CBE3] bg-[#102A43] py-3 text-sm font-semibold text-[#F5F7FA] transition hover:border-[#c89b7b] hover:bg-[#1E4D8C]"
                 >
                   {/* Google G */}
 
@@ -452,7 +452,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={handleGithubLogin}
-                  className="flex items-center justify-center gap-3 rounded-xl border border-[#B8CBE3] bg-[#102A43] py-3 text-sm font-semibold text-[#f5efe6] transition hover:border-[#c89b7b] hover:bg-[#1E4D8C]"
+                  className="flex items-center justify-center gap-3 rounded-xl border border-[#B8CBE3] bg-[#102A43] py-3 text-sm font-semibold text-[#F5F7FA] transition hover:border-[#c89b7b] hover:bg-[#1E4D8C]"
                 >
                   {/* GitHub Icon */}
 
