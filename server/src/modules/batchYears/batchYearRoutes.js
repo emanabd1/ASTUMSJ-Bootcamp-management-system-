@@ -65,7 +65,26 @@ router.post(
         status,
       });
 
-      res.status(201).json({ success: true, batchYear });
+      // A batch must be immediately usable for sessions. The Session model
+      // references the Batch collection, while the UI also has a BatchYear
+      // container. Create a default group automatically so a newly-created
+      // batch appears in the session selector without requiring a second step.
+      const existingDefaultGroup = await Batch.findOne({ batchYear: batchYear._id });
+      if (!existingDefaultGroup) {
+        await Batch.create({
+          name: batchYear.name,
+          description: batchYear.description || "",
+          batchYear: batchYear._id,
+          startDate: batchYear.startDate,
+          endDate: batchYear.endDate,
+          status: batchYear.status,
+        });
+      }
+
+      const populated = await BatchYear.findById(batchYear._id)
+        .populate('mentors', 'fullName email')
+        .populate('students', 'fullName email department yearOfStudy');
+      res.status(201).json({ success: true, batchYear: populated });
     } catch (e) {
       if (e.code === 11000) {
         return res.status(409).json({ success: false, message: "A batch with that name already exists." });

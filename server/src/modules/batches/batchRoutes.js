@@ -17,6 +17,28 @@ const ids = (value) =>
 
 router.get("/", authorize("admin", "mentor"), async (req, res, next) => {
   try {
+    // Backward compatibility: older databases may contain BatchYear records
+    // created before automatic default groups were introduced. Ensure every
+    // batch year has at least one usable Batch so it appears in Sessions.
+    if (req.user.role === "admin") {
+      const years = await BatchYear.find().select("_id name description startDate endDate status");
+      const existing = await Batch.find({ batchYear: { $in: years.map((y) => y._id) } }).select("batchYear");
+      const existingYearIds = new Set(existing.map((b) => String(b.batchYear)));
+      const missing = years.filter((y) => !existingYearIds.has(String(y._id)));
+      if (missing.length) {
+        await Batch.insertMany(missing.map((y) => ({
+          name: y.name,
+          description: y.description || "",
+          batchYear: y._id,
+          startDate: y.startDate,
+          endDate: y.endDate,
+          status: y.status || "upcoming",
+        })), { ordered: false }).catch((error) => {
+          if (error?.code !== 11000) throw error;
+        });
+      }
+    }
+
     const query = req.user.role === "mentor" ? { mentors: req.user._id } : {};
     const batches = await Batch.find(query)
       .populate("mentors", "fullName email")
