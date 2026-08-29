@@ -167,6 +167,16 @@ router.post("/assignments/:assignmentId", authorize("student"), upload.array("fi
       }))
     );
 
+    await Promise.allSettled(
+      recipients
+        .filter((recipient) => recipient.email)
+        .map((recipient) => sendEmail({
+          email: recipient.email,
+          subject: `Assignment submitted: ${assignment.title}`,
+          message: `${student.fullName} submitted ${assignment.title}.`,
+        }))
+    );
+
     res.status(201).json({ success: true, submission });
   } catch (error) {
     next(error);

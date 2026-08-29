@@ -38,13 +38,21 @@ router.get("/", async (req, res, next) => {
   try {
     let assignments;
     if (req.user.role === "student") {
+      const studentBatch = req.user.batch ? String(req.user.batch) : null;
+      const studentSessionIds = studentBatch
+        ? await require("../sessions/sessionModel").find({ batch: studentBatch }).select("_id").lean()
+        : [];
+
+      const visibleSessionIds = studentSessionIds.map((session) => session._id);
+
       assignments = await Assignment.find({
         $or: [
           { targetStudents: req.user._id },
           { targetStudents: { $size: 0 }, session: null },
-          { targetStudents: { $size: 0 }, session: { $ne: null }, batch: req.user.batch },
+          { targetStudents: { $size: 0 }, batch: studentBatch },
+          { targetStudents: { $size: 0 }, session: { $in: visibleSessionIds } },
         ],
-      }).populate("creator", "fullName role").populate("batch", "name startDate endDate").sort({ deadline: 1 });
+      }).populate("creator", "fullName role").populate("batch", "name startDate endDate").populate("session", "title").sort({ deadline: 1 });
     } else if (req.user.role === "mentor") {
       const students = await User.find({ mentor: req.user._id, role: "student", status: "approved", isActive: true }).select("_id");
       const mentorBatches = await Batch.find({ mentors: req.user._id }).select("_id");
