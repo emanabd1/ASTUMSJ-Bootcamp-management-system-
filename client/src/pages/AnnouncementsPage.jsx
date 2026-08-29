@@ -31,22 +31,21 @@ export default function AnnouncementsPage() {
         ),
       );
   useEffect(() => {
-    Promise.all([axiosInstance.get("/announcements"), axiosInstance.get("/batches")]).then(([announcementResponse, batchResponse]) => {
-      const announcements = announcementResponse.data.announcements || [];
-      setItems(announcements);
-      setBatches(batchResponse.data.batches || []);
+    axiosInstance
+      .get("/announcements")
+      .then((r) => setItems(r.data.announcements || []))
+      .catch((e) =>
+        setMessage(e.response?.data?.message || "Could not load announcements."),
+      );
 
-      const params = new URLSearchParams(location.search);
-      const announcementId = params.get("announcementId");
-      if (announcementId) {
-        setSelectedId(announcementId);
-        selectedIdRef.current = announcementId;
-      } else {
-        setSelectedId(null);
-        selectedIdRef.current = null;
-      }
-    }).catch((e) => setMessage(e.response?.data?.message || "Could not load announcements."));
-  }, [location.search]);
+    const canLoadBatches = user.role === "admin" || user.role === "mentor";
+    if (canLoadBatches) {
+      axiosInstance
+        .get("/batches")
+        .then((r) => setBatches(r.data.batches || []))
+        .catch(() => {});
+    }
+  }, [user.role]);
   const save = async (e) => {
     e.preventDefault();
     try {
