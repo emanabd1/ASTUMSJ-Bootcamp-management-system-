@@ -662,6 +662,7 @@ export default function SessionDetailPage() {
   }
 
   const { session, tasks, attendance } = data;
+  const visibleTasks = Array.isArray(tasks) ? tasks : [];
 
   // ------------------------------------------------------------
   // PAGE
@@ -1266,7 +1267,7 @@ export default function SessionDetailPage() {
             </h2>
 
             <span className="text-xs text-[#a39081]">
-              {tasks.length} task(s)
+              {visibleTasks.length} task(s)
             </span>
           </div>
 
@@ -1345,7 +1346,13 @@ export default function SessionDetailPage() {
             </form>
           )}
 
-          {tasks.map((item) => (
+          {visibleTasks.length === 0 && (
+            <p className="rounded border border-dashed border-[#4a3b32] p-4 text-sm text-[#a39081]">
+              No tasks have been assigned for this session yet.
+            </p>
+          )}
+
+          {visibleTasks.map((item) => (
             <article
               key={item._id}
               className="rounded border border-[#4a3b32] p-4"
