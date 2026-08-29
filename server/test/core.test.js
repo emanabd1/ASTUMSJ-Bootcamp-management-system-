@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const authorize = require("../src/middleware/roleMiddleware");
 const Attendance = require("../src/modules/attendance/attendanceModel");
 const Submission = require("../src/modules/assignments/assignmentSubmissionModel");
+const assignmentRoutes = require("../src/modules/assignments/assignmentRoutes");
 const {
   isAssignedToBatch,
   canStudentView,
@@ -57,6 +58,11 @@ test("submission schema supports resubmission tracking", () => {
   assert.ok(Submission.schema.path("resubmissionReason"));
   assert.ok(Submission.schema.path("version"));
   assert.deepEqual(Submission.schema.path("status").enumValues, ["submitted", "graded", "resubmission_requested"]);
+});
+
+test("assignment notifications build a valid task link", () => {
+  const link = assignmentRoutes.buildAssignmentNotificationLink("67c0be6d8d1fa020fa39f9c2");
+  assert.equal(link, "/assignments/67c0be6d8d1fa020fa39f9c2");
 });
 
 test("student can view only their own records", () => {

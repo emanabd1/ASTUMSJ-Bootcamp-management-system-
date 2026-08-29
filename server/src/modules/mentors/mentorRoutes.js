@@ -36,7 +36,7 @@ router.get("/dashboard", async (req, res, next) => {
     const [attendance, progress, pendingSubmissions, assignments, announcements] = await Promise.all([
       Attendance.find({ student: { $in: ids }, session: { $ne: null } }),
       Progress.find({ student: { $in: ids } }),
-      Submission.find({ student: { $in: ids }, status: "submitted" })
+      Submission.find({ student: { $in: ids }, status: { $in: ["submitted", "resubmission_requested"] } })
         .populate("student", "fullName")
         .populate("assignment", "title deadline"),
       Assignment.find({ creator: req.user._id }).sort({ createdAt: -1 }).limit(10),
